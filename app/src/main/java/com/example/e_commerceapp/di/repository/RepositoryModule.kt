@@ -1,6 +1,7 @@
 package com.example.e_commerceapp.di.repository
 
 import com.example.e_commerceapp.data.repository.ApiRepositoryImpl
+import com.example.e_commerceapp.data.repository.FirestoreCatalogRepositoryImpl
 import com.example.e_commerceapp.data.repository.FirebaseRepositoryImpl
 import com.example.e_commerceapp.data.repository.LocalRepositoryImpl
 import com.example.e_commerceapp.domain.repository.ApiRepository
@@ -21,11 +22,10 @@ abstract class RepositoryModule {
     abstract fun bindFirebaseRepository(
         repository: FirebaseRepositoryImpl,
     ): FirebaseRepository
-
     @Binds
     @ViewModelScoped
     abstract fun bindApiRepository(
-        repository: ApiRepositoryImpl,
+        repository: FirestoreCatalogRepositoryImpl,
     ): ApiRepository
 
     @Binds

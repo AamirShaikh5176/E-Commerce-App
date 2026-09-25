@@ -8,6 +8,9 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.components.ViewModelComponent
 import dagger.hilt.android.scopes.ViewModelScoped
 
+import com.example.e_commerceapp.data.data_source.remote.firebase.FirestoreCatalogDataSource
+import com.example.e_commerceapp.data.data_source.remote.firebase.FirestoreCatalogDataSourceImpl
+
 @Module
 @InstallIn(ViewModelComponent::class)
 abstract class FirebaseDataSourceModule {
@@ -17,4 +20,10 @@ abstract class FirebaseDataSourceModule {
     abstract fun bindDataSource(
         dataSource: FirebaseDataSourceImpl,
     ): FirebaseDataSource
+
+    @Binds
+    @ViewModelScoped
+    abstract fun bindFirestoreCatalogDataSource(
+        dataSource: FirestoreCatalogDataSourceImpl,
+    ): FirestoreCatalogDataSource
 }
