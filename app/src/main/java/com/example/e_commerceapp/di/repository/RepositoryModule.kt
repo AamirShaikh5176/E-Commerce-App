@@ -34,4 +34,9 @@ abstract class RepositoryModule {
         repository: LocalRepositoryImpl,
     ): LocalRepository
 
+    @Binds
+    @ViewModelScoped
+    abstract fun bindAddressRepository(
+        repository: com.example.e_commerceapp.data.repository.AddressRepositoryImpl,
+    ): com.example.e_commerceapp.domain.repository.AddressRepository
 }

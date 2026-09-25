@@ -53,6 +53,15 @@ object PaymentResultScreen : AppDestinations {
     override val route = "paymentResult"
 }
 
+// --------------------- Address Destinations ---------------------
+object AddressSelectionDestination : AppDestinations {
+    override val route = "address_selection"
+}
+
+object AddEditAddressDestination : AppDestinations {
+    override val route = "add_edit_address"
+}
+
 // --------------------- Admin Destinations ---------------------
 object AdminDashboardDestination : AppDestinations {
     override val route = "admin_dashboard"

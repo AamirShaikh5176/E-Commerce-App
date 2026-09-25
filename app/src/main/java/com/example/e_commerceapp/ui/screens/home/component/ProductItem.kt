@@ -43,6 +43,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import com.example.e_commerceapp.R
 import com.example.e_commerceapp.domain.entity.product.ProductEntity
+import com.example.e_commerceapp.utils.CurrencyUtils
+import androidx.compose.ui.text.style.TextDecoration
 
 @Composable
 fun ProductItem(
@@ -119,38 +121,56 @@ fun ProductItem(
                 )
             }
 
+            // 💰 Indian Rupee Price, MRP & Savings
             Row(
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.LocalOffer,
-                    contentDescription = null,
-                    tint = Color(0xFFF57C00),
-                    modifier = Modifier.size(16.dp)
-                )
-
-                Spacer(modifier = Modifier.width(6.dp))
-
                 Text(
-                    text = "${product.discountPercentage}% OFF",
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp
+                    text = CurrencyUtils.formatInr(product.price),
+                    color = Color(0xFF0F172A),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                    fontFamily = FontFamily(Font(R.font.medium))
                 )
+                if (product.mrpPrice > product.price) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = CurrencyUtils.formatInr(product.mrpPrice),
+                        color = Color(0xFF94A3B8),
+                        fontSize = 12.sp,
+                        textDecoration = TextDecoration.LineThrough
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .background(Color(0xFFDCFCE7), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "${product.discountPercentage.toInt()}% OFF",
+                            color = Color(0xFF16A34A),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 10.sp
+                        )
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
+            // Delivery & COD info
             Text(
-                text = "${product.price} $",
-                color = Color(0xFF4CAF50),
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 22.sp,
-                fontFamily = FontFamily(Font(R.font.medium)),
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                text = "Free Delivery • ${if (product.isCodAvailable) "COD Available" else "Prepaid"}",
+                color = Color(0xFF059669),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(horizontal = 8.dp)
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
         }
     }
 }

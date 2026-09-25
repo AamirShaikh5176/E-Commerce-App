@@ -1,6 +1,7 @@
 package com.example.e_commerceapp.ui.screens.common
 
 import android.annotation.SuppressLint
+import com.example.e_commerceapp.utils.CurrencyUtils
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -82,11 +83,12 @@ fun CheckoutBar(
                     Spacer(modifier = Modifier.padding(6.dp))
 
                     Text(
-                        text = "$totalPrice EGP",
-                        color = Color(0xFF4CAF50),
+                        text = CurrencyUtils.formatInr(totalPrice),
+                        color = Color(0xFF10B981),
                         fontSize = 20.sp,
                         modifier = Modifier.padding(bottom = 4.dp),
-                        fontFamily = FontFamily(Font(R.font.medium))
+                        fontFamily = FontFamily(Font(R.font.medium)),
+                        fontWeight = FontWeight.Bold
                     )
 
 

@@ -22,6 +22,8 @@ import com.example.e_commerceapp.ui.screens.payment.paymetMethod.PaymentMethodSc
 import com.example.e_commerceapp.ui.screens.profile.ProfileScreen
 import com.example.e_commerceapp.ui.screens.serach.SearchScreen
 import com.example.e_commerceapp.ui.screens.splash.SplashScreen
+import com.example.e_commerceapp.ui.screens.address.AddEditAddressScreen
+import com.example.e_commerceapp.ui.screens.address.AddressSelectionScreen
 import com.example.e_commerceapp.ui.screens.admin.AddEditProductScreen
 import com.example.e_commerceapp.ui.screens.admin.AdminCategoryScreen
 import com.example.e_commerceapp.ui.screens.admin.AdminDashboardScreen
@@ -104,7 +106,7 @@ fun AppNavHost(
             ProductDetailScreen(
                 productId = productId,
                 onBuyNowClick = {
-                    val route = "${PaymentMethodScreen.route}/${it.price}"
+                    val route = "${AddressSelectionDestination.route}/${it.price}"
                     navController.navigate(route = route)
                 },
                 onBackClick = { navController.popBackStack() },
@@ -114,7 +116,7 @@ fun AppNavHost(
         composable(CartScreen.route) {
             CartScreen(
                 onCheckoutClicked = { totalPrice ->
-                    val route = "${PaymentMethodScreen.route}/${totalPrice}"
+                    val route = "${AddressSelectionDestination.route}/${totalPrice}"
                     navController.navigate(route = route)
                 },
                 onCartClicked = {
@@ -152,6 +154,9 @@ fun AppNavHost(
                 onSettings = {},
                 onClickedChangeTheme = {},
                 onClickedChangePass = {},
+                onNavigateToAddresses = {
+                    navController.navigate("${AddressSelectionDestination.route}/0.0")
+                },
                 onNavigateToAdmin = {
                     navController.navigate(AdminDashboardDestination.route)
                 }
@@ -231,6 +236,47 @@ fun AppNavHost(
                         )
                     }
                 }
+            )
+        }
+
+        // --------------------- Address Routes ---------------------
+        composable(
+            route = "${AddressSelectionDestination.route}/{totalPrice}",
+            arguments = listOf(navArgument("totalPrice") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val totalPrice = backStackEntry.arguments?.getString("totalPrice") ?: "0.0"
+
+            AddressSelectionScreen(
+                totalPrice = totalPrice,
+                onBackClick = { navController.popBackStack() },
+                onAddNewAddress = { navController.navigate(AddEditAddressDestination.route) },
+                onEditAddress = { addressId ->
+                    navController.navigate("${AddEditAddressDestination.route}/$addressId")
+                },
+                onDeliverHere = { address ->
+                    val route = "${PaymentMethodScreen.route}/$totalPrice"
+                    navController.navigate(route = route)
+                }
+            )
+        }
+
+        composable(AddEditAddressDestination.route) {
+            AddEditAddressScreen(
+                addressId = null,
+                onBackClick = { navController.popBackStack() },
+                onAddressSaved = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = "${AddEditAddressDestination.route}/{addressId}",
+            arguments = listOf(navArgument("addressId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val addressId = backStackEntry.arguments?.getString("addressId")
+            AddEditAddressScreen(
+                addressId = addressId,
+                onBackClick = { navController.popBackStack() },
+                onAddressSaved = { navController.popBackStack() }
             )
         }
 

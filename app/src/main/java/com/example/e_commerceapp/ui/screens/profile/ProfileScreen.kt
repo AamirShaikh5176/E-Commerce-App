@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.ColorLens
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Password
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Card
@@ -72,6 +73,7 @@ fun ProfileScreen(
     onSettings: () -> Unit,
     onClickedChangeTheme: () -> Unit,
     onClickedChangePass: () -> Unit,
+    onNavigateToAddresses: () -> Unit = {},
     onNavigateToAdmin: () -> Unit = {},
     logout: () -> Unit,
 ) {
@@ -95,6 +97,7 @@ fun ProfileScreen(
             onSettings = onSettings,
             onClickedChangeTheme = onClickedChangeTheme,
             onClickedChangePass = onClickedChangePass,
+            onNavigateToAddresses = onNavigateToAddresses,
             onNavigateToAdmin = onNavigateToAdmin,
             onLogout = {
                 logout()
@@ -113,6 +116,7 @@ fun ProfileScreenContent(
     onSettings: () -> Unit,
     onClickedChangeTheme: () -> Unit,
     onClickedChangePass: () -> Unit,
+    onNavigateToAddresses: () -> Unit = {},
     onNavigateToAdmin: () -> Unit = {},
     onLogout: () -> Unit,
 ) {
@@ -202,6 +206,14 @@ fun ProfileScreenContent(
                 icon = Icons.Outlined.Edit,
                 title = "Edit Profile",
                 onClick = { showSheet = true }
+            )
+
+            HorizontalLine()
+
+            ProfileOptionItem(
+                icon = Icons.Outlined.LocationOn,
+                title = "Delivery Addresses",
+                onClick = onNavigateToAddresses
             )
 
             HorizontalLine()
