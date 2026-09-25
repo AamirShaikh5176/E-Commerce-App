@@ -184,32 +184,37 @@ fun AppNavHost(
             PaymentMethodScreen(
                 totalPrice = totalPrice,
                 onBackClick = { navController.popBackStack() },
-                moveToPaymentWebView = { paymentKey, paymentMethod ->
-                    val route = "${PaymentWebViewScreen.route}/${paymentKey}/${paymentMethod}"
-                    navController.navigate(route = route)
+                onPaymentCompleted = { orderId, success ->
+                    val route = "${PaymentResultScreen.route}/$success/$orderId"
+                    navController.navigate(route = route) {
+                        popUpTo(PaymentMethodScreen.route) {
+                            inclusive = true
+                        }
+                    }
                 }
             )
         }
 
         composable(
-            route = "${PaymentWebViewScreen.route}/{paymentKey}/{paymentMethod}",
+            route = "${PaymentResultScreen.route}/{paymentSuccess}/{orderId}",
             arguments = listOf(
-                navArgument("paymentKey") { type = NavType.StringType },
-                navArgument("paymentMethod") { type = NavType.StringType }
+                navArgument("paymentSuccess") { type = NavType.BoolType },
+                navArgument("orderId") { type = NavType.StringType }
             )
         ) { backStackEntry ->
-            val paymentKey = backStackEntry.arguments?.getString("paymentKey") ?: ""
-            val paymentMethod = backStackEntry.arguments?.getString("paymentMethod") ?: ""
+            val paymentSuccess = backStackEntry.arguments?.getBoolean("paymentSuccess") ?: false
+            val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
 
-            PaymentWebViewScreen(
-                paymentKey = paymentKey,
-                paymentMethod = PaymentMethod.valueOf(paymentMethod),
-                moveToPaymentResultScreen = { paymentSuccess ->
-                    val route = "${PaymentResultScreen.route}/${paymentSuccess}"
-                    navController.navigate(route = route) {
-                        popUpTo(PaymentMethodScreen.route) {
-                            inclusive = false
-                        }  // remove all top screens except cart screen
+            PaymentResultScreen(
+                paymentSuccess = paymentSuccess,
+                orderId = orderId,
+                onButtonClicked = {
+                    if (paymentSuccess) {
+                        navController.navigate(HomeScreen.route) {
+                            popUpTo(0)
+                        }
+                    } else {
+                        navController.popBackStack()
                     }
                 }
             )
@@ -223,17 +228,14 @@ fun AppNavHost(
 
             PaymentResultScreen(
                 paymentSuccess = paymentSuccess,
+                orderId = "",
                 onButtonClicked = {
                     if (paymentSuccess) {
                         navController.navigate(HomeScreen.route) {
-                            popUpTo(0) // delete all back stack
+                            popUpTo(0)
                         }
                     } else {
-                        // back to PaymentMethodScreen
-                        navController.popBackStack(
-                            route = PaymentMethodScreen.route,
-                            inclusive = false
-                        )
+                        navController.popBackStack()
                     }
                 }
             )

@@ -40,6 +40,10 @@ class LocalRepositoryImpl @Inject constructor(
         return appDao.getBadgeCount()
     }
 
+    override suspend fun clearCart() {
+        appDao.clearCart()
+    }
+
     override suspend fun getAllFavoriteProductsFromDb(): Flow<List<FavoriteProductEntity>> {
         return appDao.getAllFavoriteProducts()
     }

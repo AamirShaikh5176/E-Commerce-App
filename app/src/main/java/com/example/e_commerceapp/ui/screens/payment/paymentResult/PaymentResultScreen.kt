@@ -1,11 +1,18 @@
 package com.example.e_commerceapp.ui.screens.payment.paymentResult
 
-import android.util.Log
-import androidx.compose.foundation.Image
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,21 +20,39 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.LocalShipping
+import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -36,150 +61,300 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.e_commerceapp.R
 import com.example.e_commerceapp.ui.screens.common.HideNavigationBarOnly
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun PaymentResultScreen(
     paymentSuccess: Boolean,
+    orderId: String = "",
     onButtonClicked: () -> Unit,
+    onViewOrdersClicked: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     HideNavigationBarOnly()
 
-    if (paymentSuccess) {
-        PaymentResultContent(
-            paymentSuccess = true,
-            title = "Payment Successful",
-            description = "Your transaction was successful. Thank you for your purchase.",
-            buttonText = "Back To Home",
-            onButtonClicked = onButtonClicked
-        )
-    } else {
-        PaymentResultContent(
-            paymentSuccess = false,
-            title = "Payment Failed",
-            description = "Your transaction has failed due to some technical error. Please try again.",
-            buttonText = "Try Again",
-            onButtonClicked = onButtonClicked
-        )
+    val context = LocalContext.current
+    val effectiveOrderId = remember(orderId) {
+        if (orderId.isNotBlank()) orderId else "OD" + System.currentTimeMillis().toString().takeLast(9)
     }
-}
 
+    var animateIn by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        animateIn = true
+    }
 
-@Composable
-fun PaymentResultContent(
-    paymentSuccess: Boolean,
-    title: String,
-    description: String,
-    buttonText: String,
-    onButtonClicked: () -> Unit,
-) {
+    val scale by animateFloatAsState(
+        targetValue = if (animateIn) 1f else 0.4f,
+        animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
+        label = "celebration_scale"
+    )
+
+    val deliveryDateStr = remember {
+        val cal = Calendar.getInstance()
+        cal.add(Calendar.DAY_OF_YEAR, 3)
+        SimpleDateFormat("EEE, dd MMM yyyy", Locale.ENGLISH).format(cal.time)
+    }
+
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
+            .background(Color(0xFFF8F9FA))
             .statusBarsPadding()
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = 20.dp)
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Spacer(modifier = Modifier.height(40.dp))
 
-        // Illustration Image
         if (paymentSuccess) {
-            Spacer(modifier = Modifier.height(50.dp))
-
+            // Success Animated Badge
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(250.dp),
+                    .size(110.dp)
+                    .scale(scale)
+                    .background(Color(0xFFDCFCE7), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.pngwing),
-                    contentDescription = "Payment Failed",
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .alpha(0.8f),
-                    contentScale = ContentScale.Crop,
-                )
-
                 Box(
                     modifier = Modifier
-                        .size(130.dp)
-                        .clip(CircleShape).
-                        background(Color(0xFFC6F1FC)),
+                        .size(80.dp)
+                        .background(Color(0xFF22C55E), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(100.dp)
-                            .clip(CircleShape).
-                            background(Color(0xFFABEDFD)),
-                        contentAlignment = Alignment.Center
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Success",
+                        tint = Color.White,
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "Order Placed Successfully! 🎉",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1E293B),
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Thank you for shopping with us! We have received your order and are getting it ready.",
+                fontSize = 14.sp,
+                color = Color(0xFF64748B),
+                textAlign = TextAlign.Center,
+                lineHeight = 20.sp
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Order Details Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    // Order ID row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.success),
-                            contentDescription = "Payment Failed",
+                        Column {
+                            Text(
+                                text = "ORDER NUMBER",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF64748B),
+                                letterSpacing = 0.5.sp
+                            )
+                            Text(
+                                text = "#$effectiveOrderId",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E293B)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                val clip = ClipData.newPlainText("Order ID", effectiveOrderId)
+                                clipboard.setPrimaryClip(clip)
+                                Toast.makeText(context, "Order ID copied to clipboard", Toast.LENGTH_SHORT).show()
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ContentCopy,
+                                contentDescription = "Copy Order ID",
+                                tint = colorResource(R.color.dark_blue),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+
+                    // Estimated Delivery Row
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
                             modifier = Modifier
-                                .size(75.dp)
+                                .size(36.dp)
+                                .background(Color(0xFFE0F2FE), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.LocalShipping,
+                                contentDescription = null,
+                                tint = Color(0xFF0369A1),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Estimated Delivery",
+                                fontSize = 12.sp,
+                                color = Color(0xFF64748B)
+                            )
+                            Text(
+                                text = deliveryDateStr,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E293B)
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+
+                    // Status pill
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Order Status",
+                            fontSize = 13.sp,
+                            color = Color(0xFF475569)
                         )
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color(0xFFDCFCE7)
+                        ) {
+                            Text(
+                                text = "CONFIRMED",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF15803D),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
                     }
                 }
             }
-        } else {
-            Spacer(modifier = Modifier.height(100.dp))
 
-            Image(
-                painter = painterResource(id = R.drawable.payment_error3),
-                contentDescription = "Payment Failed",
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Updates notice
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = Color(0xFFF0FDF4),
+                border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "📦 We'll send real-time delivery and SMS tracking updates to your registered mobile number.",
+                    fontSize = 12.sp,
+                    color = Color(0xFF166534),
+                    modifier = Modifier.padding(12.dp),
+                    lineHeight = 16.sp
+                )
+            }
+        } else {
+            // Failure State
+            Box(
                 modifier = Modifier
-                    .size(180.dp)
+                    .size(110.dp)
+                    .scale(scale)
+                    .background(Color(0xFFFEE2E2), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .background(Color(0xFFEF4444), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Failed",
+                        tint = Color.White,
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "Payment Failed",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1E293B),
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "The transaction could not be processed due to a temporary network issue. If any amount was debited, it will be refunded within 3-5 business days.",
+                fontSize = 14.sp,
+                color = Color(0xFF64748B),
+                textAlign = TextAlign.Center,
+                lineHeight = 20.sp
             )
         }
 
-        Spacer(modifier = Modifier.height(70.dp))
-
-        // Title
-        Text(
-            text = title,
-            fontSize = 32.sp,
-            color = Color.Black,
-        )
-
-        Spacer(modifier = Modifier.height(36.dp))
-
-        // Description
-        Text(
-            text = description,
-            fontSize = 18.sp,
-            color = Color.Black,
-            textAlign = TextAlign.Center,
-            lineHeight = 22.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier
-                .fillMaxWidth(),
-            fontFamily = FontFamily(Font(R.font.light))
-        )
-
         Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.height(30.dp))
 
-        // Try Again Button
+        // Action Buttons
         Button(
             onClick = onButtonClicked,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp),
-            shape = RoundedCornerShape(26.dp),
+                .height(50.dp),
+            shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = colorResource(R.color.main_color)
-            ),
-            contentPadding = PaddingValues(top = 6.dp)
+                containerColor = if (paymentSuccess) colorResource(R.color.dark_blue) else Color(0xFFEF4444)
+            )
         ) {
+            Icon(
+                imageVector = if (paymentSuccess) Icons.Default.ShoppingBag else Icons.Default.Close,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = buttonText,
-                fontSize = 20.sp,
-                color = Color.White,
-                fontFamily = FontFamily(Font(R.font.medium)),
+                text = if (paymentSuccess) "Continue Shopping" else "Try Again",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
             )
         }
 
-        Spacer(modifier = Modifier.height(60.dp))
+        Spacer(modifier = Modifier.height(30.dp))
     }
 }

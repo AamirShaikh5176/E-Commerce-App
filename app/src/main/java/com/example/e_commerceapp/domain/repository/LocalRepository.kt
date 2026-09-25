@@ -20,6 +20,8 @@ interface LocalRepository {
 
     suspend fun getBadgeCountFromDb(): Flow<Int>
 
+    suspend fun clearCart()
+
 
     suspend fun getAllFavoriteProductsFromDb(): Flow<List<FavoriteProductEntity>>
 

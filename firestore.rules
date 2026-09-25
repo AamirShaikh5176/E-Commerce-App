@@ -6,9 +6,19 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // STRICT ADMIN RULE: Requires cryptographically signed Firebase Custom Claim
-    function isAdmin() {
+    // STRICT DUAL VERIFICATION: Requires BOTH cryptographically signed Firebase Custom Claim AND Firestore Admin Role
+    function hasAdminClaim() {
       return isAuthenticated() && (request.auth.token.admin == true || request.auth.token.role == 'admin');
+    }
+
+    function hasAdminFirestoreRole() {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isAdmin() {
+      return hasAdminClaim() && hasAdminFirestoreRole();
     }
     
     function isOwner(userId) {

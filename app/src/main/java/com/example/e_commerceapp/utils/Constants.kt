@@ -11,10 +11,8 @@ object Constants {
     const val USER_TOKEN = "USER_TOKEN"
     const val USER_TOKEN_EXPIRATION_TIME = "USER_TOKEN_EXPIRATION_TIME"
 
-    const val PAYMOB_BASE_URL = "https://accept.paymob.com/api/"
-    const val PAYMOB_API_KEY =
-        "ZXlKaGJHY2lPaUpJVXpVeE1pSXNJblI1Y0NJNklrcFhWQ0o5LmV5SmpiR0Z6Y3lJNklrMWxjbU5vWVc1MElpd2ljSEp2Wm1sc1pWOXdheUk2TVRFeE5UTTJOU3dpYm1GdFpTSTZJbWx1YVhScFlXd2lmUS5USWNoNkpianRXSUxNbWQ4cExXLS11NzFKY2xRWmxJcEdpWHhQSUdJNkExWW9rUlNFZks1bnlPZnhURndBQm1HOXc2czJfR0wwTVVpVW9mcDlqRWMwUQ=="
-    const val PAYMOB_INTEGRATION_ID_CARD = 5438435
-    const val PAYMOB_CREDIT_CARD_IFRAME_ID = "988012"
-    const val PAYMOB_WALLET_IFRAME_ID = "992036"
+    // Indian Payment Constants (Client publishable identifier - NO secrets stored in Android APK)
+    const val DEFAULT_UPI_MERCHANT_VPA = "ecommerce.orders@okaxis"
+    const val DEFAULT_UPI_MERCHANT_NAME = "Festive Indian Store"
+    const val RAZORPAY_CLIENT_KEY = "rzp_test_indian_ecommerce_pub"
 }

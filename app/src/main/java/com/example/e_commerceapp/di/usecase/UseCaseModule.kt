@@ -85,7 +85,8 @@ object UseCaseModule {
             getOneCart = GetOneCart(localRepository),
             updateCart = UpdateCart(localRepository),
             deleteCart = DeleteCart(localRepository),
-            getUserCartBadge = GetUserCartBadge(localRepository)
+            getUserCartBadge = GetUserCartBadge(localRepository),
+            clearCart = com.example.e_commerceapp.domain.usecase.cart.ClearCart(localRepository)
         )
     }
 

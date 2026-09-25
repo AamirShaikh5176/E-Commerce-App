@@ -34,6 +34,9 @@ interface AppDao {
     @Query("SELECT COUNT(*) FROM user_carts")
     fun getBadgeCount(): Flow<Int>
 
+    @Query("DELETE FROM user_carts")
+    suspend fun clearCart()
+
     //------------------ Favorite Products Table -----------------------
 
     @Insert(FavoriteProductEntity::class, onConflict = OnConflictStrategy.REPLACE)

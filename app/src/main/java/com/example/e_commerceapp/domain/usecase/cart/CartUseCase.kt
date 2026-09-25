@@ -8,4 +8,5 @@ data class CartUseCase(
     val updateCart: UpdateCart,
     val deleteCart: DeleteCart,
     val getUserCartBadge: GetUserCartBadge,
+    val clearCart: ClearCart,
 )

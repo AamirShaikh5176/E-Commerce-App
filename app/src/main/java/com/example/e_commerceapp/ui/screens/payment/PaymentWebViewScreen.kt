@@ -12,22 +12,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.e_commerceapp.ui.screens.payment.paymetMethod.PaymentMethod
-import com.example.e_commerceapp.utils.Constants.PAYMOB_CREDIT_CARD_IFRAME_ID
-import com.example.e_commerceapp.utils.Constants.PAYMOB_WALLET_IFRAME_ID
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun PaymentWebViewScreen(
     paymentKey: String,
-    paymentMethod: PaymentMethod,
+    paymentMethod: PaymentMethod = PaymentMethod.CARD,
     moveToPaymentResultScreen: (paymentSuccess: Boolean) -> Unit,
 ) {
-    val url = if (paymentMethod == PaymentMethod.CREDIT_CARD) {
-        "https://accept.paymob.com/api/acceptance/iframes/${PAYMOB_CREDIT_CARD_IFRAME_ID}?payment_token=$paymentKey"
+    // Online gateway checkout URL (passed as paymentKey URL or gateway endpoint)
+    val url = if (paymentKey.startsWith("http")) {
+        paymentKey
     } else {
-        "https://accept.paymob.com/api/acceptance/iframes/${PAYMOB_WALLET_IFRAME_ID}?payment_token=$paymentKey"
+        "https://api.razorpay.com/v1/checkout/embedded?order_id=$paymentKey"
     }
-
 
     Scaffold { paddingValues ->
         AndroidView(
@@ -43,16 +41,12 @@ fun PaymentWebViewScreen(
                             request: WebResourceRequest?,
                         ): Boolean {
                             val urlString = request?.url.toString()
-
                             Log.i("PaymentWebView", "urlString: $urlString")
 
-                            // Check for success/failure parameters in the redirect URL
-                            // Paymob callback params usually include: success=true/false
-
-                            if (urlString.contains("success=true")) {
+                            if (urlString.contains("success=true") || urlString.contains("payment_status=success") || urlString.contains("status=captured")) {
                                 moveToPaymentResultScreen(true)
                                 return true
-                            } else if (urlString.contains("success=false")) {
+                            } else if (urlString.contains("success=false") || urlString.contains("payment_status=failed") || urlString.contains("status=failed")) {
                                 moveToPaymentResultScreen(false)
                                 return true
                             }
@@ -66,5 +60,3 @@ fun PaymentWebViewScreen(
         )
     }
 }
-
-
