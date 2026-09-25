@@ -1,0 +1,95 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# ================================
+# Android Studio
+# ================================
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Android Studio / IntelliJ user files
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/dictionaries/
+.idea/**/shelf/
+
+# ================================
+# Gradle
+# ================================
+.gradle/
+build/
+*/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Gradle local configuration
+local.properties
+
+# ================================
+# Environment & Secrets
+# ================================
+.env
+.env.*
+*.env
+
+secrets.properties
+secrets.gradle
+
+# ================================
+# Signing / Keystores
+# ================================
+*.jks
+*.keystore
+keystore.properties
+
+# ================================
+# Android generated files
+# ================================
+.externalNativeBuild/
+.cxx/
+captures/
+
+# ================================
+# Kotlin
+# ================================
+.kotlin/
+
+# ================================
+# Firebase / Google generated files
+# ================================
+# Keep google-services.json in the repository.
+# Do NOT ignore it unless you intentionally manage it separately.
+
+# ================================
+# OS files
+# ================================
+.DS_Store
+Thumbs.db
+
+# ================================
+# Logs
+# ================================
+*.log
+
+# ================================
+# Temporary files
+# ================================
+*.tmp
+*.temp
+*.swp
+*.swo
