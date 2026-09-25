@@ -27,7 +27,7 @@ class ProductDetailsViewModel @Inject constructor(
     val productDetailsState: StateFlow<ScreenState<ProductDetailsEntity>> = _productDetailsState
 
 
-    fun getProductDetails(productId: Int) {
+    fun getProductDetails(productId: String) {
         viewModelScope.launch {
 
             _productDetailsState.update {
@@ -67,14 +67,14 @@ class ProductDetailsViewModel @Inject constructor(
     }
 
 
-    private suspend fun isFavoriteProduct(productId: Int): Boolean {
+    private suspend fun isFavoriteProduct(productId: String): Boolean {
         val favoriteProduct = favoriteUseCase.getOneFavoriteProduct(productId)
         return if (favoriteProduct != null) true
         else false
     }
 
-    private suspend fun isAddedToCart(productId: Int): Boolean {
-        val cartProduct = cartUseCase.getOneCart(productId.toString())
+    private suspend fun isAddedToCart(productId: String): Boolean {
+        val cartProduct = cartUseCase.getOneCart(productId)
         return if (cartProduct != null) true
         else false
     }

@@ -8,7 +8,7 @@ import androidx.room.PrimaryKey
 data class FavoriteProductEntity(
     @PrimaryKey
     @ColumnInfo(name = "product_id")
-    val productId: Int,
+    val productId: String,
     @ColumnInfo(name = "product_title")
     val title: String,
     @ColumnInfo(name = "product_description")

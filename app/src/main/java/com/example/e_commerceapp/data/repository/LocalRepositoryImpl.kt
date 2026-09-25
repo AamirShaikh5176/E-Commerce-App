@@ -4,7 +4,7 @@ import com.example.e_commerceapp.data.data_source.local.AppDao
 import com.example.e_commerceapp.domain.entity.cart.UserCartEntity
 import com.example.e_commerceapp.domain.entity.product.FavoriteProductEntity
 import com.example.e_commerceapp.domain.repository.LocalRepository
-import jakarta.inject.Inject
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
@@ -44,7 +44,7 @@ class LocalRepositoryImpl @Inject constructor(
         return appDao.getAllFavoriteProducts()
     }
 
-    override suspend fun getOneFavoriteProductByProductId(productId: Int): FavoriteProductEntity {
+    override suspend fun getOneFavoriteProductByProductId(productId: String): FavoriteProductEntity {
         return appDao.getOneFavoriteProductByProductId(productId)
     }
 

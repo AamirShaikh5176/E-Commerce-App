@@ -23,7 +23,7 @@ interface LocalRepository {
 
     suspend fun getAllFavoriteProductsFromDb(): Flow<List<FavoriteProductEntity>>
 
-    suspend fun getOneFavoriteProductByProductId(productId: Int): FavoriteProductEntity
+    suspend fun getOneFavoriteProductByProductId(productId: String): FavoriteProductEntity
 
     suspend fun insertFavoriteProductToDb(favoriteProductEntity: FavoriteProductEntity)
 

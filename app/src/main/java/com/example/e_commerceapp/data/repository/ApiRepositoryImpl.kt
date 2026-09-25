@@ -10,7 +10,7 @@ import com.example.e_commerceapp.domain.entity.product.ProductDetailsEntity
 import com.example.e_commerceapp.domain.entity.product.ProductEntity
 import com.example.e_commerceapp.domain.entity.product.SearchProductEntity
 import com.example.e_commerceapp.domain.repository.ApiRepository
-import jakarta.inject.Inject
+import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -30,7 +30,7 @@ class ApiRepositoryImpl @Inject constructor(
     }.flowOn(ioDispatcher)
 
 
-    override fun getSingleProductByIdFromApi(productId: Int): Flow<ProductDetailsEntity> = flow {
+    override fun getSingleProductByIdFromApi(productId: String): Flow<ProductDetailsEntity> = flow {
         val response = apiService.getSingleProductByIdFromApi(productId)
 
         // convert ProductDto to DetailProductEntity

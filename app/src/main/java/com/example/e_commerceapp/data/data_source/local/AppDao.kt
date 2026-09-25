@@ -43,7 +43,7 @@ interface AppDao {
     fun getAllFavoriteProducts(): Flow<List<FavoriteProductEntity>>
 
     @Query("SELECT * FROM favorite_products WHERE product_id = :productId")
-    suspend fun getOneFavoriteProductByProductId(productId: Int): FavoriteProductEntity
+    suspend fun getOneFavoriteProductByProductId(productId: String): FavoriteProductEntity
 
     @Delete(FavoriteProductEntity::class)
     suspend fun deleteFavoriteItem(favoriteProductEntity: FavoriteProductEntity)

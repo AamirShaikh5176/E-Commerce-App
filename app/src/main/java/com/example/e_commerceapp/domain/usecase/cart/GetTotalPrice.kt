@@ -1,7 +1,7 @@
 package com.example.e_commerceapp.domain.usecase.cart
 
 import com.example.e_commerceapp.domain.repository.LocalRepository
-import jakarta.inject.Inject
+import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 
 class GetTotalPrice @Inject constructor(

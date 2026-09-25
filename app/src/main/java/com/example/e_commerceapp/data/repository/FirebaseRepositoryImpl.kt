@@ -5,7 +5,7 @@ import com.example.e_commerceapp.domain.entity.user.UserInformationEntity
 import com.example.e_commerceapp.domain.repository.FirebaseRepository
 import com.example.e_commerceapp.utils.TokenManager
 import com.mustafaunlu.ecommerce_compose.data.source.remote.FirebaseDataSource
-import jakarta.inject.Inject
+import javax.inject.Inject
 
 class FirebaseRepositoryImpl @Inject constructor(
     private val firebaseDataSource: FirebaseDataSource,

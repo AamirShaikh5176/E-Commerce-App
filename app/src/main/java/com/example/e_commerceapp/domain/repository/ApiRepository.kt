@@ -10,7 +10,7 @@ interface ApiRepository {
 
     fun getProductsListFromApi(): Flow<List<ProductEntity>>
 
-    fun getSingleProductByIdFromApi(productId: Int): Flow<ProductDetailsEntity>
+    fun getSingleProductByIdFromApi(productId: String): Flow<ProductDetailsEntity>
 
     fun getProductsListBySearchFromApi(query: String): Flow<List<SearchProductEntity>>
 

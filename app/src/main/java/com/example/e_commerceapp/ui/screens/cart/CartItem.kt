@@ -180,7 +180,7 @@ fun CartItem(
 fun CartItemPreview() {
     CartItem(
         userCartEntity = UserCartEntity(
-            productId = 1,
+            productId = "1",
             title = "Essence Mascara Lash Princess",
             description = "The Essence Mascara Lash Princess is a popular mascara known for its volumizing and lengthening effects. Achieve dramatic lashes with this long-lasting and cruelty-free formula.",
             price = 9.99,

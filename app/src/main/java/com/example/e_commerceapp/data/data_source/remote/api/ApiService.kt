@@ -15,7 +15,7 @@ interface ApiService {
     suspend fun getProductsListBySearchFromApi(@Query("q") query: String): ProductsResponse
 
     @GET("products/{id}")
-    suspend fun getSingleProductByIdFromApi(@Path("id") productId: Int): ProductDto
+    suspend fun getSingleProductByIdFromApi(@Path("id") productId: String): ProductDto
 
     @GET("products/categories")
     suspend fun getAllCategoriesFromApi(): List<Category>

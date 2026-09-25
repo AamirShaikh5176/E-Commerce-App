@@ -274,7 +274,7 @@ fun SuccessScreenPreview() {
     SuccessScreen(
         listUserCartEntity = listOf(
             UserCartEntity(
-                productId = 1,
+                productId = "1",
                 title = "Product 1",
                 description = "The Essence Mascara Lash Princess is a popular mascara known for its volumizing",
                 price = 10.0,
@@ -284,7 +284,7 @@ fun SuccessScreenPreview() {
                 availableQuantity = 20
             ),
             UserCartEntity(
-                productId = 2,
+                productId = "2",
                 title = "Product 2",
                 description = "The Essence Mascara Lash Princess is a popular mascara known for its volumizing",
                 price = 20.0,

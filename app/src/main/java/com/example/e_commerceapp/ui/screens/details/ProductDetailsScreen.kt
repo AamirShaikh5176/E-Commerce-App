@@ -71,7 +71,7 @@ import java.util.Locale
 
 @Composable
 fun ProductDetailScreen(
-    productId: Int,
+    productId: String,
     onBuyNowClick: (ProductDetailsEntity) -> Unit,
     onBackClick: () -> Unit,
     viewModel: ProductDetailsViewModel = hiltViewModel(),
@@ -423,7 +423,7 @@ private fun showToast(mes: String, context: Context) {
 @Composable
 fun ProductDetailScreenPreview() {
     ProductDetailScreen(
-        productId = 5,
+        productId = "5",
         onBuyNowClick = {},
         onBackClick = {},
     )

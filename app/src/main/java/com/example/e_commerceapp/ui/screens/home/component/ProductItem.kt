@@ -189,7 +189,7 @@ fun RatingStars(
 fun PreviewProductItem() {
     ProductItem(
         product = ProductEntity(
-            id = 1,
+            id = "1",
             title = "Product 1",
             description = "Product 1 description",
             rating = 4.5,

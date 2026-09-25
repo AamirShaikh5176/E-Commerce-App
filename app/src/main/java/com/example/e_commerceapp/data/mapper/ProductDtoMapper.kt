@@ -8,14 +8,19 @@ import com.example.e_commerceapp.domain.entity.product.SearchProductEntity
 fun List<ProductDto>.toListProductEntity(): List<ProductEntity> {
     return map { dto ->
         ProductEntity(
-            id = dto.id,
+            id = dto.id.toString(),
             title = dto.title,
             description = dto.description,
             price = dto.price,
             imageUrl = dto.images[0],
             rating = dto.rating,
             quantity = dto.minimumOrderQuantity,
-            discountPercentage = dto.discountPercentage
+            discountPercentage = dto.discountPercentage,
+            mrpPrice = dto.price * 1.35,
+            stockQuantity = dto.stock,
+            brand = dto.brand ?: "",
+            deliveryDays = 2,
+            isCodAvailable = true,
         )
     }
 }
@@ -23,7 +28,7 @@ fun List<ProductDto>.toListProductEntity(): List<ProductEntity> {
 fun List<ProductDto>.toListSearchProductEntity(): List<SearchProductEntity> {
     return map { dto ->
         SearchProductEntity(
-            id = dto.id,
+            id = dto.id.toString(),
             title = dto.title,
             description = dto.description,
             price = dto.price,
@@ -37,13 +42,18 @@ fun List<ProductDto>.toListSearchProductEntity(): List<SearchProductEntity> {
 
 fun ProductDto.toDetailsProductEntity(): ProductDetailsEntity {
     return ProductDetailsEntity(
-        id = id,
+        id = id.toString(),
         title = title,
         description = description,
         price = price,
         imageUrl = images,
         rating = rating.toString(),
         availableQuantity = minimumOrderQuantity,
-        discountPercentage = discountPercentage
+        discountPercentage = discountPercentage,
+        mrpPrice = price * 1.35,
+        stockQuantity = stock,
+        brand = brand ?: "",
+        deliveryDays = 2,
+        isCodAvailable = true,
     )
 }

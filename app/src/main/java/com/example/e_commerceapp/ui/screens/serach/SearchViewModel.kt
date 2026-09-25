@@ -25,7 +25,7 @@ class SearchViewModel @Inject constructor(
     private val _searchState = MutableStateFlow(ScreenState<List<SearchProductEntity>>())
     val searchState: StateFlow<ScreenState<List<SearchProductEntity>>> = _searchState
 
-    private var favoriteProductIds = emptySet<Int>()
+    private var favoriteProductIds = emptySet<String>()
 
     init {
         getAllFavoriteProductsIds()
