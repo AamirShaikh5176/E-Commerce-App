@@ -135,7 +135,7 @@ fun AdminDashboardScreen(
                 )
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // 2x2 Metric Grid
+                // Metric Grid with Real Firestore Data
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -152,8 +152,27 @@ fun AdminDashboardScreen(
                             modifier = Modifier.weight(1f),
                             title = "Pending Orders",
                             value = "${metrics.pendingOrders}",
-                            subtitle = "Requires dispatch",
+                            subtitle = "Placed & Confirmed",
                             accentColor = Color(0xFFF59E0B)
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        AdminMetricCard(
+                            modifier = Modifier.weight(1f),
+                            title = "Shipped / In Transit",
+                            value = "${metrics.shippedOrders}",
+                            subtitle = "${metrics.deliveredOrders} delivered",
+                            accentColor = Color(0xFF38BDF8)
+                        )
+                        AdminMetricCard(
+                            modifier = Modifier.weight(1f),
+                            title = "Pending Payments",
+                            value = "${metrics.pendingPayments}",
+                            subtitle = "${metrics.paidOrders} paid orders",
+                            accentColor = Color(0xFFEC4899)
                         )
                     }
                     Row(
@@ -172,7 +191,7 @@ fun AdminDashboardScreen(
                             title = "Store Catalog",
                             value = "${metrics.totalProducts}",
                             subtitle = "${metrics.totalCustomers} registered users",
-                            accentColor = Color(0xFF38BDF8)
+                            accentColor = Color(0xFF6366F1)
                         )
                     }
                 }

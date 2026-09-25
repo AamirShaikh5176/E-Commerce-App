@@ -21,6 +21,7 @@ fun List<ProductDto>.toListProductEntity(): List<ProductEntity> {
             brand = dto.brand ?: "",
             deliveryDays = 2,
             isCodAvailable = true,
+            category = dto.category,
         )
     }
 }

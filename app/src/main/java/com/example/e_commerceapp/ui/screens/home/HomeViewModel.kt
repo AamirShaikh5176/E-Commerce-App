@@ -30,14 +30,45 @@ class HomeViewModel @Inject constructor(
     private val _productState = MutableStateFlow(ScreenState<List<ProductEntity>>())
     val productState: StateFlow<ScreenState<List<ProductEntity>>> = _productState
 
+    private val _allProductsState = MutableStateFlow(ScreenState<List<ProductEntity>>())
+    val allProductsState: StateFlow<ScreenState<List<ProductEntity>>> = _allProductsState
+
     private val _categoryState = MutableStateFlow(ScreenState<List<Category>>())
     val categoryState: StateFlow<ScreenState<List<Category>>> = _categoryState
 
     init {
         getAllCategoryText()
+        loadAllProducts()
 
         val userId = sharedPreferences.getString(PREF_FIREBASE_USERID_KEY, "")
-        getUserInformation(userId.toString())
+        if (!userId.isNullOrEmpty()) {
+            getUserInformation(userId.toString())
+        }
+    }
+
+    private fun loadAllProducts() {
+        viewModelScope.launch {
+            _allProductsState.update { it.copy(isLoading = true, errorMessage = null, data = null) }
+            try {
+                productsUseCase.getAllProducts().collect { list ->
+                    _allProductsState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = null,
+                            data = list
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _allProductsState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = e.message,
+                        data = null
+                    )
+                }
+            }
+        }
     }
 
 

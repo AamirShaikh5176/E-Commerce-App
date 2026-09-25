@@ -31,7 +31,9 @@ class ProfileViewModel @Inject constructor(
 
     init {
         val userId = sharedPreferences.getString(PREF_FIREBASE_USERID_KEY, "")
-        getUserInformation(userId.toString())
+        if (!userId.isNullOrEmpty()) {
+            getUserInformation(userId.toString())
+        }
         checkAdminStatus()
     }
 

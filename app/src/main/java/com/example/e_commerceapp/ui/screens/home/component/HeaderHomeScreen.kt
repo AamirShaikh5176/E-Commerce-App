@@ -99,10 +99,10 @@ fun HeaderHomeScreen(
             )
 
             Text(
-                text = userInformationEntity?.name ?: "Your Name",
+                text = userInformationEntity?.name?.ifBlank { "Guest User" } ?: "Guest User",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 fontFamily = FontFamily(Font(R.font.medium))
@@ -114,10 +114,9 @@ fun HeaderHomeScreen(
             Icon(
                 imageVector = Icons.Default.NotificationsNone,
                 contentDescription = "Notifications",
-                tint = Color.Black,
+                tint = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier
                     .size(26.dp)
-                    .weight(1f)
             )
         }
     }
@@ -129,8 +128,8 @@ fun HeaderHomeScreen(
         modifier = Modifier
             .fillMaxWidth()
             .height(50.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(colorResource(R.color.light_gray))
+            .clip(RoundedCornerShape(12.dp))
+            .background(androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
             .clickable { onClickSearchBar() }
             .padding(horizontal = 16.dp),
         contentAlignment = Alignment.CenterStart
@@ -141,14 +140,14 @@ fun HeaderHomeScreen(
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = "Search",
-                tint = Color.Gray
+                tint = androidx.compose.material3.MaterialTheme.colorScheme.primary
             )
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
             Text(
-                text = "Search products...",
-                color = Color.Gray,
+                text = "Search products, brands and more...",
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 fontSize = 14.sp
             )
         }
@@ -156,10 +155,10 @@ fun HeaderHomeScreen(
         Icon(
             painter = painterResource(R.drawable.filter),
             contentDescription = "Filter",
-            tint = Color.Black,
+            tint = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
                 .align(Alignment.CenterEnd)
-                .size(25.dp)
+                .size(22.dp)
         )
     }
 

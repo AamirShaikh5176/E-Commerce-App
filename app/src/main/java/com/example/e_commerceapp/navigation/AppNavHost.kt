@@ -27,9 +27,14 @@ import com.example.e_commerceapp.ui.screens.address.AddressSelectionScreen
 import com.example.e_commerceapp.ui.screens.admin.AddEditProductScreen
 import com.example.e_commerceapp.ui.screens.admin.AdminCategoryScreen
 import com.example.e_commerceapp.ui.screens.admin.AdminDashboardScreen
+import com.example.e_commerceapp.ui.screens.admin.AdminLoginScreen
 import com.example.e_commerceapp.ui.screens.admin.AdminOrderListScreen
 import com.example.e_commerceapp.ui.screens.admin.AdminProductListScreen
 import com.example.e_commerceapp.ui.screens.admin.AdminUserListScreen
+import com.example.e_commerceapp.ui.screens.orders.MyOrdersScreen
+import com.example.e_commerceapp.ui.screens.orders.OrderDetailsScreen
+import com.example.e_commerceapp.ui.screens.settings.SettingsScreen
+import com.google.firebase.auth.FirebaseAuth
 
 
 @Composable
@@ -59,7 +64,13 @@ fun AppNavHost(
         composable(SignUpScreen.route) {
             SignUpScreen(
                 navigateToHomeScreen = { userInfirmationEntity ->
-                    navController.navigate(HomeScreen.route)
+                    if (navController.previousBackStackEntry != null) {
+                        navController.popBackStack()
+                    } else {
+                        navController.navigate(HomeScreen.route) {
+                            popUpTo(SignUpScreen.route) { inclusive = true }
+                        }
+                    }
                 },
                 navigateToSignInScreen = {
                     navController.navigate(SignInScreen.route)
@@ -73,7 +84,13 @@ fun AppNavHost(
                     navController.navigate(SignUpScreen.route)
                 },
                 navigateToHomeScreen = {
-                    navController.navigate(HomeScreen.route)
+                    if (navController.previousBackStackEntry != null) {
+                        navController.popBackStack()
+                    } else {
+                        navController.navigate(HomeScreen.route) {
+                            popUpTo(SignInScreen.route) { inclusive = true }
+                        }
+                    }
                 },
             )
         }
@@ -106,8 +123,13 @@ fun AppNavHost(
             ProductDetailScreen(
                 productId = productId,
                 onBuyNowClick = {
-                    val route = "${AddressSelectionDestination.route}/${it.price}"
-                    navController.navigate(route = route)
+                    val currentUser = FirebaseAuth.getInstance().currentUser
+                    if (currentUser == null) {
+                        navController.navigate(SignInScreen.route)
+                    } else {
+                        val route = "${AddressSelectionDestination.route}/${it.price}"
+                        navController.navigate(route = route)
+                    }
                 },
                 onBackClick = { navController.popBackStack() },
             )
@@ -116,8 +138,13 @@ fun AppNavHost(
         composable(CartScreen.route) {
             CartScreen(
                 onCheckoutClicked = { totalPrice ->
-                    val route = "${AddressSelectionDestination.route}/${totalPrice}"
-                    navController.navigate(route = route)
+                    val currentUser = FirebaseAuth.getInstance().currentUser
+                    if (currentUser == null) {
+                        navController.navigate(SignInScreen.route)
+                    } else {
+                        val route = "${AddressSelectionDestination.route}/${totalPrice}"
+                        navController.navigate(route = route)
+                    }
                 },
                 onCartClicked = {
                     val route = "${ProductDetailsScreen.route}/${it.productId}"
@@ -145,20 +172,40 @@ fun AppNavHost(
             ProfileScreen(
                 onBackClick = { navController.popBackStack() },
                 logout = {
-                    navController.navigate(SignInScreen.route) {
-                        popUpTo(SignInScreen.route) {
-                            inclusive = true
-                        }
+                    FirebaseAuth.getInstance().signOut()
+                    navController.navigate(HomeScreen.route) {
+                        popUpTo(0)
                     }
                 },
-                onSettings = {},
+                onSettings = {
+                    navController.navigate(SettingsDestination.route)
+                },
                 onClickedChangeTheme = {},
                 onClickedChangePass = {},
                 onNavigateToAddresses = {
-                    navController.navigate("${AddressSelectionDestination.route}/0.0")
+                    val currentUser = FirebaseAuth.getInstance().currentUser
+                    if (currentUser == null) {
+                        navController.navigate(SignInScreen.route)
+                    } else {
+                        navController.navigate("${AddressSelectionDestination.route}/0.0")
+                    }
+                },
+                onNavigateToMyOrders = {
+                    val currentUser = FirebaseAuth.getInstance().currentUser
+                    if (currentUser == null) {
+                        navController.navigate(SignInScreen.route)
+                    } else {
+                        navController.navigate(MyOrdersDestination.route)
+                    }
                 },
                 onNavigateToAdmin = {
                     navController.navigate(AdminDashboardDestination.route)
+                },
+                onNavigateToAdminLogin = {
+                    navController.navigate(AdminLoginDestination.route)
+                },
+                onNavigateToLogin = {
+                    navController.navigate(SignInScreen.route)
                 }
             )
         }
@@ -216,6 +263,11 @@ fun AppNavHost(
                     } else {
                         navController.popBackStack()
                     }
+                },
+                onViewOrdersClicked = {
+                    navController.navigate(MyOrdersDestination.route) {
+                        popUpTo(HomeScreen.route) { inclusive = false }
+                    }
                 }
             )
         }
@@ -236,6 +288,11 @@ fun AppNavHost(
                         }
                     } else {
                         navController.popBackStack()
+                    }
+                },
+                onViewOrdersClicked = {
+                    navController.navigate(MyOrdersDestination.route) {
+                        popUpTo(HomeScreen.route) { inclusive = false }
                     }
                 }
             )
@@ -351,6 +408,58 @@ fun AppNavHost(
                     onBackClick = { navController.popBackStack() }
                 )
             }
+        }
+
+        // --------------------- Settings & Orders Routes ---------------------
+        composable(SettingsDestination.route) {
+            SettingsScreen(
+                onBackClick = { navController.popBackStack() },
+                onChangePasswordClick = {}
+            )
+        }
+
+        composable(MyOrdersDestination.route) {
+            val currentUser = FirebaseAuth.getInstance().currentUser
+            if (currentUser == null) {
+                navController.navigate(SignInScreen.route)
+            } else {
+                MyOrdersScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onOrderClick = { orderId ->
+                        navController.navigate("${OrderDetailsDestination.route}/$orderId")
+                    },
+                    onContinueShopping = {
+                        navController.navigate(HomeScreen.route) {
+                            popUpTo(0)
+                        }
+                    }
+                )
+            }
+        }
+
+        composable(
+            route = "${OrderDetailsDestination.route}/{orderId}",
+            arguments = listOf(navArgument("orderId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
+            OrderDetailsScreen(
+                orderId = orderId,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(AdminLoginDestination.route) {
+            AdminLoginScreen(
+                onBackClick = { navController.popBackStack() },
+                onAdminLoginSuccess = {
+                    navController.navigate(AdminDashboardDestination.route) {
+                        popUpTo(AdminLoginDestination.route) { inclusive = true }
+                    }
+                },
+                onCustomerLoginClick = {
+                    navController.navigate(SignInScreen.route)
+                }
+            )
         }
 
     }

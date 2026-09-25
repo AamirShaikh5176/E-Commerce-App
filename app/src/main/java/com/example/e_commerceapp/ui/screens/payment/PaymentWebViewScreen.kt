@@ -17,7 +17,7 @@ import com.example.e_commerceapp.ui.screens.payment.paymetMethod.PaymentMethod
 @Composable
 fun PaymentWebViewScreen(
     paymentKey: String,
-    paymentMethod: PaymentMethod = PaymentMethod.CARD,
+    paymentMethod: PaymentMethod = PaymentMethod.ONLINE,
     moveToPaymentResultScreen: (paymentSuccess: Boolean) -> Unit,
 ) {
     // Online gateway checkout URL (passed as paymentKey URL or gateway endpoint)

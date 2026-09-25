@@ -85,7 +85,7 @@ fun SearchScreen(
                     imageVector = Icons.Default.ArrowBack,
                     contentDescription = "Back",
                     modifier = Modifier.size(28.dp),
-                    tint = Color.Black
+                    tint = androidx.compose.material3.MaterialTheme.colorScheme.onBackground
                 )
             }
 

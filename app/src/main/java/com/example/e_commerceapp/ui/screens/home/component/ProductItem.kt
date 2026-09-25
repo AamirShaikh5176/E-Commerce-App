@@ -49,12 +49,12 @@ import androidx.compose.ui.text.style.TextDecoration
 @Composable
 fun ProductItem(
     product: ProductEntity,
+    modifier: Modifier = Modifier,
     onProductClicked: (ProductEntity) -> Unit,
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
             .padding(4.dp)
             .clickable { onProductClicked(product) },
         elevation = CardDefaults.cardElevation(2.dp),

@@ -15,12 +15,6 @@ class SplashViewModel @Inject constructor(
 ) : ViewModel() {
 
     fun decideNextScreen(): String {
-        val userId = sharedPref.getString(PREF_FIREBASE_USERID_KEY, "")
-
-        return if (userId.isNullOrEmpty()) {
-            SignInScreen.route
-        } else {
-            HomeScreen.route
-        }
+        return HomeScreen.route
     }
 }

@@ -284,13 +284,63 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
         awaitClose { subscription.remove() }
     }.flowOn(ioDispatcher)
 
+    override fun getUserOrdersFlow(userId: String): Flow<List<FirestoreOrderDto>> = callbackFlow {
+        val subscription = ordersCollection
+            .whereEqualTo("userId", userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val orders = snapshot.documents.mapNotNull { doc ->
+                        doc.toObject(FirestoreOrderDto::class.java)?.copy(orderId = doc.id)
+                    }.sortedByDescending { it.createdAt }
+                    trySend(orders)
+                }
+            }
+        awaitClose { subscription.remove() }
+    }.flowOn(ioDispatcher)
+
+    override fun getOrderByIdFlow(orderId: String): Flow<FirestoreOrderDto?> = callbackFlow {
+        val subscription = ordersCollection.document(orderId).addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                close(error)
+                return@addSnapshotListener
+            }
+            val order = snapshot?.toObject(FirestoreOrderDto::class.java)?.copy(orderId = snapshot.id)
+            trySend(order)
+        }
+        awaitClose { subscription.remove() }
+    }.flowOn(ioDispatcher)
+
     override suspend fun updateOrderStatus(
         orderId: String,
         status: String,
         trackingNumber: String,
         courierPartner: String
     ): Unit = withContext(ioDispatcher) {
-        val updates = mutableMapOf<String, Any>("orderStatus" to status)
+        val updates = mutableMapOf<String, Any>(
+            "orderStatus" to status,
+            "updatedAt" to System.currentTimeMillis()
+        )
+        if (trackingNumber.isNotBlank()) updates["trackingNumber"] = trackingNumber
+        if (courierPartner.isNotBlank()) updates["courierPartner"] = courierPartner
+        ordersCollection.document(orderId).update(updates).awaitTask()
+    }
+
+    override suspend fun updateOrderStatusAndPayment(
+        orderId: String,
+        status: String,
+        paymentStatus: String?,
+        trackingNumber: String,
+        courierPartner: String
+    ): Unit = withContext(ioDispatcher) {
+        val updates = mutableMapOf<String, Any>(
+            "orderStatus" to status,
+            "updatedAt" to System.currentTimeMillis()
+        )
+        if (!paymentStatus.isNullOrBlank()) updates["paymentStatus"] = paymentStatus
         if (trackingNumber.isNotBlank()) updates["trackingNumber"] = trackingNumber
         if (courierPartner.isNotBlank()) updates["courierPartner"] = courierPartner
         ordersCollection.document(orderId).update(updates).awaitTask()

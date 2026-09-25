@@ -31,8 +31,11 @@ interface FirestoreCatalogDataSource {
     suspend fun saveCategoriesBatch(categories: List<FirestoreCategoryDto>)
     suspend fun hasProducts(): Boolean
 
-    // Admin Orders & Users
+    // Customer & Admin Orders & Users
     fun getOrdersFlow(): Flow<List<FirestoreOrderDto>>
+    fun getUserOrdersFlow(userId: String): Flow<List<FirestoreOrderDto>>
+    fun getOrderByIdFlow(orderId: String): Flow<FirestoreOrderDto?>
     suspend fun updateOrderStatus(orderId: String, status: String, trackingNumber: String = "", courierPartner: String = "")
+    suspend fun updateOrderStatusAndPayment(orderId: String, status: String, paymentStatus: String? = null, trackingNumber: String = "", courierPartner: String = "")
     fun getUsersFlow(): Flow<List<UserInformationEntity>>
 }

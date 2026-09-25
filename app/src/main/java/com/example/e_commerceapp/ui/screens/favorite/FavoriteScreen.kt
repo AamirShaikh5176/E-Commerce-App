@@ -135,9 +135,7 @@ fun FavoriteScreen(
                     onNotificationClick = { onNotificationClick() },
                     onClickedDeleteFavorite = { favoriteProductEntity ->
                         viewModel.deleteFavoriteProduct(favoriteProductEntity)
-
                         deletedFavoriteProduct = favoriteProductEntity
-//                showSnackbar = true
                     }
                 )
             }
@@ -169,7 +167,7 @@ fun FavoriteScreenContent(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 10.dp),
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -180,7 +178,7 @@ fun FavoriteScreenContent(
                         imageVector = Icons.Default.ArrowBack,
                         contentDescription = "Back",
                         modifier = Modifier.size(28.dp),
-                        tint = Color.Black
+                        tint = androidx.compose.material3.MaterialTheme.colorScheme.onBackground
                     )
                 }
 
@@ -189,7 +187,7 @@ fun FavoriteScreenContent(
                     text = "Favorites",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
                     fontFamily = FontFamily(Font(R.font.medium))
                 )
 
@@ -198,30 +196,84 @@ fun FavoriteScreenContent(
                     Icon(
                         imageVector = Icons.Default.NotificationsNone,
                         contentDescription = "Notifications",
-                        tint = Color.Black,
+                        tint = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.size(26.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-            LazyVerticalGrid(
-                modifier = Modifier.fillMaxSize(),
-                columns = GridCells.Fixed(2),
-                contentPadding = PaddingValues(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(listFavoriteProductEntity) { favoriteProductEntity ->
-                    FavoriteItem(
-                        favoriteProductEntity = favoriteProductEntity,
-                        onItemClick = onClickedFavoriteProduct,
-                        onClickedDeleteFavorite = onClickedDeleteFavorite
+            if (listFavoriteProductEntity.isEmpty()) {
+                // Empty Favorites State
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "❤️",
+                        fontSize = 64.sp
                     )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "No favorites yet",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground,
+                        fontFamily = FontFamily(Font(R.font.medium))
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Save products you love and find them here later.",
+                        fontSize = 14.sp,
+                        color = Color.Gray,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(28.dp))
+
+                    androidx.compose.material3.Button(
+                        onClick = onBackClick,
+                        shape = RoundedCornerShape(10.dp),
+                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                            containerColor = colorResource(R.color.main_color)
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        Text(
+                            text = "Continue Shopping",
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            } else {
+                LazyVerticalGrid(
+                    modifier = Modifier.fillMaxSize(),
+                    columns = GridCells.Fixed(2),
+                    contentPadding = PaddingValues(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(listFavoriteProductEntity) { favoriteProductEntity ->
+                        FavoriteItem(
+                            favoriteProductEntity = favoriteProductEntity,
+                            onItemClick = onClickedFavoriteProduct,
+                            onClickedDeleteFavorite = onClickedDeleteFavorite
+                        )
+                    }
                 }
             }
-
         }
     }
 }

@@ -331,6 +331,25 @@ fun PaymentResultScreen(
         Spacer(modifier = Modifier.height(30.dp))
 
         // Action Buttons
+        if (paymentSuccess) {
+            OutlinedButton(
+                onClick = onViewOrdersClicked,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.5.dp, colorResource(R.color.dark_blue))
+            ) {
+                Text(
+                    text = "View My Orders",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colorResource(R.color.dark_blue)
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
         Button(
             onClick = onButtonClicked,
             modifier = Modifier

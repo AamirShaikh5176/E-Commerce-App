@@ -162,8 +162,8 @@ fun FavoriteItem(
 
             // Product Price
             Text(
-                text = "${favoriteProductEntity.price} EGP",
-                color = Color(0xFF4CAF50),
+                text = com.example.e_commerceapp.utils.CurrencyUtils.formatInr(favoriteProductEntity.price),
+                color = Color(0xFF1B5E20),
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp,
                 fontFamily = FontFamily(Font(R.font.bold))

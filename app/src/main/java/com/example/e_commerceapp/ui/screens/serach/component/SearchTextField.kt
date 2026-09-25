@@ -18,29 +18,37 @@ import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.unit.dp
 import com.example.e_commerceapp.R
 
+import androidx.compose.material3.MaterialTheme
+
 @Composable
 fun SearchTextField(
     value: String,
     onValueChange: (String) -> Unit,
     onFilterClick: () -> Unit,
 ) {
+    val textStyle = MaterialTheme.typography.bodyLarge.copy(
+        color = MaterialTheme.colorScheme.onSurface
+    )
+
     TextField(
         value = value,
         onValueChange = onValueChange,
         modifier = Modifier
             .fillMaxWidth()
-            .height(52.dp),
+            .height(54.dp),
+        textStyle = textStyle,
         placeholder = {
             Text(
-                text = "Search products...",
-                color = Color.Gray
+                text = "Search products, brands and more...",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )
         },
         leadingIcon = {
             Icon(
                 imageVector = Icons.Default.Search,
                 contentDescription = "Search",
-                tint = Color.Gray
+                tint = MaterialTheme.colorScheme.primary
             )
         },
         trailingIcon = {
@@ -48,19 +56,21 @@ fun SearchTextField(
                 Icon(
                     imageVector = Icons.Default.Tune,
                     contentDescription = "Filter",
-                    tint = Color.Black
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         },
         singleLine = true,
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = TextFieldDefaults.colors(
-            focusedContainerColor = colorResource(R.color.light_gray),
-            unfocusedContainerColor = colorResource(R.color.light_gray),
-            disabledContainerColor = colorResource(R.color.light_gray),
-            focusedIndicatorColor = Color.Transparent,
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
+            focusedIndicatorColor = MaterialTheme.colorScheme.primary,
             unfocusedIndicatorColor = Color.Transparent,
-            cursorColor = Color.Black
+            cursorColor = MaterialTheme.colorScheme.primary
         )
     )
 }

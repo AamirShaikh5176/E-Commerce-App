@@ -62,7 +62,24 @@ object AddEditAddressDestination : AppDestinations {
     override val route = "add_edit_address"
 }
 
+// --------------------- Customer & Account Destinations ---------------------
+object MyOrdersDestination : AppDestinations {
+    override val route = "my_orders"
+}
+
+object OrderDetailsDestination : AppDestinations {
+    override val route = "order_details"
+}
+
+object SettingsDestination : AppDestinations {
+    override val route = "settings"
+}
+
 // --------------------- Admin Destinations ---------------------
+object AdminLoginDestination : AppDestinations {
+    override val route = "admin_login"
+}
+
 object AdminDashboardDestination : AppDestinations {
     override val route = "admin_dashboard"
 }

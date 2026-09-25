@@ -106,12 +106,10 @@ fun SearchItem(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = String.format(
-                        Locale.ENGLISH,
-                        "%.2f $",
+                    text = com.example.e_commerceapp.utils.CurrencyUtils.formatInr(
                         searchProductEntity.price * searchProductEntity.quantity
                     ),
-                    color = Color(0xFF4CAF50),
+                    color = Color(0xFF1B5E20),
                     fontWeight = FontWeight.Bold,
                     fontSize = 17.sp,
                     modifier = Modifier.padding(bottom = 4.dp)

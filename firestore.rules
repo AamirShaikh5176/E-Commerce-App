@@ -46,6 +46,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /paymentConfig/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // Users Collection: Strict Role Self-Escalation Lock
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();

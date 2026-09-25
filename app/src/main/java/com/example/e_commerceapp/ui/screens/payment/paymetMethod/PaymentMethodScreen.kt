@@ -1,11 +1,15 @@
 package com.example.e_commerceapp.ui.screens.payment.paymetMethod
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,38 +22,34 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.LocalAtm
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -63,7 +63,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -87,18 +86,120 @@ fun PaymentMethodScreen(
     val selectedMethod by viewModel.selectedMethod.collectAsStateWithLifecycle()
     val selectedAddress by viewModel.selectedAddress.collectAsStateWithLifecycle()
     val orderState by viewModel.orderState.collectAsStateWithLifecycle()
+    val upiQrConfig by viewModel.upiQrConfig.collectAsStateWithLifecycle()
 
-    var enteredUpiId by remember { mutableStateOf("") }
-    var cardNumber by remember { mutableStateOf("") }
-    var cardExpiry by remember { mutableStateOf("") }
-    var cardCvv by remember { mutableStateOf("") }
-    var selectedBank by remember { mutableStateOf("HDFC Bank") }
+    var upiRefInput by remember { mutableStateOf("") }
+    var showOnlineSimModal by remember { mutableStateOf(false) }
+    var showPaymentFailedDialog by remember { mutableStateOf(false) }
 
     // On Order Placed successfully
     LaunchedEffect(orderState.data) {
         orderState.data?.let { orderData ->
             onPaymentCompleted(orderData.orderId, true)
         }
+    }
+
+    // Online Gateway Payment Simulation Dialog (Test Mode)
+    if (showOnlineSimModal) {
+        val simOrderId = remember { "OD" + System.currentTimeMillis().toString().takeLast(9) }
+        AlertDialog(
+            onDismissRequest = {
+                showOnlineSimModal = false
+                showPaymentFailedDialog = true
+            },
+            title = {
+                Text(
+                    text = "Razorpay Payment Gateway (Test Mode)",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = Color(0xFF0F172A)
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Amount Payable: ${CurrencyUtils.formatInr(parsedPrice)}",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        color = Color(0xFF16A34A)
+                    )
+                    Text(
+                        text = "Development Sandbox Mode (Secure architecture with zero server secrets in APK).",
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Select test transaction outcome:",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF334155)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showOnlineSimModal = false
+                        viewModel.completeOnlinePayment(
+                            orderId = simOrderId,
+                            gatewayPaymentId = "pay_sim_" + System.currentTimeMillis().toString().takeLast(8),
+                            totalAmount = parsedPrice
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A))
+                ) {
+                    Text("Simulate Success", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showOnlineSimModal = false
+                        showPaymentFailedDialog = true
+                    }
+                ) {
+                    Text("Simulate Failure / Cancel", color = Color(0xFFDC2626))
+                }
+            }
+        )
+    }
+
+    // Payment Failed Dialog
+    if (showPaymentFailedDialog) {
+        AlertDialog(
+            onDismissRequest = { showPaymentFailedDialog = false },
+            title = {
+                Text(
+                    text = "Payment Failed or Cancelled",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFDC2626)
+                )
+            },
+            text = {
+                Text(
+                    text = "The transaction could not be completed. Your order has NOT been marked as paid. You may retry or select Cash on Delivery.",
+                    fontSize = 13.sp,
+                    color = Color(0xFF475569)
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showPaymentFailedDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                ) {
+                    Text("Retry Payment", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showPaymentFailedDialog = false
+                    onBackClick()
+                }) {
+                    Text("Return to Cart", color = Color.Gray)
+                }
+            }
+        )
     }
 
     Box(
@@ -171,35 +272,27 @@ fun PaymentMethodScreen(
                                 .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.LocationOn,
-                                contentDescription = null,
-                                tint = colorResource(R.color.dark_blue),
-                                modifier = Modifier.size(22.dp)
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(Color(0xFFE0F2FE), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LocationOn,
+                                    contentDescription = null,
+                                    tint = Color(0xFF0284C7),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                             Spacer(modifier = Modifier.width(10.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = "Deliver to: ${address.fullName}",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp,
-                                        color = Color(0xFF1E293B)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Surface(
-                                        shape = RoundedCornerShape(4.dp),
-                                        color = Color(0xFFE0F2FE)
-                                    ) {
-                                        Text(
-                                            text = address.addressType,
-                                            fontSize = 9.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF0369A1),
-                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                                        )
-                                    }
-                                }
+                                Text(
+                                    text = "Deliver to: ${address.fullName}",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = Color(0xFF1E293B)
+                                )
                                 Text(
                                     text = "${address.houseFlatNumber}, ${address.streetArea}, ${address.city} - ${address.pinCode}",
                                     fontSize = 12.sp,
@@ -223,176 +316,7 @@ fun PaymentMethodScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 1. UPI Option
-                IndianPaymentOptionCard(
-                    title = "UPI (Google Pay, PhonePe, Paytm)",
-                    subtitle = "Instant payment with zero transaction fees",
-                    icon = Icons.Default.QrCode,
-                    isSelected = selectedMethod == PaymentMethod.UPI,
-                    onClick = { viewModel.selectPaymentMethod(PaymentMethod.UPI) }
-                ) {
-                    Column(modifier = Modifier.padding(top = 10.dp)) {
-                        Text(
-                            text = "Popular UPI Apps:",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF334155)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            listOf("GPay", "PhonePe", "Paytm", "BHIM").forEach { app ->
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = Color(0xFFF1F5F9),
-                                    border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clickable {
-                                            val uri = viewModel.generateUpiIntentUri(parsedPrice)
-                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri))
-                                            try {
-                                                context.startActivity(intent)
-                                            } catch (e: Exception) {
-                                                Toast.makeText(context, "No UPI app found. Simulating UPI payment...", Toast.LENGTH_SHORT).show()
-                                                viewModel.placeOrder(parsedPrice)
-                                            }
-                                        }
-                                ) {
-                                    Text(
-                                        text = app,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp,
-                                        color = Color(0xFF1E293B),
-                                        modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // Or enter UPI ID
-                        OutlinedTextField(
-                            value = enteredUpiId,
-                            onValueChange = { enteredUpiId = it },
-                            placeholder = { Text("e.g. mobile@okhdfcbank", fontSize = 12.sp) },
-                            label = { Text("Or Enter UPI ID", fontSize = 12.sp) },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = colorResource(R.color.dark_blue),
-                                unfocusedBorderColor = Color(0xFFCBD5E1)
-                            )
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // 2. Credit / Debit Card Option
-                IndianPaymentOptionCard(
-                    title = "Credit / Debit Cards",
-                    subtitle = "Visa, MasterCard, RuPay, Maestro",
-                    icon = Icons.Default.CreditCard,
-                    isSelected = selectedMethod == PaymentMethod.CARD,
-                    onClick = { viewModel.selectPaymentMethod(PaymentMethod.CARD) }
-                ) {
-                    Column(
-                        modifier = Modifier.padding(top = 10.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = cardNumber,
-                            onValueChange = { if (it.length <= 19) cardNumber = it },
-                            label = { Text("Card Number", fontSize = 12.sp) },
-                            placeholder = { Text("XXXX XXXX XXXX XXXX", fontSize = 12.sp) },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = colorResource(R.color.dark_blue),
-                                unfocusedBorderColor = Color(0xFFCBD5E1)
-                            )
-                        )
-
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                value = cardExpiry,
-                                onValueChange = { if (it.length <= 5) cardExpiry = it },
-                                label = { Text("Expiry (MM/YY)", fontSize = 12.sp) },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = colorResource(R.color.dark_blue),
-                                    unfocusedBorderColor = Color(0xFFCBD5E1)
-                                )
-                            )
-
-                            OutlinedTextField(
-                                value = cardCvv,
-                                onValueChange = { if (it.length <= 4) cardCvv = it },
-                                label = { Text("CVV", fontSize = 12.sp) },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = colorResource(R.color.dark_blue),
-                                    unfocusedBorderColor = Color(0xFFCBD5E1)
-                                )
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // 3. Net Banking Option
-                IndianPaymentOptionCard(
-                    title = "Net Banking",
-                    subtitle = "All major Indian banks supported",
-                    icon = Icons.Default.AccountBalance,
-                    isSelected = selectedMethod == PaymentMethod.NET_BANKING,
-                    onClick = { viewModel.selectPaymentMethod(PaymentMethod.NET_BANKING) }
-                ) {
-                    Column(modifier = Modifier.padding(top = 10.dp)) {
-                        Text(
-                            text = "Select Popular Bank:",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF334155)
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(listOf("SBI", "HDFC Bank", "ICICI Bank", "Axis Bank", "Kotak", "PNB")) { bank ->
-                                val isChosen = selectedBank == bank
-                                FilterChip(
-                                    selected = isChosen,
-                                    onClick = { selectedBank = bank },
-                                    label = { Text(bank, fontWeight = FontWeight.Bold, fontSize = 12.sp) },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = colorResource(R.color.dark_blue),
-                                        selectedLabelColor = Color.White
-                                    )
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // 4. Cash on Delivery (COD)
+                // 1. Cash on Delivery (COD)
                 IndianPaymentOptionCard(
                     title = "Cash on Delivery (COD)",
                     subtitle = "Pay cash or UPI upon delivery at your doorstep",
@@ -417,9 +341,182 @@ fun PaymentMethodScreen(
                     }
                 }
 
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // 2. Online Payment Gateway (Razorpay)
+                IndianPaymentOptionCard(
+                    title = "Online Payment (Razorpay)",
+                    subtitle = "Instant UPI, Credit/Debit Cards, NetBanking",
+                    icon = Icons.Default.CreditCard,
+                    isSelected = selectedMethod == PaymentMethod.ONLINE,
+                    onClick = { viewModel.selectPaymentMethod(PaymentMethod.ONLINE) }
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color(0xFFF0FDF4),
+                        border = BorderStroke(1.dp, Color(0xFFDCFCE7)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            Text(
+                                text = "🔒 Secure Indian Payment Gateway",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = Color(0xFF15803D)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Supports GPay, PhonePe, Paytm, RuPay, Visa, MasterCard & 50+ NetBanking partners. Selecting this method does not mark the order as paid until confirmed.",
+                                fontSize = 11.sp,
+                                color = Color(0xFF166534)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // 3. Personal Default UPI QR Option
+                IndianPaymentOptionCard(
+                    title = "Personal UPI QR Code",
+                    subtitle = "Scan store QR & pay via Google Pay, PhonePe or Paytm",
+                    icon = Icons.Default.QrCode,
+                    isSelected = selectedMethod == PaymentMethod.UPI_QR,
+                    onClick = { viewModel.selectPaymentMethod(PaymentMethod.UPI_QR) }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // QR Placeholder / Container
+                        Box(
+                            modifier = Modifier
+                                .size(170.dp)
+                                .background(Color.White, RoundedCornerShape(12.dp))
+                                .border(1.5.dp, Color(0xFF0284C7), RoundedCornerShape(12.dp))
+                                .padding(8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Default.QrCode,
+                                    contentDescription = "UPI QR Code",
+                                    tint = Color(0xFF0F172A),
+                                    modifier = Modifier.size(110.dp)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = upiQrConfig.merchantName,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0F172A)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // UPI ID row with copy button
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFF1F5F9),
+                            border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text("UPI ID:", fontSize = 10.sp, color = Color.Gray)
+                                    Text(
+                                        text = upiQrConfig.upiId,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = Color(0xFF0284C7)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        val clip = ClipData.newPlainText("UPI ID", upiQrConfig.upiId)
+                                        clipboard.setPrimaryClip(clip)
+                                        Toast.makeText(context, "UPI ID copied to clipboard", Toast.LENGTH_SHORT).show()
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = "Copy UPI ID",
+                                        tint = Color(0xFF0284C7),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Open UPI App direct intent
+                        OutlinedButton(
+                            onClick = {
+                                val uri = viewModel.generateUpiIntentUri(parsedPrice)
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri))
+                                try {
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {
+                                    Toast.makeText(context, "No UPI app installed. Please scan QR with any phone app.", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Open Installed UPI App", fontWeight = FontWeight.Bold, color = Color(0xFF0284C7))
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Optional UTR Reference Field
+                        OutlinedTextField(
+                            value = upiRefInput,
+                            onValueChange = { upiRefInput = it },
+                            label = { Text("UPI Reference / UTR Number (Optional)", fontSize = 11.sp) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color(0xFF0284C7),
+                                unfocusedBorderColor = Color(0xFFCBD5E1)
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color(0xFFFEF3C7),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "⚠️ Orders paid via personal QR will remain in 'PENDING_VERIFICATION' until verified by admin.",
+                                fontSize = 11.sp,
+                                color = Color(0xFF92400E),
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Safe and secure badge
+                // Security badge
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -435,7 +532,7 @@ fun PaymentMethodScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "100% Safe & Secure Payments • Zero Card Details Stored",
+                        text = "100% Safe & Secure Payments • Zero Secrets in App",
                         fontSize = 11.sp,
                         color = Color(0xFF16A34A),
                         fontWeight = FontWeight.SemiBold
@@ -475,22 +572,35 @@ fun PaymentMethodScreen(
 
                 Button(
                     onClick = {
-                        viewModel.placeOrder(parsedPrice)
+                        when (selectedMethod) {
+                            PaymentMethod.COD -> {
+                                viewModel.placeCodOrder(parsedPrice)
+                            }
+                            PaymentMethod.ONLINE -> {
+                                showOnlineSimModal = true
+                            }
+                            PaymentMethod.UPI_QR -> {
+                                viewModel.placeUpiQrOrder(parsedPrice, upiRefInput.trim())
+                            }
+                        }
                     },
                     modifier = Modifier.height(48.dp),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (selectedMethod == PaymentMethod.COD) Color(0xFF22C55E) else Color(0xFFFF9800)
+                        containerColor = when (selectedMethod) {
+                            PaymentMethod.COD -> Color(0xFF16A34A)
+                            PaymentMethod.ONLINE -> Color(0xFF0284C7)
+                            PaymentMethod.UPI_QR -> Color(0xFF7C3AED)
+                        }
                     )
                 ) {
                     val actionLabel = when (selectedMethod) {
-                        PaymentMethod.UPI -> "Pay via UPI"
-                        PaymentMethod.CARD -> "Pay with Card"
-                        PaymentMethod.NET_BANKING -> "Pay via NetBanking"
                         PaymentMethod.COD -> "Place COD Order"
+                        PaymentMethod.ONLINE -> "Pay Online  ➔"
+                        PaymentMethod.UPI_QR -> "I've Completed Payment"
                     }
                     Text(
-                        text = "$actionLabel  ➔",
+                        text = actionLabel,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
                         fontSize = 14.sp

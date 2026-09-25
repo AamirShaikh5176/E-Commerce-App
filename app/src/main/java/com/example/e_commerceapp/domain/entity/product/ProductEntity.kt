@@ -14,4 +14,5 @@ data class ProductEntity(
     val brand: String = "",
     val deliveryDays: Int = 2,
     val isCodAvailable: Boolean = true,
+    val category: String = "",
 )

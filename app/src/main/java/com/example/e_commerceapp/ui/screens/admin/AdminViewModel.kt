@@ -22,6 +22,12 @@ data class AdminMetrics(
     val totalRevenue: Double = 0.0,
     val totalOrders: Int = 0,
     val pendingOrders: Int = 0,
+    val processingOrders: Int = 0,
+    val shippedOrders: Int = 0,
+    val deliveredOrders: Int = 0,
+    val cancelledOrders: Int = 0,
+    val pendingPayments: Int = 0,
+    val paidOrders: Int = 0,
     val lowStockCount: Int = 0,
     val totalProducts: Int = 0,
     val totalCustomers: Int = 0,
@@ -60,18 +66,47 @@ class AdminViewModel @Inject constructor(
 
     val metrics: StateFlow<AdminMetrics> = combine(products, orders, users) { prodList, orderList, userList ->
         val revenue = orderList.filter { it.orderStatus != "CANCELLED" }.sumOf { it.finalTotal }
-        val pending = orderList.count { it.orderStatus == "PLACED" || it.orderStatus == "CONFIRMED" }
+        val placed = orderList.count { it.orderStatus == "PLACED" }
+        val confirmed = orderList.count { it.orderStatus == "CONFIRMED" }
+        val processing = orderList.count { it.orderStatus == "PROCESSING" }
+        val shipped = orderList.count { it.orderStatus == "SHIPPED" || it.orderStatus == "OUT_FOR_DELIVERY" }
+        val delivered = orderList.count { it.orderStatus == "DELIVERED" }
+        val cancelled = orderList.count { it.orderStatus == "CANCELLED" }
+        val pendingPayments = orderList.count { it.paymentStatus == "PENDING" || it.paymentStatus == "PENDING_VERIFICATION" }
+        val paid = orderList.count { it.paymentStatus == "PAID" || it.paymentStatus == "COMPLETED" }
         val lowStock = prodList.count { it.stockQuantity <= 5 || !it.inStock }
 
         AdminMetrics(
             totalRevenue = revenue,
             totalOrders = orderList.size,
-            pendingOrders = pending,
+            pendingOrders = placed + confirmed,
+            processingOrders = processing,
+            shippedOrders = shipped,
+            deliveredOrders = delivered,
+            cancelledOrders = cancelled,
+            pendingPayments = pendingPayments,
+            paidOrders = paid,
             lowStockCount = lowStock,
             totalProducts = prodList.size,
             totalCustomers = userList.size,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AdminMetrics())
+
+    fun verifyPaymentAndMarkPaid(orderId: String) {
+        viewModelScope.launch {
+            try {
+                _opStatus.update { AdminOpStatus.Loading }
+                firestoreCatalogDataSource.updateOrderStatusAndPayment(
+                    orderId = orderId,
+                    status = "CONFIRMED",
+                    paymentStatus = "PAID"
+                )
+                _opStatus.update { AdminOpStatus.Success("Payment verified! Order marked as PAID & CONFIRMED.") }
+            } catch (e: Exception) {
+                _opStatus.update { AdminOpStatus.Error("Failed to verify payment: ${e.message}") }
+            }
+        }
+    }
 
     fun clearOpStatus() {
         _opStatus.update { AdminOpStatus.Idle }

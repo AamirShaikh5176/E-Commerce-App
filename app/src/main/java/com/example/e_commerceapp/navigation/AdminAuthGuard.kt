@@ -52,7 +52,7 @@ fun AdminAuthGuard(
             return@LaunchedEffect
         }
 
-        // Force token refresh to verify current claims
+        // Force token refresh to verify cryptographically signed custom claims
         user.getIdToken(true)
             .addOnSuccessListener { tokenResult ->
                 val claims = tokenResult.claims
@@ -60,33 +60,12 @@ fun AdminAuthGuard(
                 if (hasAdminClaim) {
                     authState = AdminAuthState.Authorized
                 } else {
-                    // Secondary check on user document in Firestore
-                    FirebaseFirestore.getInstance().collection("users").document(user.uid).get()
-                        .addOnSuccessListener { doc ->
-                            if (doc.getString("role") == "admin") {
-                                authState = AdminAuthState.Authorized
-                            } else {
-                                authState = AdminAuthState.Denied("Access Denied: Your account does not have administrator privileges.")
-                            }
-                        }
-                        .addOnFailureListener {
-                            authState = AdminAuthState.Denied("Access Denied: Failed to verify administrator privileges.")
-                        }
+                    // Strict: Custom claim is missing, reject access immediately without fallback
+                    authState = AdminAuthState.Denied("Admin access denied. Only accounts with verified administrator custom claims may access this portal.")
                 }
             }
             .addOnFailureListener {
-                // Offline or failure fallback check
-                FirebaseFirestore.getInstance().collection("users").document(user.uid).get()
-                    .addOnSuccessListener { doc ->
-                        if (doc.getString("role") == "admin") {
-                            authState = AdminAuthState.Authorized
-                        } else {
-                            authState = AdminAuthState.Denied("Access Denied: Administrator role not found.")
-                        }
-                    }
-                    .addOnFailureListener {
-                        authState = AdminAuthState.Denied("Network error: Could not verify authorization.")
-                    }
+                authState = AdminAuthState.Denied("Authentication error: Failed to verify administrative security token.")
             }
     }
 

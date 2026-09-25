@@ -42,17 +42,28 @@ import com.example.e_commerceapp.navigation.ProfileScreen
 import com.example.e_commerceapp.navigation.SignInScreen
 import com.example.e_commerceapp.navigation.bottomNavigation.AppBottomNavBar
 import com.example.e_commerceapp.navigation.bottomNavigation.BottomNavItem
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.collectAsState
 import com.example.e_commerceapp.ui.theme.ECommerceAppTheme
+import com.example.e_commerceapp.ui.theme.ThemeManager
+import com.example.e_commerceapp.ui.theme.ThemeMode
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        ThemeManager.init(this)
         enableEdgeToEdge()
 
         setContent {
-            ECommerceAppTheme {
+            val themeMode by ThemeManager.themeMode.collectAsState()
+            val isDark = when (themeMode) {
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+                ThemeMode.SYSTEM -> isSystemInDarkTheme()
+            }
+            ECommerceAppTheme(darkTheme = isDark, dynamicColor = false) {
                 App()  // Start My App
             }
         }
