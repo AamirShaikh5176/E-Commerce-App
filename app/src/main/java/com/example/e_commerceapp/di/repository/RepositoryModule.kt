@@ -39,4 +39,10 @@ abstract class RepositoryModule {
     abstract fun bindAddressRepository(
         repository: com.example.e_commerceapp.data.repository.AddressRepositoryImpl,
     ): com.example.e_commerceapp.domain.repository.AddressRepository
+
+    @Binds
+    @ViewModelScoped
+    abstract fun bindPaymentRepository(
+        repository: com.example.e_commerceapp.data.repository.PaymentRepositoryImpl,
+    ): com.example.e_commerceapp.domain.repository.PaymentRepository
 }
