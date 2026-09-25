@@ -52,3 +52,29 @@ object PaymentWebViewScreen : AppDestinations {
 object PaymentResultScreen : AppDestinations {
     override val route = "paymentResult"
 }
+
+// --------------------- Admin Destinations ---------------------
+object AdminDashboardDestination : AppDestinations {
+    override val route = "admin_dashboard"
+}
+
+object AdminProductListDestination : AppDestinations {
+    override val route = "admin_products"
+}
+
+object AddEditProductDestination : AppDestinations {
+    override val route = "admin_add_edit_product"
+}
+
+object AdminCategoryDestination : AppDestinations {
+    override val route = "admin_categories"
+}
+
+object AdminOrderListDestination : AppDestinations {
+    override val route = "admin_orders"
+}
+
+object AdminUserListDestination : AppDestinations {
+    override val route = "admin_users"
+}
+

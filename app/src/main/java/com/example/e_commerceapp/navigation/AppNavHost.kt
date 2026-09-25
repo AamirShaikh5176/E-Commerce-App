@@ -22,6 +22,12 @@ import com.example.e_commerceapp.ui.screens.payment.paymetMethod.PaymentMethodSc
 import com.example.e_commerceapp.ui.screens.profile.ProfileScreen
 import com.example.e_commerceapp.ui.screens.serach.SearchScreen
 import com.example.e_commerceapp.ui.screens.splash.SplashScreen
+import com.example.e_commerceapp.ui.screens.admin.AddEditProductScreen
+import com.example.e_commerceapp.ui.screens.admin.AdminCategoryScreen
+import com.example.e_commerceapp.ui.screens.admin.AdminDashboardScreen
+import com.example.e_commerceapp.ui.screens.admin.AdminOrderListScreen
+import com.example.e_commerceapp.ui.screens.admin.AdminProductListScreen
+import com.example.e_commerceapp.ui.screens.admin.AdminUserListScreen
 
 
 @Composable
@@ -145,7 +151,10 @@ fun AppNavHost(
                 },
                 onSettings = {},
                 onClickedChangeTheme = {},
-                onClickedChangePass = {}
+                onClickedChangePass = {},
+                onNavigateToAdmin = {
+                    navController.navigate(AdminDashboardDestination.route)
+                }
             )
         }
 
@@ -223,6 +232,77 @@ fun AppNavHost(
                     }
                 }
             )
+        }
+
+        // --------------------- Admin Routes (Protected by AdminAuthGuard) ---------------------
+        composable(AdminDashboardDestination.route) {
+            AdminAuthGuard(onUnauthorized = { navController.popBackStack() }) {
+                AdminDashboardScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onNavigateToProducts = { navController.navigate(AdminProductListDestination.route) },
+                    onNavigateToCategories = { navController.navigate(AdminCategoryDestination.route) },
+                    onNavigateToOrders = { navController.navigate(AdminOrderListDestination.route) },
+                    onNavigateToUsers = { navController.navigate(AdminUserListDestination.route) },
+                )
+            }
+        }
+
+        composable(AdminProductListDestination.route) {
+            AdminAuthGuard(onUnauthorized = { navController.popBackStack() }) {
+                AdminProductListScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onAddProduct = { navController.navigate(AddEditProductDestination.route) },
+                    onEditProduct = { productId ->
+                        navController.navigate("${AddEditProductDestination.route}/$productId")
+                    }
+                )
+            }
+        }
+
+        composable(AddEditProductDestination.route) {
+            AdminAuthGuard(onUnauthorized = { navController.popBackStack() }) {
+                AddEditProductScreen(
+                    productId = null,
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+        }
+
+        composable(
+            route = "${AddEditProductDestination.route}/{productId}",
+            arguments = listOf(navArgument("productId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId")
+            AdminAuthGuard(onUnauthorized = { navController.popBackStack() }) {
+                AddEditProductScreen(
+                    productId = productId,
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+        }
+
+        composable(AdminCategoryDestination.route) {
+            AdminAuthGuard(onUnauthorized = { navController.popBackStack() }) {
+                AdminCategoryScreen(
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+        }
+
+        composable(AdminOrderListDestination.route) {
+            AdminAuthGuard(onUnauthorized = { navController.popBackStack() }) {
+                AdminOrderListScreen(
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+        }
+
+        composable(AdminUserListDestination.route) {
+            AdminAuthGuard(onUnauthorized = { navController.popBackStack() }) {
+                AdminUserListScreen(
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
         }
 
     }
