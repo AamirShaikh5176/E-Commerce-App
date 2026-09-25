@@ -29,6 +29,7 @@ import com.example.e_commerceapp.domain.usecase.user.LogoutUser
 import com.example.e_commerceapp.domain.usecase.user.ReadUser
 import com.example.e_commerceapp.domain.usecase.user.SignInUser
 import com.example.e_commerceapp.domain.usecase.user.SignUpUser
+import com.example.e_commerceapp.domain.usecase.user.VerifyAdminClaim
 import com.example.e_commerceapp.domain.usecase.user.WriteUser
 import dagger.Module
 import dagger.Provides
@@ -51,7 +52,8 @@ object UseCaseModule {
             readUser = ReadUser(firebaseRepository),
             writeUser = WriteUser(firebaseRepository),
             forgetPassword = ForgetPassword(firebaseRepository),
-            logoutUser = LogoutUser(firebaseRepository)
+            logoutUser = LogoutUser(firebaseRepository),
+            verifyAdminClaim = VerifyAdminClaim(firebaseRepository),
         )
     }
 

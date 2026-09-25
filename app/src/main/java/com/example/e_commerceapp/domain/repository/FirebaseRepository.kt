@@ -34,4 +34,8 @@ interface FirebaseRepository {
     fun logoutFromFirebase(
         onSuccess: () -> Unit
     )
+
+    fun verifyAdminClaim(
+        onResult: (Boolean) -> Unit
+    )
 }

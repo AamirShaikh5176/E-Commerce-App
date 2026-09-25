@@ -57,4 +57,8 @@ class FirebaseRepositoryImpl @Inject constructor(
     override fun logoutFromFirebase(onSuccess: () -> Unit) {
         firebaseDataSource.logoutFromFirebase(onSuccess)
     }
+
+    override fun verifyAdminClaim(onResult: (Boolean) -> Unit) {
+        firebaseDataSource.verifyAdminClaim(onResult)
+    }
 }

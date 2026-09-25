@@ -7,8 +7,6 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import com.mustafaunlu.ecommerce_compose.data.source.remote.FirebaseDataSource
-import io.github.nefilim.kjwt.JWT
-import io.github.nefilim.kjwt.toJWTKeyID
 import javax.inject.Inject
 
 class FirebaseDataSourceImpl @Inject constructor(
@@ -24,19 +22,41 @@ class FirebaseDataSourceImpl @Inject constructor(
         onFailure: (String) -> Unit,
     ) {
         firebaseAuth.createUserWithEmailAndPassword(user.email, user.password)
-            .addOnSuccessListener {
-                val firebaseUser = it.user
-                onSuccess(
-                    UserInformationEntity(
-                        id = firebaseUser?.uid ?: "",
-                        name = user.name,
-                        email = user.email,
-                        phone = user.phone,
-                        image = "",
-                        password = "",
-                        token = createJwtTokenForFirebaseUser(),
-                    )
-                )
+            .addOnSuccessListener { authResult ->
+                val firebaseUser = authResult.user
+                if (firebaseUser != null) {
+                    firebaseUser.getIdToken(false)
+                        .addOnSuccessListener { tokenResult ->
+                            onSuccess(
+                                UserInformationEntity(
+                                    id = firebaseUser.uid,
+                                    name = user.name,
+                                    email = user.email,
+                                    phone = user.phone,
+                                    image = "",
+                                    password = "",
+                                    token = tokenResult.token ?: "",
+                                    role = "customer",
+                                )
+                            )
+                        }
+                        .addOnFailureListener {
+                            onSuccess(
+                                UserInformationEntity(
+                                    id = firebaseUser.uid,
+                                    name = user.name,
+                                    email = user.email,
+                                    phone = user.phone,
+                                    image = "",
+                                    password = "",
+                                    token = "",
+                                    role = "customer",
+                                )
+                            )
+                        }
+                } else {
+                    onFailure("User creation returned empty user")
+                }
             }.addOnFailureListener {
                 onFailure(it.message ?: "An error occurred")
             }
@@ -48,19 +68,43 @@ class FirebaseDataSourceImpl @Inject constructor(
         onFailure: (String) -> Unit,
     ) {
         firebaseAuth.signInWithEmailAndPassword(user.email, user.password)
-            .addOnSuccessListener {
-                val firebaseUser = it.user
-                onSuccess(
-                    UserInformationEntity(
-                        id = firebaseUser?.uid ?: "",
-                        name = firebaseUser?.displayName ?: "",
-                        email = firebaseUser?.email ?: "",
-                        phone = firebaseUser?.phoneNumber ?: "",
-                        image = firebaseUser?.photoUrl.toString(),
-                        password = "",
-                        token = createJwtTokenForFirebaseUser(),
-                    ),
-                )
+            .addOnSuccessListener { authResult ->
+                val firebaseUser = authResult.user
+                if (firebaseUser != null) {
+                    firebaseUser.getIdToken(false)
+                        .addOnSuccessListener { tokenResult ->
+                            val claims = tokenResult.claims
+                            val isAdmin = claims["admin"] == true || claims["role"] == "admin"
+                            onSuccess(
+                                UserInformationEntity(
+                                    id = firebaseUser.uid,
+                                    name = firebaseUser.displayName ?: "",
+                                    email = firebaseUser.email ?: "",
+                                    phone = firebaseUser.phoneNumber ?: "",
+                                    image = firebaseUser.photoUrl?.toString() ?: "",
+                                    password = "",
+                                    token = tokenResult.token ?: "",
+                                    role = if (isAdmin) "admin" else "customer",
+                                )
+                            )
+                        }
+                        .addOnFailureListener {
+                            onSuccess(
+                                UserInformationEntity(
+                                    id = firebaseUser.uid,
+                                    name = firebaseUser.displayName ?: "",
+                                    email = firebaseUser.email ?: "",
+                                    phone = firebaseUser.phoneNumber ?: "",
+                                    image = firebaseUser.photoUrl?.toString() ?: "",
+                                    password = "",
+                                    token = "",
+                                    role = "customer",
+                                )
+                            )
+                        }
+                } else {
+                    onFailure("Sign in returned empty user")
+                }
             }.addOnFailureListener {
                 onFailure(it.message ?: "An error occurred")
             }
@@ -80,22 +124,31 @@ class FirebaseDataSourceImpl @Inject constructor(
         onSuccess: () -> Unit,
         onFailure: (String) -> Unit,
     ) {
-        val userMap = hashMapOf(
-            "id" to firebaseAuth.uid,
+        val uid = firebaseAuth.uid
+        if (uid == null) {
+            onFailure("User is not authenticated")
+            return
+        }
+
+        val userMap = hashMapOf<String, Any?>(
+            "id" to uid,
             "name" to user.name,
             "email" to user.email,
             "phone" to user.phone,
             "image" to user.image,
+            "role" to user.role.ifBlank { "customer" },
         )
         val firebaseUser = firebaseAuth.currentUser
         val profileUpdate = userProfileChangeRequest {
-            displayName = userMap["name"]
-            photoUri = Uri.parse(userMap["image"])  // convert string to Uri
+            displayName = user.name
+            if (user.image.isNotBlank()) {
+                photoUri = Uri.parse(user.image)
+            }
         }
         firebaseUser?.updateProfile(profileUpdate)
 
-        // update user data in firestore
-        collection.document(firebaseAuth.uid!!).set(userMap)
+        // write user data to firestore
+        collection.document(uid).set(userMap)
             .addOnSuccessListener {
                 onSuccess()
             }.addOnFailureListener {
@@ -112,13 +165,14 @@ class FirebaseDataSourceImpl @Inject constructor(
             .addOnSuccessListener { snapshot ->
                 onSuccess(
                     UserInformationEntity(
-                        id = snapshot.getString("id") ?: "",
+                        id = snapshot.getString("id") ?: userId,
                         name = snapshot.getString("name") ?: "",
                         email = snapshot.getString("email") ?: "",
                         phone = snapshot.getString("phone") ?: "",
                         image = snapshot.getString("image") ?: "",
                         password = "",
                         token = "",
+                        role = snapshot.getString("role") ?: "customer",
                     ),
                 )
             }.addOnFailureListener {
@@ -131,17 +185,54 @@ class FirebaseDataSourceImpl @Inject constructor(
         onSuccess()
     }
 
+    override fun verifyAdminClaim(onResult: (Boolean) -> Unit) {
+        val user = firebaseAuth.currentUser
+        if (user == null) {
+            onResult(false)
+            return
+        }
+        user.getIdToken(true) // force refresh ID token from Firebase backend
+            .addOnSuccessListener { tokenResult ->
+                val claims = tokenResult.claims
+                val isAdminClaim = claims["admin"] == true || claims["role"] == "admin"
+                if (isAdminClaim) {
+                    onResult(true)
+                } else {
+                    // Check Firestore role as secondary verification
+                    collection.document(user.uid).get()
+                        .addOnSuccessListener { doc ->
+                            val role = doc.getString("role")
+                            onResult(role == "admin")
+                        }
+                        .addOnFailureListener {
+                            onResult(false)
+                        }
+                }
+            }
+            .addOnFailureListener {
+                collection.document(user.uid).get()
+                    .addOnSuccessListener { doc ->
+                        val role = doc.getString("role")
+                        onResult(role == "admin")
+                    }
+                    .addOnFailureListener {
+                        onResult(false)
+                    }
+            }
+    }
 
-    private fun createJwtTokenForFirebaseUser(): String {
-        val nowMillis = System.currentTimeMillis() // by mille second
-        val nowSeconds = nowMillis / 1000 // by second
-        val expirationSeconds = nowSeconds + 1800  // expired after 30 munit
-
-        val jwt = JWT.es256("fb-user123".toJWTKeyID()) {
-            claim("iat", nowSeconds)
-            claim("exp", expirationSeconds)
-        }.encode()
-
-        return jwt
+    override fun getNativeIdToken(forceRefresh: Boolean, onResult: (String?) -> Unit) {
+        val user = firebaseAuth.currentUser
+        if (user == null) {
+            onResult(null)
+            return
+        }
+        user.getIdToken(forceRefresh)
+            .addOnSuccessListener { result ->
+                onResult(result.token)
+            }
+            .addOnFailureListener {
+                onResult(null)
+            }
     }
 }

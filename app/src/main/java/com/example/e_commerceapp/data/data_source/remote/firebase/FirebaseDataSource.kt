@@ -38,4 +38,13 @@ interface FirebaseDataSource {
     fun logoutFromFirebase(
         onSuccess: () -> Unit,
     )
+
+    fun verifyAdminClaim(
+        onResult: (Boolean) -> Unit,
+    )
+
+    fun getNativeIdToken(
+        forceRefresh: Boolean = false,
+        onResult: (String?) -> Unit,
+    )
 }

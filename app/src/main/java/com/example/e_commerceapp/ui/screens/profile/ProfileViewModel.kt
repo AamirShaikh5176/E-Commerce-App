@@ -26,9 +26,21 @@ class ProfileViewModel @Inject constructor(
     private val _editProfileState = MutableStateFlow(ScreenState<String>())
     val editProfileState: StateFlow<ScreenState<String>> = _editProfileState
 
+    private val _isAdminState = MutableStateFlow(false)
+    val isAdminState: StateFlow<Boolean> = _isAdminState
+
     init {
         val userId = sharedPreferences.getString(PREF_FIREBASE_USERID_KEY, "")
         getUserInformation(userId.toString())
+        checkAdminStatus()
+    }
+
+    fun checkAdminStatus() {
+        viewModelScope.launch {
+            firebaseUserUseCase.verifyAdminClaim { isAdmin ->
+                _isAdminState.update { isAdmin }
+            }
+        }
     }
 
     private fun getUserInformation(userId: String) {
@@ -44,6 +56,9 @@ class ProfileViewModel @Inject constructor(
                             errorMessage = null,
                             data = userInformationEntity
                         )
+                    }
+                    if (userInformationEntity.role.equals("admin", ignoreCase = true)) {
+                        _isAdminState.update { true }
                     }
                 },
                 onFailure = { errorMessage ->

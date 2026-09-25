@@ -8,5 +8,6 @@ data class FirebaseUserUseCase @Inject constructor(
     val forgetPassword: ForgetPassword,
     val readUser: ReadUser,
     val writeUser: WriteUser,
-    val logoutUser: LogoutUser
+    val logoutUser: LogoutUser,
+    val verifyAdminClaim: VerifyAdminClaim,
 )
