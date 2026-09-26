@@ -259,7 +259,6 @@ fun AdminDashboardScreen(
                         icon = Icons.Default.Inventory2,
                         title = "Product Inventory & Stock",
                         description = "Manage products, prices (₹), stock toggles, and add new items",
-                        countText = "${metrics.totalProducts} items",
                         accentColor = Color(0xFF38BDF8),
                         onClick = onNavigateToProducts
                     )
@@ -267,7 +266,6 @@ fun AdminDashboardScreen(
                         icon = Icons.Default.Category,
                         title = "Categories",
                         description = "Add, organize, and view product categories",
-                        countText = "Browse",
                         accentColor = Color(0xFFA855F7),
                         onClick = onNavigateToCategories
                     )
@@ -275,7 +273,6 @@ fun AdminDashboardScreen(
                         icon = Icons.Default.ShoppingCart,
                         title = "Order Fulfillment & Tracking",
                         description = "Process pending orders, update status, and attach courier tracking",
-                        countText = "${metrics.totalOrders} orders",
                         accentColor = Color(0xFF10B981),
                         onClick = onNavigateToOrders
                     )
@@ -283,7 +280,6 @@ fun AdminDashboardScreen(
                         icon = Icons.Default.People,
                         title = "Registered Customers",
                         description = "View customer profiles, roles, and registration details",
-                        countText = "${metrics.totalCustomers} users",
                         accentColor = Color(0xFFF59E0B),
                         onClick = onNavigateToUsers
                     )
@@ -416,7 +412,6 @@ fun AdminNavActionCard(
     icon: ImageVector,
     title: String,
     description: String,
-    countText: String,
     accentColor: Color,
     onClick: () -> Unit,
 ) {
@@ -451,27 +446,12 @@ fun AdminNavActionCard(
             Spacer(modifier = Modifier.width(14.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = title,
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Box(
-                        modifier = Modifier
-                            .background(Color(0xFF334155), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = countText,
-                            color = Color(0xFF94A3B8),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold
+                )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = description,

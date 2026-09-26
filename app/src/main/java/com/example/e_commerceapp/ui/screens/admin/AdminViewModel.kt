@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -73,11 +74,17 @@ class AdminViewModel @Inject constructor(
 
     val products: StateFlow<List<FirestoreProductDto>> = firestoreCatalogDataSource
         .getRawProductsFlow()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .map { list ->
+            if (list.isNotEmpty()) list else com.example.e_commerceapp.data.demo.DemoCatalogData.demoProducts
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.example.e_commerceapp.data.demo.DemoCatalogData.demoProducts)
 
     val categories: StateFlow<List<FirestoreCategoryDto>> = firestoreCatalogDataSource
         .getRawCategoriesFlow()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .map { list ->
+            if (list.isNotEmpty()) list else com.example.e_commerceapp.data.demo.DemoCatalogData.demoCategoryDtos
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.example.e_commerceapp.data.demo.DemoCatalogData.demoCategoryDtos)
 
     val orders: StateFlow<List<FirestoreOrderDto>> = firestoreCatalogDataSource
         .getOrdersFlow()
