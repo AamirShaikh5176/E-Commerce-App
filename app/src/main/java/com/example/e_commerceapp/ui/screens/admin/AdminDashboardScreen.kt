@@ -47,6 +47,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -60,12 +61,17 @@ import com.example.e_commerceapp.utils.CurrencyUtils
 @Composable
 fun AdminDashboardScreen(
     viewModel: AdminViewModel = hiltViewModel(),
-    onBackClick: () -> Unit,
+    onLogout: () -> Unit,
     onNavigateToProducts: () -> Unit,
     onNavigateToCategories: () -> Unit,
     onNavigateToOrders: () -> Unit,
     onNavigateToUsers: () -> Unit,
 ) {
+    // Intercept back button: In admin dashboard, screen should NOT change on back button until logout
+    BackHandler(enabled = true) {
+        // Do nothing to prevent backing out to guest ecommerce
+    }
+
     val metrics by viewModel.metrics.collectAsStateWithLifecycle()
     val orders by viewModel.orders.collectAsStateWithLifecycle()
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -87,7 +93,7 @@ fun AdminDashboardScreen(
                 Button(
                     onClick = {
                         showLogoutDialog = false
-                        onBackClick()
+                        onLogout()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
                 ) {
@@ -138,18 +144,9 @@ fun AdminDashboardScreen(
                             }
                         }
                         Text(
-                            text = "Indian Market Store Management",
+                            text = "Store Management & Catalog Controls",
                             color = Color(0xFF94A3B8),
                             fontSize = 12.sp
-                        )
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = { showLogoutDialog = true }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Logout",
-                            tint = Color.White
                         )
                     }
                 },

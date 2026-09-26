@@ -3,6 +3,7 @@ package com.example.e_commerceapp.ui.screens.serach
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.e_commerceapp.data.dto.Category
 import com.example.e_commerceapp.domain.entity.product.FavoriteProductEntity
 import com.example.e_commerceapp.domain.entity.product.ProductEntity
 import com.example.e_commerceapp.domain.entity.product.SearchProductEntity
@@ -12,7 +13,9 @@ import com.example.e_commerceapp.utils.ScreenState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -24,6 +27,12 @@ class SearchViewModel @Inject constructor(
 ) : ViewModel() {
     private val _searchState = MutableStateFlow(ScreenState<List<SearchProductEntity>>())
     val searchState: StateFlow<ScreenState<List<SearchProductEntity>>> = _searchState
+
+    val allProducts: StateFlow<List<ProductEntity>> = productsUseCase.getAllProducts()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allCategories: StateFlow<List<Category>> = productsUseCase.getAllCategory()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private var favoriteProductIds = emptySet<String>()
 

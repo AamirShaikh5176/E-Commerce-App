@@ -7,6 +7,7 @@ import com.example.e_commerceapp.data.dto.firestore.FirestoreCategoryDto
 import com.example.e_commerceapp.data.dto.firestore.FirestoreOrderDto
 import com.example.e_commerceapp.data.dto.firestore.FirestoreProductDto
 import com.example.e_commerceapp.domain.entity.user.UserInformationEntity
+import com.example.e_commerceapp.data.data_source.remote.migrator.CatalogDataMigrator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -43,7 +44,32 @@ sealed interface AdminOpStatus {
 @HiltViewModel
 class AdminViewModel @Inject constructor(
     private val firestoreCatalogDataSource: FirestoreCatalogDataSource,
+    private val catalogDataMigrator: CatalogDataMigrator,
 ) : ViewModel() {
+
+    init {
+        viewModelScope.launch {
+            try {
+                catalogDataMigrator.migrateCatalogIfNeeded()
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun syncCatalog() {
+        viewModelScope.launch {
+            _opStatus.update { AdminOpStatus.Loading }
+            try {
+                val result = catalogDataMigrator.migrateCatalog(force = true)
+                if (result.isSuccess) {
+                    _opStatus.update { AdminOpStatus.Success("Catalog synchronized successfully") }
+                } else {
+                    _opStatus.update { AdminOpStatus.Error("Failed to sync catalog: ${result.exceptionOrNull()?.message}") }
+                }
+            } catch (e: Exception) {
+                _opStatus.update { AdminOpStatus.Error("Error syncing catalog: ${e.message}") }
+            }
+        }
+    }
 
     val products: StateFlow<List<FirestoreProductDto>> = firestoreCatalogDataSource
         .getRawProductsFlow()

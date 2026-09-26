@@ -64,6 +64,12 @@ fun AddEditAddressScreen(
     viewModel: AddressViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
+    val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+    if (currentUser == null) {
+        GuestLoginPrompt(onBackClick = onBackClick, onLoginClick = onBackClick)
+        return
+    }
+
     val state by viewModel.addressesState.collectAsStateWithLifecycle()
 
     var fullName by remember { mutableStateOf("") }

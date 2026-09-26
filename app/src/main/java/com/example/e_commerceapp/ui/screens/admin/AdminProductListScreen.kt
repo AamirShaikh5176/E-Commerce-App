@@ -23,7 +23,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -138,6 +141,15 @@ fun AdminProductListScreen(
                         )
                     }
                 },
+                actions = {
+                    IconButton(onClick = { viewModel.syncCatalog() }) {
+                        Icon(
+                            imageVector = Icons.Default.Sync,
+                            contentDescription = "Sync Catalog",
+                            tint = Color(0xFF38BDF8)
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0F172A))
             )
         },
@@ -226,17 +238,40 @@ fun AdminProductListScreen(
 
             // Product List
             if (filteredProducts.isEmpty()) {
-                Box(
+                Column(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
                         .padding(top = 40.dp),
-                    contentAlignment = Alignment.TopCenter
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "No products found matching filters",
-                        color = Color(0xFF94A3B8),
-                        fontSize = 15.sp
+                        text = if (products.isEmpty()) "Inventory is Empty" else "No matching products found",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp
                     )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = if (products.isEmpty())
+                            "Sync products from catalog or add new products using the + button."
+                        else
+                            "Try searching with a different keyword or select another category.",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 13.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 24.dp)
+                    )
+                    if (products.isEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { viewModel.syncCatalog() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                        ) {
+                            Icon(imageVector = Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Sync All Products Now")
+                        }
+                    }
                 }
             } else {
                 LazyColumn(

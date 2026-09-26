@@ -177,60 +177,22 @@ fun HomeContent(
     }
 
     // Catalog filtering
+    // Catalog products and dynamic category shelves
     val allProducts = allProductsState.data ?: emptyList()
     val popularProducts = remember(allProducts) { allProducts.sortedByDescending { it.rating } }
-    val electronics = remember(allProducts) {
-        allProducts.filter {
-            it.category.contains("laptop", true) ||
-            it.category.contains("smartphones", true) ||
-            it.category.contains("lighting", true) ||
-            it.category.contains("electronic", true)
-        }
-    }
-    val beauty = remember(allProducts) {
-        allProducts.filter {
-            it.category.contains("beauty", true) ||
-            it.category.contains("fragrance", true) ||
-            it.category.contains("skin", true)
-        }
-    }
-    val homeFurniture = remember(allProducts) {
-        allProducts.filter {
-            it.category.contains("furniture", true) ||
-            it.category.contains("home", true) ||
-            it.category.contains("decoration", true)
-        }
-    }
-    val groceries = remember(allProducts) {
-        allProducts.filter {
-            it.category.contains("grocer", true) ||
-            it.category.contains("food", true)
-        }
-    }
-    val fashion = remember(allProducts) {
-        allProducts.filter {
-            it.category.contains("fashion", true) ||
-            it.category.contains("tops", true) ||
-            it.category.contains("dress", true) ||
-            it.category.contains("shirt", true) ||
-            it.category.contains("shoe", true) ||
-            it.category.contains("watch", true) ||
-            it.category.contains("bag", true) ||
-            it.category.contains("sunglass", true)
-        }
-    }
-    val sports = remember(allProducts) {
-        allProducts.filter {
-            it.category.contains("sport", true) ||
-            it.category.contains("vehicle", true) ||
-            it.category.contains("motorcycle", true)
-        }
-    }
     val bestDeals = remember(allProducts) {
         allProducts.filter { it.discountPercentage >= 10.0 }.sortedByDescending { it.discountPercentage }
     }
-    val recommended = remember(allProducts) {
-        allProducts.reversed()
+    val categoryShelves = remember(allProducts, categoryState.data) {
+        val cats = categoryState.data ?: emptyList()
+        val grouped = allProducts.groupBy { it.category.trim() }
+        grouped.map { (catRaw, prods) ->
+            val matchingCat = cats.find {
+                it.name.equals(catRaw, true) || it.slug.equals(catRaw, true)
+            }
+            val title = matchingCat?.name ?: catRaw.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+            title to prods
+        }.filter { it.second.isNotEmpty() }
     }
 
     LazyColumn(
@@ -371,7 +333,7 @@ fun HomeContent(
                     )
 
                     Text(
-                        text = "See All",
+                        text = "See All →",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF0284C7),
@@ -484,112 +446,90 @@ fun HomeContent(
         if (popularProducts.isNotEmpty()) {
             item {
                 ProductSection(
-                    title = "Popular Products",
-                    products = popularProducts,
+                    title = "⚡ Trending & Popular Deals",
+                    products = popularProducts.take(10),
                     onProductClicked = onProductClicked,
                     onSeeAllClicked = onSeeAllCategoryClick
                 )
             }
         }
 
-        // 8. Electronics Section
-        if (electronics.isNotEmpty()) {
-            item {
-                ProductSection(
-                    title = "Electronics & Gadgets",
-                    products = electronics,
-                    onProductClicked = onProductClicked,
-                    onSeeAllClicked = onSeeAllCategoryClick
-                )
-            }
-        }
-
-        // 9. Beauty & Personal Care Section
-        if (beauty.isNotEmpty()) {
-            item {
-                ProductSection(
-                    title = "Beauty & Personal Care",
-                    products = beauty,
-                    onProductClicked = onProductClicked,
-                    onSeeAllClicked = onSeeAllCategoryClick
-                )
-            }
-        }
-
-        // 10. Home & Furniture Section
-        if (homeFurniture.isNotEmpty()) {
-            item {
-                ProductSection(
-                    title = "Home & Furniture",
-                    products = homeFurniture,
-                    onProductClicked = onProductClicked,
-                    onSeeAllClicked = onSeeAllCategoryClick
-                )
-            }
-        }
-
-        // 11. Groceries Section
-        if (groceries.isNotEmpty()) {
-            item {
-                ProductSection(
-                    title = "Groceries & Daily Essentials",
-                    products = groceries,
-                    onProductClicked = onProductClicked,
-                    onSeeAllClicked = onSeeAllCategoryClick
-                )
-            }
-        }
-
-        // 12. Fashion & Lifestyle Section
-        if (fashion.isNotEmpty()) {
-            item {
-                ProductSection(
-                    title = "Fashion & Lifestyle",
-                    products = fashion,
-                    onProductClicked = onProductClicked,
-                    onSeeAllClicked = onSeeAllCategoryClick
-                )
-            }
-        }
-
-        // 13. Sports & Lifestyle Section
-        if (sports.isNotEmpty()) {
-            item {
-                ProductSection(
-                    title = "Sports & Fitness",
-                    products = sports,
-                    onProductClicked = onProductClicked,
-                    onSeeAllClicked = onSeeAllCategoryClick
-                )
-            }
-        }
-
-        // 14. Best Deals Section
+        // 8. Best Deals & Big Discounts Section
         if (bestDeals.isNotEmpty()) {
             item {
                 ProductSection(
-                    title = "Best Deals & Discounts",
-                    products = bestDeals,
+                    title = "🔥 Mega Savings & Discounts",
+                    products = bestDeals.take(10),
                     onProductClicked = onProductClicked,
                     onSeeAllClicked = onSeeAllCategoryClick
                 )
             }
         }
 
-        // 15. Recommended For You Section
-        if (recommended.isNotEmpty()) {
-            item {
+        // 9. Dynamic Category Shelves (All categories with products)
+        categoryShelves.forEach { shelf ->
+            item(key = "category_shelf_${shelf.first}") {
                 ProductSection(
-                    title = "Recommended For You",
-                    products = recommended,
+                    title = "Best of ${shelf.first}",
+                    products = shelf.second,
                     onProductClicked = onProductClicked,
                     onSeeAllClicked = onSeeAllCategoryClick
                 )
+            }
+        }
+
+        // 10. Flipkart-style "Explore All Products" 2-Column Vertical Scroll Feed
+        if (allProducts.isNotEmpty()) {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp, bottom = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Explore All Products",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontFamily = FontFamily(Font(R.font.medium))
+                    )
+                    Text(
+                        text = "${allProducts.size} items",
+                        fontSize = 13.sp,
+                        color = Color(0xFF64748B),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            val productPairs = allProducts.chunked(2)
+            items(productPairs) { pair ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ProductItem(
+                        product = pair[0],
+                        modifier = Modifier.weight(1f),
+                        onProductClicked = onProductClicked
+                    )
+                    if (pair.size > 1) {
+                        ProductItem(
+                            product = pair[1],
+                            modifier = Modifier.weight(1f),
+                            onProductClicked = onProductClicked
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
             }
         }
 
         item {
-            Spacer(modifier = Modifier.height(60.dp))
+            Spacer(modifier = Modifier.height(70.dp))
         }
     }
 }

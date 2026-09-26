@@ -20,7 +20,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -56,9 +60,13 @@ fun AdminCategoryScreen(
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     var showAddDialog by remember { mutableStateOf(false) }
     var categoryToDelete by remember { mutableStateOf<FirestoreCategoryDto?>(null) }
+    var categoryToEdit by remember { mutableStateOf<FirestoreCategoryDto?>(null) }
 
     var newCategoryName by remember { mutableStateOf("") }
     var newCategorySlug by remember { mutableStateOf("") }
+
+    var editCategoryName by remember { mutableStateOf("") }
+    var editCategorySlug by remember { mutableStateOf("") }
 
     if (showAddDialog) {
         AlertDialog(
@@ -143,6 +151,53 @@ fun AdminCategoryScreen(
         )
     }
 
+    if (categoryToEdit != null) {
+        AlertDialog(
+            onDismissRequest = { categoryToEdit = null },
+            title = { Text("Edit Category", color = Color.White) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AdminInputField(
+                        label = "Category Name",
+                        value = editCategoryName,
+                        onValueChange = { editCategoryName = it }
+                    )
+                    AdminInputField(
+                        label = "Slug / ID",
+                        value = editCategorySlug,
+                        onValueChange = { editCategorySlug = it }
+                    )
+                }
+            },
+            containerColor = Color(0xFF1E293B),
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val current = categoryToEdit ?: return@TextButton
+                        if (editCategoryName.isNotBlank() && editCategorySlug.isNotBlank()) {
+                            viewModel.addCategory(
+                                current.copy(
+                                    name = editCategoryName.trim(),
+                                    slug = editCategorySlug.trim(),
+                                    id = current.id.ifBlank { editCategorySlug.trim() }
+                                )
+                            ) {
+                                categoryToEdit = null
+                            }
+                        }
+                    }
+                ) {
+                    Text("Save", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { categoryToEdit = null }) {
+                    Text("Cancel", color = Color.White)
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -160,6 +215,15 @@ fun AdminCategoryScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = Color.White
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { viewModel.syncCatalog() }) {
+                        Icon(
+                            imageVector = Icons.Default.Sync,
+                            contentDescription = "Sync Categories",
+                            tint = Color(0xFF38BDF8)
                         )
                     }
                 },
@@ -187,6 +251,48 @@ fun AdminCategoryScreen(
             item {
                 Spacer(modifier = Modifier.height(6.dp))
             }
+
+            if (categories.isEmpty()) {
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 20.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "No Categories Found",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Sync categories from catalog to populate automatically.",
+                                color = Color(0xFF94A3B8),
+                                fontSize = 13.sp
+                            )
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Button(
+                                onClick = { viewModel.syncCatalog() },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                            ) {
+                                Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Sync Catalog Categories")
+                            }
+                        }
+                    }
+                }
+            }
+
             items(categories) { category ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -226,6 +332,19 @@ fun AdminCategoryScreen(
                                 text = "slug: ${category.slug}",
                                 color = Color(0xFF94A3B8),
                                 fontSize = 12.sp
+                            )
+                        }
+
+                        IconButton(onClick = {
+                            categoryToEdit = category
+                            editCategoryName = category.name
+                            editCategorySlug = category.slug
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit",
+                                tint = Color(0xFF38BDF8),
+                                modifier = Modifier.size(20.dp)
                             )
                         }
 

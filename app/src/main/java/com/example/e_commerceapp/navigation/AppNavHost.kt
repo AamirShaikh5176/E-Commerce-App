@@ -308,6 +308,7 @@ fun AppNavHost(
             AddressSelectionScreen(
                 totalPrice = totalPrice,
                 onBackClick = { navController.popBackStack() },
+                onLoginClick = { navController.navigate(SignInScreen.route) },
                 onAddNewAddress = { navController.navigate(AddEditAddressDestination.route) },
                 onEditAddress = { addressId ->
                     navController.navigate("${AddEditAddressDestination.route}/$addressId")
@@ -343,8 +344,7 @@ fun AppNavHost(
         composable(AdminDashboardDestination.route) {
             AdminAuthGuard(onUnauthorized = { navController.popBackStack() }) {
                 AdminDashboardScreen(
-                    onBackClick = {
-                        // Admin back = sign out admin session and return to home (guest mode)
+                    onLogout = {
                         FirebaseAuth.getInstance().signOut()
                         navController.navigate(HomeScreen.route) {
                             popUpTo(0) { inclusive = true }

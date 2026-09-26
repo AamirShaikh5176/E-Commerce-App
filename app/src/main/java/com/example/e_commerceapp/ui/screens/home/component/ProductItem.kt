@@ -105,20 +105,44 @@ fun ProductItem(
 //            )
 //            Spacer(modifier = Modifier.height(8.dp))
 
-            // ⭐ Rating
+            // Flipkart Rating Pill & Assured Badge
             Row(
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                RatingStars(rating = product.rating)
+                Box(
+                    modifier = Modifier
+                        .background(
+                            if (product.rating >= 4.0) Color(0xFF388E3C) else Color(0xFFF57C00),
+                            RoundedCornerShape(4.dp)
+                        )
+                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "${String.format(java.util.Locale.US, "%.1f", product.rating)} ★",
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
-                Spacer(modifier = Modifier.width(6.dp))
-
-                Text(
-                    text = product.rating.toString(),
-                    fontSize = 14.sp,
-                    color = Color.Gray
-                )
+                if (product.rating >= 4.0) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .background(Color(0xFF2874F0).copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "✦ Assured",
+                            color = Color(0xFF2874F0),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
 
             // 💰 Indian Rupee Price, MRP & Savings

@@ -30,6 +30,7 @@ interface FirestoreCatalogDataSource {
     suspend fun saveProductsBatch(products: List<FirestoreProductDto>)
     suspend fun saveCategoriesBatch(categories: List<FirestoreCategoryDto>)
     suspend fun hasProducts(): Boolean
+    suspend fun hasCategories(): Boolean
 
     // Customer & Admin Orders & Users
     fun getOrdersFlow(): Flow<List<FirestoreOrderDto>>

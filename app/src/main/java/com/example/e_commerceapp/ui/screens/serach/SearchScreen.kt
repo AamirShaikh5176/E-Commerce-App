@@ -52,6 +52,8 @@ fun SearchScreen(
 ) {
     val context = LocalContext.current
     val searchState by viewModel.searchState.collectAsStateWithLifecycle()
+    val recommendedProducts by viewModel.allProducts.collectAsStateWithLifecycle()
+    val categories by viewModel.allCategories.collectAsStateWithLifecycle()
 
     var searchQuery by rememberSaveable { mutableStateOf("") }
 
@@ -103,7 +105,28 @@ fun SearchScreen(
 
         when {
             searchQuery.isBlank() -> {
-                EmptySearchImage()
+                SearchRecommendations(
+                    recommendedProducts = recommendedProducts,
+                    categories = categories,
+                    onQuerySelected = { query ->
+                        searchQuery = query
+                    },
+                    onProductSelected = { product ->
+                        onProductClicked(
+                            SearchProductEntity(
+                                id = product.id,
+                                title = product.title,
+                                description = product.description,
+                                price = product.price,
+                                imageUrl = product.imageUrl,
+                                rating = product.rating,
+                                quantity = product.quantity,
+                                discountPercentage = product.discountPercentage,
+                                isFavorite = false
+                            )
+                        )
+                    }
+                )
             }
 
             searchState.isLoading -> {
@@ -139,18 +162,193 @@ fun SearchScreen(
 }
 
 @Composable
-fun EmptySearchImage() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+fun SearchRecommendations(
+    recommendedProducts: List<com.example.e_commerceapp.domain.entity.product.ProductEntity>,
+    categories: List<com.example.e_commerceapp.data.dto.Category>,
+    onQuerySelected: (String) -> Unit,
+    onProductSelected: (com.example.e_commerceapp.domain.entity.product.ProductEntity) -> Unit,
+) {
+    val trendingSearches = listOf(
+        "Mobiles", "Laptops", "Fashion", "Beauty",
+        "Shoes", "Smart Watch", "Groceries", "Fragrances"
+    )
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.shopping_bag),
-            contentDescription = "Empty Search",
-            modifier = Modifier.size(200.dp),
-            contentScale = ContentScale.Fit,
-            alpha = 0.4f
-        )
+        // 1. Trending Searches
+        item {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Trending Searches",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                androidx.compose.foundation.lazy.LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(trendingSearches) { term ->
+                        androidx.compose.material3.SuggestionChip(
+                            onClick = { onQuerySelected(term) },
+                            label = { Text(term, fontSize = 13.sp) },
+                            colors = androidx.compose.material3.SuggestionChipDefaults.suggestionChipColors(
+                                containerColor = Color(0xFFF1F5F9),
+                                labelColor = Color(0xFF1E293B)
+                            ),
+                            border = androidx.compose.material3.SuggestionChipDefaults.suggestionChipBorder(
+                                enabled = true,
+                                borderColor = Color(0xFFCBD5E1)
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        // 2. Shop by Category
+        val displayCategories = if (categories.isNotEmpty()) {
+            categories
+        } else {
+            listOf(
+                com.example.e_commerceapp.data.dto.Category("Mobiles", "smartphones", ""),
+                com.example.e_commerceapp.data.dto.Category("Laptops", "laptops", ""),
+                com.example.e_commerceapp.data.dto.Category("Fashion", "tops", ""),
+                com.example.e_commerceapp.data.dto.Category("Beauty", "skincare", ""),
+                com.example.e_commerceapp.data.dto.Category("Groceries", "groceries", ""),
+                com.example.e_commerceapp.data.dto.Category("Furniture", "furniture", "")
+            )
+        }
+
+        item {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Shop by Category",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                androidx.compose.foundation.lazy.LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(displayCategories) { cat ->
+                        androidx.compose.material3.Card(
+                            onClick = { onQuerySelected(cat.name) },
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
+                            colors = androidx.compose.material3.CardDefaults.cardColors(
+                                containerColor = Color(0xFFE0F2FE)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = cat.name,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp,
+                                    color = Color(0xFF0369A1)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Recommended For You
+        if (recommendedProducts.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Recommended For You",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground
+                )
+            }
+
+            items(recommendedProducts.take(15)) { product ->
+                androidx.compose.material3.Card(
+                    onClick = { onProductSelected(product) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                    colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = androidx.compose.material3.CardDefaults.cardElevation(2.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        coil.compose.AsyncImage(
+                            model = product.imageUrl,
+                            contentDescription = product.title,
+                            modifier = Modifier
+                                .size(70.dp)
+                                .androidx.compose.ui.draw.clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                                .androidx.compose.foundation.background(Color(0xFFF8FAFC)),
+                            contentScale = ContentScale.Crop
+                        )
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = product.title,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                maxLines = 1,
+                                color = Color(0xFF0F172A)
+                            )
+                            Text(
+                                text = product.category.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() },
+                                fontSize = 12.sp,
+                                color = Color(0xFF64748B)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = com.example.e_commerceapp.utils.CurrencyUtils.formatInr(product.price),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = Color(0xFF0F172A)
+                                )
+                                if (product.mrpPrice > product.price) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = com.example.e_commerceapp.utils.CurrencyUtils.formatInr(product.mrpPrice),
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF94A3B8),
+                                        textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "${product.discountPercentage.toInt()}% off",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF16A34A)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(40.dp))
+        }
     }
 }
 

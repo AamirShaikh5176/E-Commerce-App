@@ -268,6 +268,15 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
         }
     }
 
+    override suspend fun hasCategories(): Boolean = withContext(ioDispatcher) {
+        try {
+            val snapshot = categoriesCollection.limit(1).get().awaitTask()
+            !snapshot.isEmpty
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     override fun getOrdersFlow(): Flow<List<FirestoreOrderDto>> = callbackFlow {
         val subscription = ordersCollection.addSnapshotListener { snapshot, error ->
             if (error != null) {

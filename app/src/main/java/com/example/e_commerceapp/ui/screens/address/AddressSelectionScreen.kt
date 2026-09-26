@@ -62,8 +62,18 @@ fun AddressSelectionScreen(
     onAddNewAddress: () -> Unit,
     onEditAddress: (String) -> Unit,
     onDeliverHere: (AddressEntity) -> Unit,
+    onLoginClick: () -> Unit = {},
     viewModel: AddressViewModel = hiltViewModel(),
 ) {
+    val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+    if (currentUser == null) {
+        GuestLoginPrompt(
+            onBackClick = onBackClick,
+            onLoginClick = onLoginClick
+        )
+        return
+    }
+
     val state by viewModel.addressesState.collectAsStateWithLifecycle()
     val selectedAddressId by viewModel.selectedAddressId.collectAsStateWithLifecycle()
 
@@ -408,6 +418,122 @@ private fun AddressCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Delete", fontSize = 11.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun GuestLoginPrompt(
+    onBackClick: () -> Unit,
+    onLoginClick: () -> Unit,
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "Sign In Required",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = Color(0xFF1E293B)
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color(0xFF1E293B)
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+            )
+        },
+        containerColor = Color(0xFFF8F9FA)
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(3.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(28.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .background(Color(0xFFE0F2FE), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = null,
+                            tint = Color(0xFF0284C7),
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Text(
+                        text = "Login to Add Delivery Address",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF0F172A),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "You are currently browsing as a guest. Please login or create an account to manage your delivery addresses and complete your order.",
+                        fontSize = 14.sp,
+                        color = Color(0xFF64748B),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        lineHeight = 20.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Button(
+                        onClick = onLoginClick,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                    ) {
+                        Text(
+                            text = "Login / Create Account",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = Color.White
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    TextButton(onClick = onBackClick) {
+                        Text(
+                            text = "Continue Browsing Store",
+                            color = Color(0xFF64748B),
+                            fontSize = 14.sp
+                        )
                     }
                 }
             }

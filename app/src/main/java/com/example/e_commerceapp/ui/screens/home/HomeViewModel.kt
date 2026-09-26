@@ -13,6 +13,7 @@ import com.example.e_commerceapp.utils.ScreenState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -71,7 +72,6 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-
     private fun getUserInformation(userId: String) {
         viewModelScope.launch {
             _userState.update { it.copy(isLoading = true, errorMessage = null, data = null) }
@@ -99,39 +99,62 @@ class HomeViewModel @Inject constructor(
     private fun getAllCategoryText() {
         viewModelScope.launch {
             _categoryState.update {
-                it.copy(
-                    isLoading = true,
-                    errorMessage = null,
-                    data = null
-                )
+                it.copy(isLoading = true, errorMessage = null)
             }
 
             try {
-                // Combine categories + products to only show categories that have items
-                productsUseCase.getAllCategory().collect { allCategories ->
-                    // Get all products to check which categories have items
-                    productsUseCase.getAllProducts().collect { allProducts ->
-                        val productCategories = allProducts
-                            .map { it.category.trim().lowercase() }
-                            .toSet()
+                combine(
+                    productsUseCase.getAllCategory(),
+                    productsUseCase.getAllProducts()
+                ) { allCategories, allProducts ->
+                    val productCategorySet = allProducts
+                        .map { it.category.trim() }
+                        .filter { it.isNotBlank() }
+                        .toSet()
 
-                        // Filter: only keep categories that have at least one product
-                        val filteredCategories = allCategories.filter { category ->
-                            val slug = category.slug.trim().lowercase()
-                            val name = category.name.trim().lowercase()
-                            productCategories.any { pc ->
-                                pc.contains(slug) || pc.contains(name) ||
-                                slug.contains(pc) || name.contains(pc)
+                    // Filter categories that have at least one product
+                    val matching = allCategories.filter { category ->
+                        val slug = category.slug.trim().lowercase()
+                        val name = category.name.trim().lowercase()
+                        productCategorySet.any { pc ->
+                            val pNorm = pc.lowercase()
+                            pNorm == slug || pNorm == name ||
+                            pNorm.contains(slug) || pNorm.contains(name) ||
+                            slug.contains(pNorm) || name.contains(pNorm)
+                        }
+                    }
+
+                    when {
+                        matching.isNotEmpty() -> matching
+                        allCategories.isNotEmpty() -> allCategories
+                        productCategorySet.isNotEmpty() -> {
+                            productCategorySet.map { catName ->
+                                Category(
+                                    name = catName.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() },
+                                    slug = catName.lowercase().replace(" ", "-"),
+                                    url = ""
+                                )
                             }
                         }
-
-                        _categoryState.update {
-                            it.copy(
-                                isLoading = false,
-                                errorMessage = null,
-                                data = filteredCategories.ifEmpty { allCategories }
+                        else -> {
+                            listOf(
+                                Category("Mobiles", "smartphones", ""),
+                                Category("Laptops", "laptops", ""),
+                                Category("Fashion", "tops", ""),
+                                Category("Beauty", "skincare", ""),
+                                Category("Fragrances", "fragrances", ""),
+                                Category("Groceries", "groceries", ""),
+                                Category("Furniture", "furniture", "")
                             )
                         }
+                    }
+                }.collect { finalCategories ->
+                    _categoryState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = null,
+                            data = finalCategories
+                        )
                     }
                 }
             } catch (e: Exception) {
@@ -146,7 +169,6 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-
     fun getProductsByCategory(categoryName: String) {
         viewModelScope.launch {
             _productState.update {
@@ -159,24 +181,39 @@ class HomeViewModel @Inject constructor(
 
             try {
                 productsUseCase.getProductsByCategory(categoryName).collect { listProductEntity ->
+                    val resolvedList = if (listProductEntity.isNotEmpty()) {
+                        listProductEntity
+                    } else {
+                        val norm = categoryName.trim().lowercase()
+                        _allProductsState.value.data?.filter {
+                            val catNorm = it.category.trim().lowercase()
+                            catNorm == norm || catNorm.contains(norm) || norm.contains(catNorm)
+                        } ?: emptyList()
+                    }
+
                     _productState.update {
                         it.copy(
                             isLoading = false,
                             errorMessage = null,
-                            data = listProductEntity.sortedByDescending { it.rating }
+                            data = resolvedList.sortedByDescending { p -> p.rating }
                         )
                     }
                 }
             } catch (e: Exception) {
+                val norm = categoryName.trim().lowercase()
+                val fallbackList = _allProductsState.value.data?.filter {
+                    val catNorm = it.category.trim().lowercase()
+                    catNorm == norm || catNorm.contains(norm) || norm.contains(catNorm)
+                } ?: emptyList()
+
                 _productState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = e.message,
-                        data = null
+                        errorMessage = if (fallbackList.isNotEmpty()) null else e.message,
+                        data = fallbackList
                     )
                 }
             }
-
         }
     }
 }

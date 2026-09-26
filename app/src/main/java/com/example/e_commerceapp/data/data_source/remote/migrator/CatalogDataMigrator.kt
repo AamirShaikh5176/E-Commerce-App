@@ -33,12 +33,13 @@ class CatalogDataMigrator @Inject constructor(
      */
     suspend fun migrateCatalogIfNeeded(): Result<Int> = withContext(ioDispatcher) {
         try {
-            val hasData = firestoreCatalogDataSource.hasProducts()
-            if (hasData) {
-                Log.d(tag, "Firestore catalog already populated. Migration skipped.")
+            val hasProducts = firestoreCatalogDataSource.hasProducts()
+            val hasCategories = firestoreCatalogDataSource.hasCategories()
+            if (hasProducts && hasCategories) {
+                Log.d(tag, "Firestore catalog already populated with products and categories. Migration skipped.")
                 return@withContext Result.success(0)
             }
-            Log.d(tag, "Firestore catalog is empty. Starting initial catalog migration...")
+            Log.d(tag, "Firestore catalog needs population (hasProducts=$hasProducts, hasCategories=$hasCategories). Starting migration...")
             migrateCatalog(force = true)
         } catch (e: Exception) {
             Log.e(tag, "Error checking catalog migration state: ${e.message}", e)
@@ -52,7 +53,16 @@ class CatalogDataMigrator @Inject constructor(
      */
     suspend fun migrateCatalog(force: Boolean = false): Result<Int> = withContext(ioDispatcher) {
         try {
-            // 1. Fetch categories and seed /categories
+            // 1. Fetch products from API first so we can extract categories if needed
+            val productsResponse = try {
+                apiService.getProductsListFromApi()
+            } catch (e: Exception) {
+                Log.w(tag, "Could not fetch products from API: ${e.message}")
+                null
+            }
+            val apiProducts = productsResponse?.products ?: emptyList()
+
+            // 2. Fetch categories and seed /categories
             val apiCategories = try {
                 apiService.getAllCategoriesFromApi()
             } catch (e: Exception) {
@@ -60,22 +70,41 @@ class CatalogDataMigrator @Inject constructor(
                 emptyList()
             }
 
-            if (apiCategories.isNotEmpty()) {
-                val firestoreCategories = apiCategories.map { cat ->
+            val categoriesToSeed = if (apiCategories.isNotEmpty()) {
+                apiCategories.map { cat ->
                     FirestoreCategoryDto(
-                        id = cat.slug,
+                        id = cat.slug.ifBlank { cat.name.lowercase().replace(" ", "-") },
                         name = cat.name,
-                        slug = cat.slug,
+                        slug = cat.slug.ifBlank { cat.name.lowercase().replace(" ", "-") },
                         url = cat.url,
                     )
                 }
-                firestoreCatalogDataSource.saveCategoriesBatch(firestoreCategories)
-                Log.d(tag, "Migrated ${firestoreCategories.size} categories to Firestore.")
+            } else if (apiProducts.isNotEmpty()) {
+                apiProducts.map { it.category }.distinct().map { catName ->
+                    FirestoreCategoryDto(
+                        id = catName.lowercase().replace(" ", "-"),
+                        name = catName.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() },
+                        slug = catName.lowercase().replace(" ", "-"),
+                        url = "",
+                    )
+                }
+            } else {
+                listOf(
+                    FirestoreCategoryDto("smartphones", "Mobiles", "smartphones", ""),
+                    FirestoreCategoryDto("laptops", "Laptops", "laptops", ""),
+                    FirestoreCategoryDto("fragrances", "Fragrances", "fragrances", ""),
+                    FirestoreCategoryDto("skincare", "Beauty & Care", "skincare", ""),
+                    FirestoreCategoryDto("groceries", "Groceries", "groceries", ""),
+                    FirestoreCategoryDto("home-decoration", "Home Decor", "home-decoration", ""),
+                    FirestoreCategoryDto("furniture", "Furniture", "furniture", ""),
+                    FirestoreCategoryDto("tops", "Fashion", "tops", "")
+                )
             }
 
-            // 2. Fetch products and convert to Indian marketplace format
-            val productsResponse = apiService.getProductsListFromApi()
-            val apiProducts = productsResponse.products
+            if (categoriesToSeed.isNotEmpty()) {
+                firestoreCatalogDataSource.saveCategoriesBatch(categoriesToSeed)
+                Log.d(tag, "Migrated ${categoriesToSeed.size} categories to Firestore.")
+            }
 
             val firestoreProducts = apiProducts.map { dto ->
                 // Normalized INR price conversion (80 INR per USD approx rate)
