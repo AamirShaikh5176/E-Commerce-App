@@ -8,7 +8,7 @@ service cloud.firestore {
     
     // STRICT DUAL VERIFICATION: Requires BOTH cryptographically signed Firebase Custom Claim AND Firestore Admin Role
     function hasAdminClaim() {
-      return isAuthenticated() && (request.auth.token.admin == true || request.auth.token.role == 'admin');
+      return isAuthenticated() && request.auth.token.admin == true;
     }
 
     function hasAdminFirestoreRole() {

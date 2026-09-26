@@ -89,7 +89,7 @@ fun AdminLoginScreen(
                     .addOnSuccessListener { tokenResult ->
                         isLoading = false
                         val claims = tokenResult.claims
-                        val hasAdminClaim = claims["admin"] == true || claims["role"] == "admin"
+                        val hasAdminClaim = claims["admin"] == true
 
                         if (hasAdminClaim) {
                             onAdminLoginSuccess()

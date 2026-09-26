@@ -56,7 +56,7 @@ fun AdminAuthGuard(
         user.getIdToken(true)
             .addOnSuccessListener { tokenResult ->
                 val claims = tokenResult.claims
-                val hasAdminClaim = claims["admin"] == true || claims["role"] == "admin"
+                val hasAdminClaim = claims["admin"] == true
                 if (hasAdminClaim) {
                     authState = AdminAuthState.Authorized
                 } else {
