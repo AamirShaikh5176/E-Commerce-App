@@ -179,12 +179,14 @@ fun HomeContent(
         )
     }
 
-    // Catalog filtering
     // Catalog products and dynamic category shelves
     val allProducts = allProductsState.data ?: emptyList()
     val popularProducts = remember(allProducts) { allProducts.sortedByDescending { it.rating } }
     val bestDeals = remember(allProducts) {
         allProducts.filter { it.discountPercentage >= 10.0 }.sortedByDescending { it.discountPercentage }
+    }
+    val recommendedProducts = remember(allProducts) {
+        allProducts.filter { it.rating >= 4.3 }.sortedByDescending { it.rating }
     }
     val categoryShelves = remember(allProducts, categoryState.data) {
         val cats = categoryState.data ?: emptyList()
@@ -482,7 +484,19 @@ fun HomeContent(
             }
         }
 
-        // 10. Flipkart-style "Explore All Products" 2-Column Vertical Scroll Feed
+        // 10. Recommended For You Section
+        if (recommendedProducts.isNotEmpty()) {
+            item {
+                ProductSection(
+                    title = "✨ Recommended For You",
+                    products = recommendedProducts.take(10),
+                    onProductClicked = onProductClicked,
+                    onSeeAllClicked = { onSeeAllCategoryClick("Recommended Products") }
+                )
+            }
+        }
+
+        // 11. Flipkart-style "Explore All Products" 2-Column Vertical Scroll Feed
         if (allProducts.isNotEmpty()) {
             item {
                 Row(

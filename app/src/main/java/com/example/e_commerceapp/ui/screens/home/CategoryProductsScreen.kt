@@ -70,23 +70,28 @@ fun CategoryProductsScreen(
             categoryTitle.equals("All", ignoreCase = true) -> {
                 allProducts
             }
-            categoryTitle.equals("Popular Deals", ignoreCase = true) ||
-            categoryTitle.contains("Popular", ignoreCase = true) -> {
+            categoryTitle.contains("Popular", ignoreCase = true) ||
+            categoryTitle.contains("Trending", ignoreCase = true) -> {
                 allProducts.sortedByDescending { it.rating }
             }
-            categoryTitle.equals("Best Deals", ignoreCase = true) ||
             categoryTitle.contains("Deals", ignoreCase = true) ||
-            categoryTitle.contains("Savings", ignoreCase = true) -> {
+            categoryTitle.contains("Savings", ignoreCase = true) ||
+            categoryTitle.contains("Discount", ignoreCase = true) -> {
                 allProducts.filter { it.discountPercentage >= 10.0 }
                     .sortedByDescending { it.discountPercentage }
+            }
+            categoryTitle.contains("Recommend", ignoreCase = true) -> {
+                allProducts.filter { it.rating >= 4.3 }.ifEmpty { allProducts }
             }
             else -> {
                 val term = categoryTitle.trim().lowercase()
                 val matched = allProducts.filter {
-                    it.category.lowercase().contains(term) ||
-                    term.contains(it.category.lowercase()) ||
+                    val cat = it.category.lowercase()
+                    cat == term || cat.contains(term) || term.contains(cat) ||
                     it.title.lowercase().contains(term) ||
-                    it.brand.lowercase().contains(term)
+                    it.brand.lowercase().contains(term) ||
+                    (term.contains("mobile") && (cat.contains("mobile") || cat.contains("smartphones"))) ||
+                    (term.contains("electronic") && (cat.contains("electronic") || cat.contains("smartphones") || cat.contains("mobiles") || cat.contains("accessories")))
                 }
                 if (matched.isNotEmpty()) matched else allProducts
             }
