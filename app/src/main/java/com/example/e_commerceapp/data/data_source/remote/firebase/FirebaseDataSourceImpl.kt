@@ -4,7 +4,7 @@ import android.net.Uri
 import com.example.e_commerceapp.domain.entity.user.FirebaseSignInUserEntity
 import com.example.e_commerceapp.domain.entity.user.UserInformationEntity
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.userProfileChangeRequest
+import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import com.mustafaunlu.ecommerce_compose.data.source.remote.FirebaseDataSource
 import javax.inject.Inject
@@ -139,12 +139,14 @@ class FirebaseDataSourceImpl @Inject constructor(
             "role" to user.role.ifBlank { "customer" },
         )
         val firebaseUser = firebaseAuth.currentUser
-        val profileUpdate = userProfileChangeRequest {
-            displayName = user.name
-            if (user.image.isNotBlank()) {
-                photoUri = Uri.parse(user.image)
+        val profileUpdate = UserProfileChangeRequest.Builder()
+            .setDisplayName(user.name)
+            .apply {
+                if (user.image.isNotBlank()) {
+                    setPhotoUri(Uri.parse(user.image))
+                }
             }
-        }
+            .build()
         firebaseUser?.updateProfile(profileUpdate)
 
         // write user data to firestore
