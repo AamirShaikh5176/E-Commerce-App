@@ -2,12 +2,13 @@ package com.example.e_commerceapp.data.dto.firestore
 
 /**
  * Configuration for the store's default personal UPI QR payment option.
- * Stored securely in Firestore at /paymentConfig/defaultUpiQr
+ * Configured with owner's GPay number: 8265085176, UPI ID: aamirshaikh78601-3@oksbi, Merchant: Aamir Shaikh.
  */
 data class UpiQrConfig(
-    val upiId: String = "merchant@upi", // Project owner configures real UPI ID in Firestore /paymentConfig/defaultUpiQr
-    val merchantName: String = "Store Merchant",
-    val qrImageUrl: String = "",         // URL or reference to project owner's real QR image
+    val upiId: String = "aamirshaikh78601-3@oksbi",
+    val merchantName: String = "Aamir Shaikh",
+    val gpayNumber: String = "8265085176",
+    val qrImageUrl: String = "",
     val isEnabled: Boolean = true,
-    val instructions: String = "1. Scan the QR code with Google Pay, PhonePe, Paytm or BHIM\n2. Complete payment\n3. Tap 'I've Completed Payment' below. An admin will verify the transaction.",
+    val instructions: String = "1. Scan the QR code or pay to Google Pay Number: 8265085176 (UPI ID: aamirshaikh78601-3@oksbi)\n2. Complete payment in Google Pay or any UPI app\n3. Tap 'I've Completed Payment' below. An admin will verify the transaction.",
 )

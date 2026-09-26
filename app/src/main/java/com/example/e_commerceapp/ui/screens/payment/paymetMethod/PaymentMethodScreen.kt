@@ -8,6 +8,7 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -58,10 +59,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -392,33 +396,84 @@ fun PaymentMethodScreen(
                             .padding(top = 10.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // QR Placeholder / Container
+                        // Real Google Pay QR Code Display
                         Box(
                             modifier = Modifier
-                                .size(170.dp)
+                                .fillMaxWidth()
                                 .background(Color.White, RoundedCornerShape(12.dp))
                                 .border(1.5.dp, Color(0xFF0284C7), RoundedCornerShape(12.dp))
-                                .padding(8.dp),
+                                .padding(12.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Default.QrCode,
-                                    contentDescription = "UPI QR Code",
-                                    tint = Color(0xFF0F172A),
-                                    modifier = Modifier.size(110.dp)
+                                Image(
+                                    painter = painterResource(id = R.drawable.upi_qr_code),
+                                    contentDescription = "Aamir Shaikh Google Pay QR Code",
+                                    modifier = Modifier
+                                        .size(240.dp)
+                                        .clip(RoundedCornerShape(8.dp)),
+                                    contentScale = ContentScale.Fit
                                 )
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = upiQrConfig.merchantName,
-                                    fontSize = 11.sp,
+                                    fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF0F172A)
+                                )
+                                Text(
+                                    text = "Scan to pay with Google Pay, PhonePe, Paytm or any UPI App",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF64748B)
                                 )
                             }
                         }
 
                         Spacer(modifier = Modifier.height(10.dp))
+
+                        // GPay Phone Number row with copy button
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFF1F5F9),
+                            border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text("Google Pay / Phone Number:", fontSize = 10.sp, color = Color.Gray)
+                                    Text(
+                                        text = upiQrConfig.gpayNumber,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF1E293B)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        val clip = ClipData.newPlainText("GPay Number", upiQrConfig.gpayNumber)
+                                        clipboard.setPrimaryClip(clip)
+                                        Toast.makeText(context, "GPay number copied to clipboard", Toast.LENGTH_SHORT).show()
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = "Copy GPay Number",
+                                        tint = Color(0xFF0284C7),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         // UPI ID row with copy button
                         Surface(
@@ -478,7 +533,7 @@ fun PaymentMethodScreen(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text("Open Installed UPI App", fontWeight = FontWeight.Bold, color = Color(0xFF0284C7))
+                            Text("Pay via Google Pay / Any UPI App", fontWeight = FontWeight.Bold, color = Color(0xFF0284C7))
                         }
 
                         Spacer(modifier = Modifier.height(8.dp))
