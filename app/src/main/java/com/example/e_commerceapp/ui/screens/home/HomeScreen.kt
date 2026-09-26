@@ -474,7 +474,8 @@ fun HomeContent(
                 ProductSection(
                     title = "$selectedCategory Collection",
                     products = selectedCategoryProducts.data ?: emptyList(),
-                    onProductClicked = onProductClicked
+                    onProductClicked = onProductClicked,
+                    onSeeAllClicked = onSeeAllCategoryClick
                 )
             }
         }
@@ -485,7 +486,8 @@ fun HomeContent(
                 ProductSection(
                     title = "Popular Products",
                     products = popularProducts,
-                    onProductClicked = onProductClicked
+                    onProductClicked = onProductClicked,
+                    onSeeAllClicked = onSeeAllCategoryClick
                 )
             }
         }
@@ -496,7 +498,8 @@ fun HomeContent(
                 ProductSection(
                     title = "Electronics & Gadgets",
                     products = electronics,
-                    onProductClicked = onProductClicked
+                    onProductClicked = onProductClicked,
+                    onSeeAllClicked = onSeeAllCategoryClick
                 )
             }
         }
@@ -507,7 +510,8 @@ fun HomeContent(
                 ProductSection(
                     title = "Beauty & Personal Care",
                     products = beauty,
-                    onProductClicked = onProductClicked
+                    onProductClicked = onProductClicked,
+                    onSeeAllClicked = onSeeAllCategoryClick
                 )
             }
         }
@@ -518,7 +522,8 @@ fun HomeContent(
                 ProductSection(
                     title = "Home & Furniture",
                     products = homeFurniture,
-                    onProductClicked = onProductClicked
+                    onProductClicked = onProductClicked,
+                    onSeeAllClicked = onSeeAllCategoryClick
                 )
             }
         }
@@ -529,7 +534,8 @@ fun HomeContent(
                 ProductSection(
                     title = "Groceries & Daily Essentials",
                     products = groceries,
-                    onProductClicked = onProductClicked
+                    onProductClicked = onProductClicked,
+                    onSeeAllClicked = onSeeAllCategoryClick
                 )
             }
         }
@@ -540,7 +546,8 @@ fun HomeContent(
                 ProductSection(
                     title = "Fashion & Lifestyle",
                     products = fashion,
-                    onProductClicked = onProductClicked
+                    onProductClicked = onProductClicked,
+                    onSeeAllClicked = onSeeAllCategoryClick
                 )
             }
         }
@@ -551,7 +558,8 @@ fun HomeContent(
                 ProductSection(
                     title = "Sports & Fitness",
                     products = sports,
-                    onProductClicked = onProductClicked
+                    onProductClicked = onProductClicked,
+                    onSeeAllClicked = onSeeAllCategoryClick
                 )
             }
         }
@@ -562,7 +570,8 @@ fun HomeContent(
                 ProductSection(
                     title = "Best Deals & Discounts",
                     products = bestDeals,
-                    onProductClicked = onProductClicked
+                    onProductClicked = onProductClicked,
+                    onSeeAllClicked = onSeeAllCategoryClick
                 )
             }
         }
@@ -573,7 +582,8 @@ fun HomeContent(
                 ProductSection(
                     title = "Recommended For You",
                     products = recommended,
-                    onProductClicked = onProductClicked
+                    onProductClicked = onProductClicked,
+                    onSeeAllClicked = onSeeAllCategoryClick
                 )
             }
         }
@@ -589,6 +599,7 @@ private fun ProductSection(
     title: String,
     products: List<ProductEntity>,
     onProductClicked: (ProductEntity) -> Unit,
+    onSeeAllClicked: (() -> Unit)? = null,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -605,11 +616,14 @@ private fun ProductSection(
             )
 
             Text(
-                text = "See All",
+                text = "See All →",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF0284C7),
-                fontFamily = FontFamily(Font(R.font.cairo_regular))
+                fontFamily = FontFamily(Font(R.font.cairo_regular)),
+                modifier = if (onSeeAllClicked != null) {
+                    Modifier.clickable { onSeeAllClicked() }
+                } else Modifier
             )
         }
 

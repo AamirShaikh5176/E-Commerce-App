@@ -107,13 +107,31 @@ class HomeViewModel @Inject constructor(
             }
 
             try {
-                productsUseCase.getAllCategory().collect { listCategoriesText ->
-                    _categoryState.update {
-                        it.copy(
-                            isLoading = false,
-                            errorMessage = null,
-                            data = listCategoriesText
-                        )
+                // Combine categories + products to only show categories that have items
+                productsUseCase.getAllCategory().collect { allCategories ->
+                    // Get all products to check which categories have items
+                    productsUseCase.getAllProducts().collect { allProducts ->
+                        val productCategories = allProducts
+                            .map { it.category.trim().lowercase() }
+                            .toSet()
+
+                        // Filter: only keep categories that have at least one product
+                        val filteredCategories = allCategories.filter { category ->
+                            val slug = category.slug.trim().lowercase()
+                            val name = category.name.trim().lowercase()
+                            productCategories.any { pc ->
+                                pc.contains(slug) || pc.contains(name) ||
+                                slug.contains(pc) || name.contains(pc)
+                            }
+                        }
+
+                        _categoryState.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = null,
+                                data = filteredCategories.ifEmpty { allCategories }
+                            )
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -127,6 +145,7 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
+
 
     fun getProductsByCategory(categoryName: String) {
         viewModelScope.launch {

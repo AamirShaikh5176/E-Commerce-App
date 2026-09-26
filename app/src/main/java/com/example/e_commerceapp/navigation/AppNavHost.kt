@@ -109,7 +109,7 @@ fun AppNavHost(
 //                    navController.navigate(NotificationScreen.route)
                 },
                 onSeeAllCategoryClick = {
-//                    navController.navigate(SeeAllCategoryScreen.route)
+                    navController.navigate(SearchScreen.route)
                 }
             )
         }
@@ -343,7 +343,13 @@ fun AppNavHost(
         composable(AdminDashboardDestination.route) {
             AdminAuthGuard(onUnauthorized = { navController.popBackStack() }) {
                 AdminDashboardScreen(
-                    onBackClick = { navController.popBackStack() },
+                    onBackClick = {
+                        // Admin back = sign out admin session and return to home (guest mode)
+                        FirebaseAuth.getInstance().signOut()
+                        navController.navigate(HomeScreen.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
                     onNavigateToProducts = { navController.navigate(AdminProductListDestination.route) },
                     onNavigateToCategories = { navController.navigate(AdminCategoryDestination.route) },
                     onNavigateToOrders = { navController.navigate(AdminOrderListDestination.route) },

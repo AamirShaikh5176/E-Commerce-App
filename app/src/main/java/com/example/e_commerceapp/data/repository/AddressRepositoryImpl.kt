@@ -16,42 +16,14 @@ class AddressRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
 ) : AddressRepository {
 
-    private val sampleAddresses = listOf(
-        AddressEntity(
-            id = "default_sample_1",
-            fullName = "Rahul Sharma",
-            phoneNumber = "9876543210",
-            houseFlatNumber = "Flat 402, Lotus Residency",
-            streetArea = "100 Feet Road, Indiranagar",
-            landmark = "Near Metro Pillar 84",
-            city = "Bengaluru",
-            state = "Karnataka",
-            pinCode = "560038",
-            addressType = "HOME",
-            isDefault = true
-        ),
-        AddressEntity(
-            id = "default_sample_2",
-            fullName = "Rahul Sharma (Office)",
-            phoneNumber = "9876543210",
-            houseFlatNumber = "Tech Park Tower B, 5th Floor",
-            streetArea = "Outer Ring Road, Bellandur",
-            landmark = "Opposite EcoSpace",
-            city = "Bengaluru",
-            state = "Karnataka",
-            pinCode = "560103",
-            addressType = "WORK",
-            isDefault = false
-        )
-    )
-
-    // In-memory fallback if guest or offline
-    private val inMemoryAddresses = sampleAddresses.toMutableList()
+    // In-memory addresses for logged-in users when offline — empty by default
+    private val inMemoryAddresses = mutableListOf<AddressEntity>()
 
     override fun getUserAddresses(): Flow<List<AddressEntity>> = callbackFlow {
         val uid = auth.currentUser?.uid
         if (uid.isNullOrBlank()) {
-            trySend(inMemoryAddresses.toList())
+            // Guest users see NO addresses — they must sign in before checkout
+            trySend(emptyList())
             awaitClose { }
             return@callbackFlow
         }
@@ -81,11 +53,7 @@ class AddressRepositoryImpl @Inject constructor(
                     )
                 }
 
-                if (list.isEmpty()) {
-                    trySend(inMemoryAddresses.toList())
-                } else {
-                    trySend(list)
-                }
+                trySend(list)
             }
 
         awaitClose { listener.remove() }
