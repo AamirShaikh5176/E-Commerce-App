@@ -109,48 +109,15 @@ fun ProductDetailScreen(
     var showGuestPrompt by remember { mutableStateOf(false) }
 
     if (showGuestPrompt) {
-        AlertDialog(
+        com.example.e_commerceapp.ui.screens.common.GuestLoginRequiredDialog(
             onDismissRequest = { showGuestPrompt = false },
-            title = {
-                Text(
-                    text = "Login required",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = Color(0xFF0F172A)
-                )
+            onLoginClick = {
+                showGuestPrompt = false
+                onLoginClick()
             },
-            text = {
-                Text(
-                    text = "Please login or create an account to continue with your purchase.",
-                    fontSize = 14.sp,
-                    color = Color(0xFF64748B)
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showGuestPrompt = false
-                        onLoginClick()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
-                ) {
-                    Text("LOGIN", color = Color.White, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = {
-                            showGuestPrompt = false
-                            onCreateAccountClick()
-                        }
-                    ) {
-                        Text("CREATE ACCOUNT", color = Color(0xFF0284C7), fontWeight = FontWeight.Bold)
-                    }
-                    TextButton(onClick = { showGuestPrompt = false }) {
-                        Text("CONTINUE SHOPPING", color = Color(0xFF64748B))
-                    }
-                }
+            onCreateAccountClick = {
+                showGuestPrompt = false
+                onCreateAccountClick()
             }
         )
     }
