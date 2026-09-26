@@ -112,42 +112,27 @@ class HomeViewModel @Inject constructor(
                         .filter { it.isNotBlank() }
                         .toSet()
 
+                    val baseCats = if (allCategories.isNotEmpty()) {
+                        allCategories
+                    } else {
+                        com.example.e_commerceapp.data.demo.DemoCatalogData.demoCategories
+                    }
+
                     // Filter categories that have at least one product
-                    val matching = allCategories.filter { category ->
+                    val matching = baseCats.filter { category ->
                         val slug = category.slug.trim().lowercase()
                         val name = category.name.trim().lowercase()
-                        productCategorySet.any { pc ->
+                        productCategorySet.isEmpty() || productCategorySet.any { pc ->
                             val pNorm = pc.lowercase()
                             pNorm == slug || pNorm == name ||
                             pNorm.contains(slug) || pNorm.contains(name) ||
-                            slug.contains(pNorm) || name.contains(pNorm)
+                            slug.contains(pNorm) || name.contains(pNorm) ||
+                            (slug == "smartphones" && (pNorm == "mobiles" || pNorm == "smartphones")) ||
+                            (slug == "electronics" && (pNorm == "electronics" || pNorm == "smartphones" || pNorm == "mobiles" || pNorm == "accessories"))
                         }
                     }
 
-                    when {
-                        matching.isNotEmpty() -> matching
-                        allCategories.isNotEmpty() -> allCategories
-                        productCategorySet.isNotEmpty() -> {
-                            productCategorySet.map { catName ->
-                                Category(
-                                    name = catName.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() },
-                                    slug = catName.lowercase().replace(" ", "-"),
-                                    url = ""
-                                )
-                            }
-                        }
-                        else -> {
-                            listOf(
-                                Category("Mobiles", "smartphones", ""),
-                                Category("Laptops", "laptops", ""),
-                                Category("Fashion", "tops", ""),
-                                Category("Beauty", "skincare", ""),
-                                Category("Fragrances", "fragrances", ""),
-                                Category("Groceries", "groceries", ""),
-                                Category("Furniture", "furniture", "")
-                            )
-                        }
-                    }
+                    if (matching.isNotEmpty()) matching else baseCats
                 }.collect { finalCategories ->
                     _categoryState.update {
                         it.copy(
@@ -161,8 +146,8 @@ class HomeViewModel @Inject constructor(
                 _categoryState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = e.message,
-                        data = null
+                        errorMessage = null,
+                        data = com.example.e_commerceapp.data.demo.DemoCatalogData.demoCategories
                     )
                 }
             }

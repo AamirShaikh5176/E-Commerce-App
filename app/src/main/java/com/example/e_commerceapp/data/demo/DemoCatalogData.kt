@@ -482,8 +482,11 @@ object DemoCatalogData {
     fun filterByCategory(categoryName: String): List<ProductEntity> {
         val trimmed = categoryName.trim().lowercase()
         return toProductEntityList().filter {
-            it.category.lowercase().contains(trimmed) ||
-            trimmed.contains(it.category.lowercase())
+            val cat = it.category.lowercase()
+            cat == trimmed || cat.contains(trimmed) || trimmed.contains(cat) ||
+            (trimmed == "smartphones" && cat == "mobiles") ||
+            (trimmed == "mobiles" && cat == "smartphones") ||
+            (trimmed == "electronics" && (cat == "electronics" || cat == "smartphones" || cat == "mobiles" || cat == "accessories"))
         }
     }
 }

@@ -31,27 +31,13 @@ class FirestoreCatalogRepositoryImpl @Inject constructor(
 ) : ApiRepository {
 
     override fun getProductsListFromApi(): Flow<List<ProductEntity>> = flow {
-        // Trigger background catalog migration if Firestore is currently unpopulated
-        try {
-            catalogDataMigrator.migrateCatalogIfNeeded()
-        } catch (_: Exception) {
-        }
-
         firestoreCatalogDataSource.getProductsFlow().collect { firestoreList ->
             if (firestoreList.isNotEmpty()) {
                 emit(firestoreList)
             } else {
-                // Graceful fallback while migration is executing
-                try {
-                    val apiProducts = apiService.getProductsListFromApi().products.toListProductEntity()
-                    if (apiProducts.isNotEmpty()) {
-                        emit(apiProducts)
-                    } else {
-                        emit(com.example.e_commerceapp.data.demo.DemoCatalogData.toProductEntityList())
-                    }
-                } catch (_: Exception) {
-                    emit(com.example.e_commerceapp.data.demo.DemoCatalogData.toProductEntityList())
-                }
+                // Immediate fallback to curated demo catalog data
+                val demoProducts = com.example.e_commerceapp.data.demo.DemoCatalogData.toProductEntityList()
+                emit(demoProducts)
             }
         }
     }.flowOn(ioDispatcher)
@@ -61,14 +47,14 @@ class FirestoreCatalogRepositoryImpl @Inject constructor(
             if (product != null) {
                 emit(product)
             } else {
-                try {
-                    val apiProduct = apiService.getSingleProductByIdFromApi(productId).toDetailsProductEntity()
-                    emit(apiProduct)
-                } catch (e: Exception) {
-                    val demoItem = com.example.e_commerceapp.data.demo.DemoCatalogData.findProductDetailsById(productId)
-                    if (demoItem != null) {
-                        emit(demoItem)
-                    } else {
+                val demoItem = com.example.e_commerceapp.data.demo.DemoCatalogData.findProductDetailsById(productId)
+                if (demoItem != null) {
+                    emit(demoItem)
+                } else {
+                    try {
+                        val apiProduct = apiService.getSingleProductByIdFromApi(productId).toDetailsProductEntity()
+                        emit(apiProduct)
+                    } catch (e: Exception) {
                         throw e
                     }
                 }
@@ -81,24 +67,12 @@ class FirestoreCatalogRepositoryImpl @Inject constructor(
             if (results.isNotEmpty()) {
                 emit(results)
             } else {
-                try {
-                    val apiResults = apiService.getProductsListBySearchFromApi(query).products.toListSearchProductEntity()
-                    if (apiResults.isNotEmpty()) {
-                        emit(apiResults)
-                    } else {
-                        val q = query.trim().lowercase()
-                        val demoFiltered = com.example.e_commerceapp.data.demo.DemoCatalogData.toSearchProductEntityList().filter {
-                            it.title.lowercase().contains(q) || it.description.lowercase().contains(q)
-                        }
-                        emit(demoFiltered)
-                    }
-                } catch (_: Exception) {
-                    val q = query.trim().lowercase()
-                    val demoFiltered = com.example.e_commerceapp.data.demo.DemoCatalogData.toSearchProductEntityList().filter {
-                        it.title.lowercase().contains(q) || it.description.lowercase().contains(q)
-                    }
-                    emit(demoFiltered)
+                val q = query.trim().lowercase()
+                val demoFiltered = com.example.e_commerceapp.data.demo.DemoCatalogData.toSearchProductEntityList().filter {
+                    it.title.lowercase().contains(q) ||
+                    it.description.lowercase().contains(q)
                 }
+                emit(demoFiltered)
             }
         }
     }.flowOn(ioDispatcher)
@@ -108,16 +82,7 @@ class FirestoreCatalogRepositoryImpl @Inject constructor(
             if (categories.isNotEmpty()) {
                 emit(categories)
             } else {
-                try {
-                    val apiCategories = apiService.getAllCategoriesFromApi()
-                    if (apiCategories.isNotEmpty()) {
-                        emit(apiCategories)
-                    } else {
-                        emit(com.example.e_commerceapp.data.demo.DemoCatalogData.demoCategories)
-                    }
-                } catch (_: Exception) {
-                    emit(com.example.e_commerceapp.data.demo.DemoCatalogData.demoCategories)
-                }
+                emit(com.example.e_commerceapp.data.demo.DemoCatalogData.demoCategories)
             }
         }
     }.flowOn(ioDispatcher)
@@ -127,16 +92,7 @@ class FirestoreCatalogRepositoryImpl @Inject constructor(
             if (products.isNotEmpty()) {
                 emit(products)
             } else {
-                try {
-                    val apiProducts = apiService.getProductsListByCategoryNameFromApi(categoryName).products.toListProductEntity()
-                    if (apiProducts.isNotEmpty()) {
-                        emit(apiProducts)
-                    } else {
-                        emit(com.example.e_commerceapp.data.demo.DemoCatalogData.filterByCategory(categoryName))
-                    }
-                } catch (_: Exception) {
-                    emit(com.example.e_commerceapp.data.demo.DemoCatalogData.filterByCategory(categoryName))
-                }
+                emit(com.example.e_commerceapp.data.demo.DemoCatalogData.filterByCategory(categoryName))
             }
         }
     }.flowOn(ioDispatcher)
