@@ -536,6 +536,20 @@ fun PaymentMethodScreen(
                             Text("Pay via Google Pay / Any UPI App", fontWeight = FontWeight.Bold, color = Color(0xFF0284C7))
                         }
 
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Direct Place Order button inside QR section
+                        Button(
+                            onClick = {
+                                viewModel.placeUpiQrOrder(parsedPrice, upiRefInput.trim())
+                            },
+                            modifier = Modifier.fillMaxWidth().height(46.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A))
+                        ) {
+                            Text("I've Paid — Place Order Directly 🎉", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 14.sp)
+                        }
+
                         Spacer(modifier = Modifier.height(8.dp))
 
                         // Optional UTR Reference Field
@@ -556,13 +570,14 @@ fun PaymentMethodScreen(
 
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFFFEF3C7),
+                            color = Color(0xFFF0FDF4),
+                            border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "⚠️ Orders paid via personal QR will remain in 'PENDING_VERIFICATION' until verified by admin.",
+                                text = "✅ Complete payment on Google Pay or any UPI app, then tap 'Place Order' to directly place your order.",
                                 fontSize = 11.sp,
-                                color = Color(0xFF92400E),
+                                color = Color(0xFF166534),
                                 modifier = Modifier.padding(8.dp)
                             )
                         }
@@ -652,7 +667,7 @@ fun PaymentMethodScreen(
                     val actionLabel = when (selectedMethod) {
                         PaymentMethod.COD -> "Place COD Order"
                         PaymentMethod.ONLINE -> "Pay Online  ➔"
-                        PaymentMethod.UPI_QR -> "I've Completed Payment"
+                        PaymentMethod.UPI_QR -> "Place Order Directly"
                     }
                     Text(
                         text = actionLabel,

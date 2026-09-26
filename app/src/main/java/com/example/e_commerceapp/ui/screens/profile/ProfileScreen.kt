@@ -381,14 +381,6 @@ fun ProfileScreenContent(
             HorizontalLine()
 
             ProfileOptionItem(
-                icon = Icons.Outlined.Edit,
-                title = "Edit Profile",
-                onClick = { showSheet = true }
-            )
-
-            HorizontalLine()
-
-            ProfileOptionItem(
                 icon = Icons.Outlined.LocationOn,
                 title = "Delivery Addresses",
                 onClick = onNavigateToAddresses
@@ -420,6 +412,7 @@ fun ProfileScreenContent(
 
             HorizontalLine()
 
+            // Logout Option at the very end/last of the Profile Section
             LogoutItem(onLogout = onLogout)
         }
 
@@ -533,11 +526,49 @@ fun ProfileOptionItem(
 fun LogoutItem(
     onLogout: () -> Unit,
 ) {
+    var showConfirmDialog by remember { mutableStateOf(false) }
+
+    if (showConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showConfirmDialog = false },
+            title = {
+                Text(
+                    text = "Confirm Logout",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to log out of your account?",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showConfirmDialog = false
+                        onLogout()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
+                ) {
+                    Text("Logout", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirmDialog = false }) {
+                    Text("Cancel", color = Color.Gray)
+                }
+            }
+        )
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onLogout() }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .clickable { showConfirmDialog = true }
+            .padding(horizontal = 16.dp, vertical = 15.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -553,9 +584,15 @@ fun LogoutItem(
             text = "Logout",
             fontSize = 15.sp,
             color = Color(0xFFEF4444),
-            fontWeight = FontWeight.Medium,
+            fontWeight = FontWeight.Bold,
             fontFamily = FontFamily(Font(R.font.medium)),
             modifier = Modifier.weight(1f)
+        )
+
+        Icon(
+            imageVector = Icons.Default.KeyboardArrowRight,
+            contentDescription = null,
+            tint = Color(0xFFEF4444).copy(alpha = 0.5f)
         )
     }
 }

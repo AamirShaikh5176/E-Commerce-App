@@ -127,11 +127,11 @@ class PaymentViewModel @Inject constructor(
     fun placeUpiQrOrder(totalAmount: Double, upiRef: String = "", deliveryFee: Double = 0.0) {
         placeOrderInternal(
             method = PaymentMethod.UPI_QR,
-            paymentStatus = "PENDING_VERIFICATION",
-            orderStatus = "PLACED",
+            paymentStatus = "PAID",
+            orderStatus = "CONFIRMED",
             totalAmount = totalAmount,
             deliveryFee = deliveryFee,
-            paymentReference = upiRef
+            paymentReference = upiRef.ifBlank { "UPI_GPay_8265085176" }
         )
     }
 
@@ -188,6 +188,7 @@ class PaymentViewModel @Inject constructor(
 
             val result = paymentUseCase.placeOrder(orderDto)
             if (result.isSuccess) {
+                paymentUseCase.clearUserCart()
                 _orderState.update {
                     it.copy(
                         isLoading = false,
@@ -270,6 +271,7 @@ class PaymentViewModel @Inject constructor(
 
             val result = paymentUseCase.placeOrder(orderDto)
             if (result.isSuccess) {
+                paymentUseCase.clearUserCart()
                 _orderState.update {
                     it.copy(
                         isLoading = false,
