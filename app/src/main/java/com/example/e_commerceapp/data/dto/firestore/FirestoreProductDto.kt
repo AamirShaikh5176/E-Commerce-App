@@ -50,7 +50,7 @@ data class FirestoreProductDto(
             brand = brand,
             deliveryDays = if (deliveryDays > 0) deliveryDays else 2,
             isCodAvailable = isCodAvailable,
-            category = categoryName,
+            category = categoryName.ifBlank { categoryId },
         )
     }
 

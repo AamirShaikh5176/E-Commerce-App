@@ -134,7 +134,8 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
                 products.filter {
                     it.title.lowercase().contains(trimmed) ||
                     it.description.lowercase().contains(trimmed) ||
-                    it.brand.lowercase().contains(trimmed)
+                    it.brand.lowercase().contains(trimmed) ||
+                    it.category.lowercase().contains(trimmed)
                 }.map {
                     SearchProductEntity(
                         id = it.id,

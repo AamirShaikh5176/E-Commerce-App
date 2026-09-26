@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -55,6 +56,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -97,11 +99,61 @@ fun ProductDetailScreen(
     productId: String,
     onBuyNowClick: (ProductDetailsEntity) -> Unit,
     onBackClick: () -> Unit,
+    onLoginClick: () -> Unit = {},
+    onCreateAccountClick: () -> Unit = {},
     viewModel: ProductDetailsViewModel = hiltViewModel(),
 ) {
     HideNavigationBarOnly()
 
     val context = LocalContext.current
+    var showGuestPrompt by remember { mutableStateOf(false) }
+
+    if (showGuestPrompt) {
+        AlertDialog(
+            onDismissRequest = { showGuestPrompt = false },
+            title = {
+                Text(
+                    text = "Login required",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = Color(0xFF0F172A)
+                )
+            },
+            text = {
+                Text(
+                    text = "Please login or create an account to continue with your purchase.",
+                    fontSize = 14.sp,
+                    color = Color(0xFF64748B)
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showGuestPrompt = false
+                        onLoginClick()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                ) {
+                    Text("LOGIN", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            showGuestPrompt = false
+                            onCreateAccountClick()
+                        }
+                    ) {
+                        Text("CREATE ACCOUNT", color = Color(0xFF0284C7), fontWeight = FontWeight.Bold)
+                    }
+                    TextButton(onClick = { showGuestPrompt = false }) {
+                        Text("CONTINUE SHOPPING", color = Color(0xFF64748B))
+                    }
+                }
+            }
+        )
+    }
 
     LaunchedEffect(productId) {
         viewModel.getProductDetails(productId)
@@ -119,7 +171,14 @@ fun ProductDetailScreen(
 
         ProductDetailsDesign(
             product = product,
-            onBuyNowClick = onBuyNowClick,
+            onBuyNowClick = { productEntity ->
+                val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                if (currentUser == null) {
+                    showGuestPrompt = true
+                } else {
+                    onBuyNowClick(productEntity)
+                }
+            },
             onBackClick = onBackClick,
             isFavorite = isFavorite,
             isAddedToCart = isAddedToCart,

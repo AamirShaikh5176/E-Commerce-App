@@ -104,3 +104,7 @@ object AdminUserListDestination : AppDestinations {
     override val route = "admin_users"
 }
 
+object CategoryProductsDestination : AppDestinations {
+    override val route = "category_products"
+}
+

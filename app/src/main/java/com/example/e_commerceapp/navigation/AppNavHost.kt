@@ -14,6 +14,7 @@ import com.example.e_commerceapp.ui.screens.cart.CartScreen
 import com.example.e_commerceapp.ui.screens.common.HideNavigationBarOnly
 import com.example.e_commerceapp.ui.screens.details.ProductDetailScreen
 import com.example.e_commerceapp.ui.screens.favorite.FavoriteScreen
+import com.example.e_commerceapp.ui.screens.home.CategoryProductsScreen
 import com.example.e_commerceapp.ui.screens.home.HomeScreen
 import com.example.e_commerceapp.ui.screens.payment.PaymentWebViewScreen
 import com.example.e_commerceapp.ui.screens.payment.paymentResult.PaymentResultScreen
@@ -108,9 +109,27 @@ fun AppNavHost(
                 onNotificationClick = {
 //                    navController.navigate(NotificationScreen.route)
                 },
-                onSeeAllCategoryClick = {
-                    navController.navigate(SearchScreen.route)
+                onCategoryClick = { categoryName ->
+                    navController.navigate("${CategoryProductsDestination.route}/$categoryName")
+                },
+                onSeeAllCategoryClick = { title ->
+                    navController.navigate("${CategoryProductsDestination.route}/$title")
                 }
+            )
+        }
+
+        composable(
+            route = "${CategoryProductsDestination.route}/{categoryTitle}",
+            arguments = listOf(navArgument("categoryTitle") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val categoryTitle = backStackEntry.arguments?.getString("categoryTitle") ?: "Products"
+            CategoryProductsScreen(
+                categoryTitle = categoryTitle,
+                onProductClicked = { product ->
+                    val route = "${ProductDetailsScreen.route}/${product.id}"
+                    navController.navigate(route = route)
+                },
+                onBackClick = { navController.popBackStack() }
             )
         }
 
@@ -131,6 +150,8 @@ fun AppNavHost(
                         navController.navigate(route = route)
                     }
                 },
+                onLoginClick = { navController.navigate(SignInScreen.route) },
+                onCreateAccountClick = { navController.navigate(SignUpScreen.route) },
                 onBackClick = { navController.popBackStack() },
             )
         }
@@ -150,6 +171,8 @@ fun AppNavHost(
                     val route = "${ProductDetailsScreen.route}/${it.productId}"
                     navController.navigate(route = route)
                 },
+                onLoginClick = { navController.navigate(SignInScreen.route) },
+                onCreateAccountClick = { navController.navigate(SignUpScreen.route) },
                 onBackClick = { navController.popBackStack() },
                 onBadgeCountChange = {},
             )

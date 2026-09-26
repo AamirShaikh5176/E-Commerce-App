@@ -3,6 +3,8 @@ package com.example.e_commerceapp.ui.screens.serach
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,13 +15,21 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,20 +39,28 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.example.e_commerceapp.R
+import com.example.e_commerceapp.data.dto.Category
+import com.example.e_commerceapp.domain.entity.product.ProductEntity
 import com.example.e_commerceapp.domain.entity.product.SearchProductEntity
 import com.example.e_commerceapp.domain.mapper.toFavoriteProductEntity
 import com.example.e_commerceapp.ui.screens.common.HideNavigationBarOnly
 import com.example.e_commerceapp.ui.screens.common.Loading
 import com.example.e_commerceapp.ui.screens.serach.component.SearchItem
 import com.example.e_commerceapp.ui.screens.serach.component.SearchTextField
+import com.example.e_commerceapp.utils.CurrencyUtils
 
 @Composable
 fun SearchScreen(
@@ -163,10 +181,10 @@ fun SearchScreen(
 
 @Composable
 fun SearchRecommendations(
-    recommendedProducts: List<com.example.e_commerceapp.domain.entity.product.ProductEntity>,
-    categories: List<com.example.e_commerceapp.data.dto.Category>,
+    recommendedProducts: List<ProductEntity>,
+    categories: List<Category>,
     onQuerySelected: (String) -> Unit,
-    onProductSelected: (com.example.e_commerceapp.domain.entity.product.ProductEntity) -> Unit,
+    onProductSelected: (ProductEntity) -> Unit,
 ) {
     val trendingSearches = listOf(
         "Mobiles", "Laptops", "Fashion", "Beauty",
@@ -186,23 +204,23 @@ fun SearchRecommendations(
                     text = "Trending Searches",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground
+                    color = MaterialTheme.colorScheme.onBackground
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                androidx.compose.foundation.lazy.LazyRow(
+                LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(trendingSearches) { term ->
-                        androidx.compose.material3.SuggestionChip(
+                        SuggestionChip(
                             onClick = { onQuerySelected(term) },
                             label = { Text(term, fontSize = 13.sp) },
-                            colors = androidx.compose.material3.SuggestionChipDefaults.suggestionChipColors(
+                            colors = SuggestionChipDefaults.suggestionChipColors(
                                 containerColor = Color(0xFFF1F5F9),
                                 labelColor = Color(0xFF1E293B)
                             ),
-                            border = androidx.compose.material3.SuggestionChipDefaults.suggestionChipBorder(
+                            border = SuggestionChipDefaults.suggestionChipBorder(
                                 enabled = true,
                                 borderColor = Color(0xFFCBD5E1)
                             )
@@ -217,12 +235,12 @@ fun SearchRecommendations(
             categories
         } else {
             listOf(
-                com.example.e_commerceapp.data.dto.Category("Mobiles", "smartphones", ""),
-                com.example.e_commerceapp.data.dto.Category("Laptops", "laptops", ""),
-                com.example.e_commerceapp.data.dto.Category("Fashion", "tops", ""),
-                com.example.e_commerceapp.data.dto.Category("Beauty", "skincare", ""),
-                com.example.e_commerceapp.data.dto.Category("Groceries", "groceries", ""),
-                com.example.e_commerceapp.data.dto.Category("Furniture", "furniture", "")
+                Category("Mobiles", "smartphones", ""),
+                Category("Laptops", "laptops", ""),
+                Category("Fashion", "tops", ""),
+                Category("Beauty", "skincare", ""),
+                Category("Groceries", "groceries", ""),
+                Category("Furniture", "furniture", "")
             )
         }
 
@@ -232,19 +250,19 @@ fun SearchRecommendations(
                     text = "Shop by Category",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground
+                    color = MaterialTheme.colorScheme.onBackground
                 )
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                androidx.compose.foundation.lazy.LazyRow(
+                LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(displayCategories) { cat ->
-                        androidx.compose.material3.Card(
+                        Card(
                             onClick = { onQuerySelected(cat.name) },
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
-                            colors = androidx.compose.material3.CardDefaults.cardColors(
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(
                                 containerColor = Color(0xFFE0F2FE)
                             )
                         ) {
@@ -272,17 +290,17 @@ fun SearchRecommendations(
                     text = "Recommended For You",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onBackground
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
             items(recommendedProducts.take(15)) { product ->
-                androidx.compose.material3.Card(
+                Card(
                     onClick = { onProductSelected(product) },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                    colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = androidx.compose.material3.CardDefaults.cardElevation(2.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(2.dp)
                 ) {
                     Row(
                         modifier = Modifier
@@ -290,13 +308,13 @@ fun SearchRecommendations(
                             .padding(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        coil.compose.AsyncImage(
+                        AsyncImage(
                             model = product.imageUrl,
                             contentDescription = product.title,
                             modifier = Modifier
                                 .size(70.dp)
-                                .androidx.compose.ui.draw.clip(androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
-                                .androidx.compose.foundation.background(Color(0xFFF8FAFC)),
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFFF8FAFC)),
                             contentScale = ContentScale.Crop
                         )
 
@@ -318,7 +336,7 @@ fun SearchRecommendations(
                             Spacer(modifier = Modifier.height(4.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = com.example.e_commerceapp.utils.CurrencyUtils.formatInr(product.price),
+                                    text = CurrencyUtils.formatInr(product.price),
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 15.sp,
                                     color = Color(0xFF0F172A)
@@ -326,10 +344,10 @@ fun SearchRecommendations(
                                 if (product.mrpPrice > product.price) {
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = com.example.e_commerceapp.utils.CurrencyUtils.formatInr(product.mrpPrice),
+                                        text = CurrencyUtils.formatInr(product.mrpPrice),
                                         fontSize = 12.sp,
                                         color = Color(0xFF94A3B8),
-                                        textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough
+                                        textDecoration = TextDecoration.LineThrough
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(

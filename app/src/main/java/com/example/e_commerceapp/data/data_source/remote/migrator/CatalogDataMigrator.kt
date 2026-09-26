@@ -79,26 +79,8 @@ class CatalogDataMigrator @Inject constructor(
                         url = cat.url,
                     )
                 }
-            } else if (apiProducts.isNotEmpty()) {
-                apiProducts.map { it.category }.distinct().map { catName ->
-                    FirestoreCategoryDto(
-                        id = catName.lowercase().replace(" ", "-"),
-                        name = catName.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() },
-                        slug = catName.lowercase().replace(" ", "-"),
-                        url = "",
-                    )
-                }
             } else {
-                listOf(
-                    FirestoreCategoryDto("smartphones", "Mobiles", "smartphones", ""),
-                    FirestoreCategoryDto("laptops", "Laptops", "laptops", ""),
-                    FirestoreCategoryDto("fragrances", "Fragrances", "fragrances", ""),
-                    FirestoreCategoryDto("skincare", "Beauty & Care", "skincare", ""),
-                    FirestoreCategoryDto("groceries", "Groceries", "groceries", ""),
-                    FirestoreCategoryDto("home-decoration", "Home Decor", "home-decoration", ""),
-                    FirestoreCategoryDto("furniture", "Furniture", "furniture", ""),
-                    FirestoreCategoryDto("tops", "Fashion", "tops", "")
-                )
+                com.example.e_commerceapp.data.demo.DemoCatalogData.demoCategoryDtos
             }
 
             if (categoriesToSeed.isNotEmpty()) {
@@ -106,38 +88,41 @@ class CatalogDataMigrator @Inject constructor(
                 Log.d(tag, "Migrated ${categoriesToSeed.size} categories to Firestore.")
             }
 
-            val firestoreProducts = apiProducts.map { dto ->
-                // Normalized INR price conversion (80 INR per USD approx rate)
-                val inrPrice = (dto.price * 80.0).roundToLong().toDouble()
-                val mrpPrice = if (dto.discountPercentage > 0) {
-                    (inrPrice * (1.0 + (dto.discountPercentage / 100.0))).roundToLong().toDouble()
-                } else {
-                    (inrPrice * 1.35).roundToLong().toDouble()
-                }.coerceAtLeast(inrPrice)
+            val firestoreProducts = if (apiProducts.isNotEmpty()) {
+                apiProducts.map { dto ->
+                    val inrPrice = (dto.price * 80.0).roundToLong().toDouble()
+                    val mrpPrice = if (dto.discountPercentage > 0) {
+                        (inrPrice * (1.0 + (dto.discountPercentage / 100.0))).roundToLong().toDouble()
+                    } else {
+                        (inrPrice * 1.35).roundToLong().toDouble()
+                    }.coerceAtLeast(inrPrice)
 
-                FirestoreProductDto(
-                    id = dto.id.toString(),
-                    title = dto.title,
-                    description = dto.description,
-                    price = inrPrice,
-                    mrpPrice = mrpPrice,
-                    discountPercentage = dto.discountPercentage,
-                    categoryId = dto.category,
-                    categoryName = dto.category.replaceFirstChar { it.uppercase() },
-                    images = dto.images,
-                    imageUrl = dto.images.firstOrNull() ?: dto.thumbnail,
-                    stockQuantity = dto.stock.coerceAtLeast(15),
-                    inStock = dto.stock > 0,
-                    rating = dto.rating,
-                    reviewsCount = dto.reviews.size.coerceAtLeast(24),
-                    brand = dto.brand.ifBlank { "Generic" },
-                    tags = dto.tags,
-                    deliveryDays = 2,
-                    isCodAvailable = true,
-                    quantity = dto.minimumOrderQuantity.coerceAtLeast(1),
-                    createdAt = System.currentTimeMillis(),
-                    updatedAt = System.currentTimeMillis(),
-                )
+                    FirestoreProductDto(
+                        id = dto.id.toString(),
+                        title = dto.title,
+                        description = dto.description,
+                        price = inrPrice,
+                        mrpPrice = mrpPrice,
+                        discountPercentage = dto.discountPercentage,
+                        categoryId = dto.category,
+                        categoryName = dto.category.replaceFirstChar { it.uppercase() },
+                        images = dto.images,
+                        imageUrl = dto.images.firstOrNull() ?: dto.thumbnail,
+                        stockQuantity = dto.stock.coerceAtLeast(15),
+                        inStock = dto.stock > 0,
+                        rating = dto.rating,
+                        reviewsCount = dto.reviews.size.coerceAtLeast(24),
+                        brand = dto.brand.ifBlank { "Generic" },
+                        tags = dto.tags,
+                        deliveryDays = 2,
+                        isCodAvailable = true,
+                        quantity = dto.minimumOrderQuantity.coerceAtLeast(1),
+                        createdAt = System.currentTimeMillis(),
+                        updatedAt = System.currentTimeMillis(),
+                    )
+                }
+            } else {
+                com.example.e_commerceapp.data.demo.DemoCatalogData.demoProducts
             }
 
             firestoreCatalogDataSource.saveProductsBatch(firestoreProducts)

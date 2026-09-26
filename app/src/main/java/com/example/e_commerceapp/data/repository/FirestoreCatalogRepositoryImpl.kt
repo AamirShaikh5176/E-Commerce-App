@@ -44,9 +44,13 @@ class FirestoreCatalogRepositoryImpl @Inject constructor(
                 // Graceful fallback while migration is executing
                 try {
                     val apiProducts = apiService.getProductsListFromApi().products.toListProductEntity()
-                    emit(apiProducts)
+                    if (apiProducts.isNotEmpty()) {
+                        emit(apiProducts)
+                    } else {
+                        emit(com.example.e_commerceapp.data.demo.DemoCatalogData.toProductEntityList())
+                    }
                 } catch (_: Exception) {
-                    emit(emptyList())
+                    emit(com.example.e_commerceapp.data.demo.DemoCatalogData.toProductEntityList())
                 }
             }
         }
@@ -61,8 +65,12 @@ class FirestoreCatalogRepositoryImpl @Inject constructor(
                     val apiProduct = apiService.getSingleProductByIdFromApi(productId).toDetailsProductEntity()
                     emit(apiProduct)
                 } catch (e: Exception) {
-                    // Propagate error if product cannot be retrieved
-                    throw e
+                    val demoItem = com.example.e_commerceapp.data.demo.DemoCatalogData.findProductDetailsById(productId)
+                    if (demoItem != null) {
+                        emit(demoItem)
+                    } else {
+                        throw e
+                    }
                 }
             }
         }
@@ -75,9 +83,21 @@ class FirestoreCatalogRepositoryImpl @Inject constructor(
             } else {
                 try {
                     val apiResults = apiService.getProductsListBySearchFromApi(query).products.toListSearchProductEntity()
-                    emit(apiResults)
+                    if (apiResults.isNotEmpty()) {
+                        emit(apiResults)
+                    } else {
+                        val q = query.trim().lowercase()
+                        val demoFiltered = com.example.e_commerceapp.data.demo.DemoCatalogData.toSearchProductEntityList().filter {
+                            it.title.lowercase().contains(q) || it.description.lowercase().contains(q)
+                        }
+                        emit(demoFiltered)
+                    }
                 } catch (_: Exception) {
-                    emit(emptyList())
+                    val q = query.trim().lowercase()
+                    val demoFiltered = com.example.e_commerceapp.data.demo.DemoCatalogData.toSearchProductEntityList().filter {
+                        it.title.lowercase().contains(q) || it.description.lowercase().contains(q)
+                    }
+                    emit(demoFiltered)
                 }
             }
         }
@@ -90,9 +110,13 @@ class FirestoreCatalogRepositoryImpl @Inject constructor(
             } else {
                 try {
                     val apiCategories = apiService.getAllCategoriesFromApi()
-                    emit(apiCategories)
+                    if (apiCategories.isNotEmpty()) {
+                        emit(apiCategories)
+                    } else {
+                        emit(com.example.e_commerceapp.data.demo.DemoCatalogData.demoCategories)
+                    }
                 } catch (_: Exception) {
-                    emit(emptyList())
+                    emit(com.example.e_commerceapp.data.demo.DemoCatalogData.demoCategories)
                 }
             }
         }
@@ -105,9 +129,13 @@ class FirestoreCatalogRepositoryImpl @Inject constructor(
             } else {
                 try {
                     val apiProducts = apiService.getProductsListByCategoryNameFromApi(categoryName).products.toListProductEntity()
-                    emit(apiProducts)
+                    if (apiProducts.isNotEmpty()) {
+                        emit(apiProducts)
+                    } else {
+                        emit(com.example.e_commerceapp.data.demo.DemoCatalogData.filterByCategory(categoryName))
+                    }
                 } catch (_: Exception) {
-                    emit(emptyList())
+                    emit(com.example.e_commerceapp.data.demo.DemoCatalogData.filterByCategory(categoryName))
                 }
             }
         }

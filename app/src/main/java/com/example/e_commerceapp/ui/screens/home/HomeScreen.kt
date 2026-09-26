@@ -73,13 +73,15 @@ fun HomeScreen(
     onProductClicked: (ProductEntity) -> Unit,
     onNotificationClick: () -> Unit,
     onClickSearchBar: () -> Unit,
-    onSeeAllCategoryClick: () -> Unit,
+    onCategoryClick: (String) -> Unit = {},
+    onSeeAllCategoryClick: (String) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     HomeContent(
         modifier = Modifier,
         onProductClicked = onProductClicked,
         onNotificationClick = onNotificationClick,
+        onCategoryClick = onCategoryClick,
         onSeeAllCategoryClick = onSeeAllCategoryClick,
         onClickSearchBar = onClickSearchBar,
         viewModel = viewModel,
@@ -91,7 +93,8 @@ fun HomeContent(
     modifier: Modifier = Modifier,
     onProductClicked: (ProductEntity) -> Unit,
     onNotificationClick: () -> Unit,
-    onSeeAllCategoryClick: () -> Unit,
+    onCategoryClick: (String) -> Unit = {},
+    onSeeAllCategoryClick: (String) -> Unit = {},
     onClickSearchBar: () -> Unit,
     viewModel: HomeViewModel,
 ) {
@@ -338,7 +341,7 @@ fun HomeContent(
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF0284C7),
                         fontFamily = FontFamily(Font(R.font.cairo_regular)),
-                        modifier = Modifier.clickable { onSeeAllCategoryClick() }
+                        modifier = Modifier.clickable { onSeeAllCategoryClick("All Products") }
                     )
                 }
 
@@ -358,6 +361,7 @@ fun HomeContent(
                                 onCategoryClicked = {
                                     selectedCategory = category.name
                                     viewModel.getProductsByCategory(category.name)
+                                    onCategoryClick(category.name)
                                 }
                             )
                         }
@@ -437,7 +441,7 @@ fun HomeContent(
                     title = "$selectedCategory Collection",
                     products = selectedCategoryProducts.data ?: emptyList(),
                     onProductClicked = onProductClicked,
-                    onSeeAllClicked = onSeeAllCategoryClick
+                    onSeeAllClicked = { onSeeAllCategoryClick(selectedCategory ?: "Products") }
                 )
             }
         }
@@ -449,7 +453,7 @@ fun HomeContent(
                     title = "⚡ Trending & Popular Deals",
                     products = popularProducts.take(10),
                     onProductClicked = onProductClicked,
-                    onSeeAllClicked = onSeeAllCategoryClick
+                    onSeeAllClicked = { onSeeAllCategoryClick("Popular Deals") }
                 )
             }
         }
@@ -461,7 +465,7 @@ fun HomeContent(
                     title = "🔥 Mega Savings & Discounts",
                     products = bestDeals.take(10),
                     onProductClicked = onProductClicked,
-                    onSeeAllClicked = onSeeAllCategoryClick
+                    onSeeAllClicked = { onSeeAllCategoryClick("Best Deals") }
                 )
             }
         }
@@ -473,7 +477,7 @@ fun HomeContent(
                     title = "Best of ${shelf.first}",
                     products = shelf.second,
                     onProductClicked = onProductClicked,
-                    onSeeAllClicked = onSeeAllCategoryClick
+                    onSeeAllClicked = { onSeeAllCategoryClick(shelf.first) }
                 )
             }
         }

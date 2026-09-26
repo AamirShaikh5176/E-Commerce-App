@@ -29,10 +29,12 @@ import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.RemoveShoppingCart
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -85,8 +87,58 @@ fun CartScreen(
     onCartClicked: (UserCartEntity) -> Unit,
     onBackClick: () -> Unit,
     onBadgeCountChange: (Int) -> Unit,
+    onLoginClick: () -> Unit = {},
+    onCreateAccountClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    var showGuestPrompt by remember { mutableStateOf(false) }
+
+    if (showGuestPrompt) {
+        AlertDialog(
+            onDismissRequest = { showGuestPrompt = false },
+            title = {
+                Text(
+                    text = "Login required",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = Color(0xFF0F172A)
+                )
+            },
+            text = {
+                Text(
+                    text = "Please login or create an account to continue with your purchase.",
+                    fontSize = 14.sp,
+                    color = Color(0xFF64748B)
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showGuestPrompt = false
+                        onLoginClick()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                ) {
+                    Text("LOGIN", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            showGuestPrompt = false
+                            onCreateAccountClick()
+                        }
+                    ) {
+                        Text("CREATE ACCOUNT", color = Color(0xFF0284C7), fontWeight = FontWeight.Bold)
+                    }
+                    TextButton(onClick = { showGuestPrompt = false }) {
+                        Text("CONTINUE SHOPPING", color = Color(0xFF64748B))
+                    }
+                }
+            }
+        )
+    }
 
     val cartState by viewModel.userCartsState.collectAsStateWithLifecycle()
     val totalPriceState by viewModel.totalPriceState.collectAsStateWithLifecycle()
@@ -179,7 +231,14 @@ fun CartScreen(
                         onDeleteCartClicked = onDeleteCartClicked,
                         onIncrement = onIncrement,
                         onDecrement = onDecrement,
-                        onCheckoutClicked = onCheckoutClicked,
+                        onCheckoutClicked = { price ->
+                            val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                            if (currentUser == null) {
+                                showGuestPrompt = true
+                            } else {
+                                onCheckoutClicked(price)
+                            }
+                        },
                         totalPrice = totalPriceState,
                     )
                 }
