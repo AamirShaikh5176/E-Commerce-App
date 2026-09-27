@@ -19,6 +19,8 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -26,6 +28,7 @@ import kotlin.coroutines.resumeWithException
 class FirestoreCatalogDataSourceImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
+    private val registeredUsersLocalStore: com.example.e_commerceapp.data.data_source.local.RegisteredUsersLocalStore,
 ) : FirestoreCatalogDataSource {
 
     private val productsCollection = firestore.collection("products")
@@ -34,50 +37,61 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
     private val usersCollection = firestore.collection("users")
 
     override fun getProductsFlow(): Flow<List<ProductEntity>> = callbackFlow {
+        trySend(com.example.e_commerceapp.data.demo.DemoCatalogData.toProductEntityList())
         val subscription = productsCollection.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                close(error)
+                trySend(com.example.e_commerceapp.data.demo.DemoCatalogData.toProductEntityList())
                 return@addSnapshotListener
             }
-            if (snapshot != null) {
-                val products = snapshot.documents.mapNotNull { doc ->
+            if (snapshot != null && !snapshot.isEmpty) {
+                val firestoreProducts = snapshot.documents.mapNotNull { doc ->
                     doc.toObject(FirestoreProductDto::class.java)?.toProductEntity(doc.id)
                 }
-                trySend(products)
+                val map = com.example.e_commerceapp.data.demo.DemoCatalogData.toProductEntityList().associateBy { it.id }.toMutableMap()
+                firestoreProducts.forEach { map[it.id] = it }
+                trySend(map.values.toList())
+            } else {
+                trySend(com.example.e_commerceapp.data.demo.DemoCatalogData.toProductEntityList())
             }
         }
         awaitClose { subscription.remove() }
     }.flowOn(ioDispatcher)
 
     override fun getRawProductsFlow(): Flow<List<FirestoreProductDto>> = callbackFlow {
+        trySend(com.example.e_commerceapp.data.demo.DemoCatalogData.demoProducts.toList())
         val subscription = productsCollection.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                close(error)
+                trySend(com.example.e_commerceapp.data.demo.DemoCatalogData.demoProducts.toList())
                 return@addSnapshotListener
             }
-            if (snapshot != null) {
-                val products = snapshot.documents.mapNotNull { doc ->
+            if (snapshot != null && !snapshot.isEmpty) {
+                val firestoreProducts = snapshot.documents.mapNotNull { doc ->
                     doc.toObject(FirestoreProductDto::class.java)?.copy(
                         id = doc.getString("id")?.ifBlank { doc.id } ?: doc.id
                     )
                 }
-                trySend(products)
+                val map = com.example.e_commerceapp.data.demo.DemoCatalogData.demoProducts.associateBy { it.id }.toMutableMap()
+                firestoreProducts.forEach { map[it.id] = it }
+                trySend(map.values.toList())
+            } else {
+                trySend(com.example.e_commerceapp.data.demo.DemoCatalogData.demoProducts.toList())
             }
         }
         awaitClose { subscription.remove() }
     }.flowOn(ioDispatcher)
 
     override fun getProductByIdFlow(productId: String): Flow<ProductDetailsEntity?> = callbackFlow {
+        trySend(com.example.e_commerceapp.data.demo.DemoCatalogData.findProductDetailsById(productId))
         val subscription = productsCollection.document(productId).addSnapshotListener { snapshot, error ->
             if (error != null) {
-                close(error)
+                trySend(com.example.e_commerceapp.data.demo.DemoCatalogData.findProductDetailsById(productId))
                 return@addSnapshotListener
             }
             if (snapshot != null && snapshot.exists()) {
                 val product = snapshot.toObject(FirestoreProductDto::class.java)?.toProductDetailsEntity(snapshot.id)
                 trySend(product)
             } else {
-                trySend(null)
+                trySend(com.example.e_commerceapp.data.demo.DemoCatalogData.findProductDetailsById(productId))
             }
         }
         awaitClose { subscription.remove() }
@@ -219,7 +233,14 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
             productsCollection.document()
         }
         val productWithId = if (product.id.isBlank()) product.copy(id = docRef.id) else product
-        docRef.set(productWithId).awaitTask()
+        com.example.e_commerceapp.data.demo.DemoCatalogData.updateProduct(productWithId)
+        try {
+            withTimeoutOrNull(1000L) {
+                docRef.set(productWithId).await()
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("CatalogDataSource", "Firestore saveProduct offline: ${e.message}")
+        }
     }
 
     override suspend fun deleteProduct(productId: String): Unit = withContext(ioDispatcher) {
@@ -394,25 +415,69 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
     }
 
     override fun getUsersFlow(): Flow<List<UserInformationEntity>> = callbackFlow {
-        val subscription = usersCollection.addSnapshotListener { snapshot, error ->
-            if (error != null) {
-                close(error)
-                return@addSnapshotListener
-            }
-            if (snapshot != null) {
-                val users = snapshot.documents.mapNotNull { doc ->
+        trySend(registeredUsersLocalStore.getAllUsers())
+
+        usersCollection.get().addOnSuccessListener { snapshot ->
+            if (snapshot != null && !snapshot.isEmpty) {
+                val firestoreUsers = snapshot.documents.mapNotNull { doc ->
+                    val id = doc.getString("id")?.ifBlank { doc.id } ?: doc.id
+                    val name = doc.getString("name")?.ifBlank { null }
+                        ?: doc.getString("email")?.substringBefore('@')?.replaceFirstChar { it.uppercase() }
+                        ?: "Customer"
+                    val email = doc.getString("email") ?: ""
+                    val phone = doc.getString("phone") ?: ""
+                    val image = doc.getString("image") ?: ""
+                    val role = doc.getString("role") ?: "customer"
+
                     UserInformationEntity(
-                        id = doc.getString("id") ?: doc.id,
-                        name = doc.getString("name") ?: "",
-                        email = doc.getString("email") ?: "",
-                        phone = doc.getString("phone") ?: "",
-                        image = doc.getString("image") ?: "",
+                        id = id,
+                        name = name,
+                        email = email,
+                        phone = phone,
+                        image = image,
                         password = "",
                         token = "",
-                        role = doc.getString("role") ?: "customer",
+                        role = role,
                     )
                 }
-                trySend(users)
+                val merged = (registeredUsersLocalStore.getAllUsers() + firestoreUsers)
+                    .distinctBy { it.email.lowercase() }
+                trySend(merged)
+            }
+        }.addOnFailureListener { e ->
+            android.util.Log.e("CatalogDataSource", "Initial usersCollection.get failed", e)
+        }
+
+        val subscription = usersCollection.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                android.util.Log.e("CatalogDataSource", "getUsersFlow snapshot error: ${error.message}")
+                return@addSnapshotListener
+            }
+            if (snapshot != null && !snapshot.isEmpty) {
+                val firestoreUsers = snapshot.documents.mapNotNull { doc ->
+                    val id = doc.getString("id")?.ifBlank { doc.id } ?: doc.id
+                    val name = doc.getString("name")?.ifBlank { null }
+                        ?: doc.getString("email")?.substringBefore('@')?.replaceFirstChar { it.uppercase() }
+                        ?: "Customer"
+                    val email = doc.getString("email") ?: ""
+                    val phone = doc.getString("phone") ?: ""
+                    val image = doc.getString("image") ?: ""
+                    val role = doc.getString("role") ?: "customer"
+
+                    UserInformationEntity(
+                        id = id,
+                        name = name,
+                        email = email,
+                        phone = phone,
+                        image = image,
+                        password = "",
+                        token = "",
+                        role = role,
+                    )
+                }
+                val merged = (registeredUsersLocalStore.getAllUsers() + firestoreUsers)
+                    .distinctBy { it.email.lowercase() }
+                trySend(merged)
             }
         }
         awaitClose { subscription.remove() }

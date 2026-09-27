@@ -27,6 +27,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -71,6 +72,7 @@ fun AddEditAddressScreen(
     }
 
     val state by viewModel.addressesState.collectAsStateWithLifecycle()
+    val isSaving by viewModel.isSaving.collectAsStateWithLifecycle()
 
     var fullName by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf("") }
@@ -391,7 +393,7 @@ fun AddEditAddressScreen(
                         viewModel.saveAddress(
                             address = entity,
                             onSuccess = {
-                                Toast.makeText(context, "Address saved successfully!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Address saved successfully", Toast.LENGTH_SHORT).show()
                                 onAddressSaved()
                             },
                             onError = { err ->
@@ -399,20 +401,41 @@ fun AddEditAddressScreen(
                             }
                         )
                     },
+                    enabled = !isSaving,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFF9800)
+                        containerColor = Color(0xFFFF9800),
+                        disabledContainerColor = Color(0xFFFF9800).copy(alpha = 0.6f)
                     )
                 ) {
-                    Text(
-                        text = "Save Address",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        color = Color.White
-                    )
+                    if (isSaving) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                            Text(
+                                text = "Saving...",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = Color.White
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "Save Address",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = Color.White
+                        )
+                    }
                 }
             }
         }

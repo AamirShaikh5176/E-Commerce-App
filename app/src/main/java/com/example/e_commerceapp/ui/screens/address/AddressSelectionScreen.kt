@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -47,6 +48,14 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.material3.AlertDialog
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -61,6 +70,7 @@ import com.example.e_commerceapp.domain.entity.address.AddressEntity
 import com.example.e_commerceapp.ui.screens.common.ErrorMessage
 import com.example.e_commerceapp.ui.screens.common.Loading
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddressSelectionScreen(
     totalPrice: String,
@@ -82,29 +92,69 @@ fun AddressSelectionScreen(
 
     val state by viewModel.addressesState.collectAsStateWithLifecycle()
     val selectedAddressId by viewModel.selectedAddressId.collectAsStateWithLifecycle()
+    var addressToDelete by remember { mutableStateOf<AddressEntity?>(null) }
+    var deletingAddressId by remember { mutableStateOf<String?>(null) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF8F9FA))
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = 76.dp)
-        ) {
-            // Header
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = Color.White,
-                shadowElevation = 2.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        viewModel.loadAddresses()
+    }
+
+    if (addressToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { addressToDelete = null },
+            title = {
+                Text(
+                    text = "Delete address?",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = Color(0xFF1E293B)
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to delete this delivery address?",
+                    fontSize = 14.sp,
+                    color = Color(0xFF64748B)
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val target = addressToDelete
+                        addressToDelete = null
+                        if (target != null) {
+                            deletingAddressId = target.id
+                            viewModel.deleteAddress(target.id)
+                            Toast.makeText(context, "Address deleted", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
                 ) {
+                    Text("DELETE", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { addressToDelete = null }) {
+                    Text("CANCEL", color = Color(0xFF64748B), fontWeight = FontWeight.SemiBold)
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "Checkout",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = Color(0xFF1E293B)
+                    )
+                },
+                navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -112,145 +162,180 @@ fun AddressSelectionScreen(
                             tint = Color(0xFF1E293B)
                         )
                     }
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Select Delivery Address",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            color = Color(0xFF1E293B)
-                        )
-                        Text(
-                            text = "Step 1 of 2 • Checkout",
-                            fontSize = 12.sp,
-                            color = Color(0xFF64748B)
-                        )
-                    }
-                }
-            }
-
-            if (state.isLoading) {
-                Loading()
-            }
-
-            if (state.errorMessage != null) {
-                ErrorMessage(state.errorMessage.toString())
-            }
-
-            LazyColumn(
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+            )
+        },
+        containerColor = Color(0xFFF8F9FA)
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .padding(bottom = 76.dp)
             ) {
-                // Add New Address Button Card
-                item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                            .clickable { onAddNewAddress() },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        border = BorderStroke(1.5.dp, colorResource(R.color.dark_blue).copy(alpha = 0.5f))
-                    ) {
-                        Row(
+                // Header section with proper vertical spacing below TopAppBar
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Text(
+                        text = "Select Delivery Address",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        color = Color(0xFF1E293B)
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = "Step 1 of 2 • Checkout",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF64748B)
+                    )
+                }
+
+                if (state.isLoading) {
+                    Loading()
+                }
+
+                if (state.errorMessage != null) {
+                    ErrorMessage(state.errorMessage.toString())
+                }
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    // Add New Address Button Card
+                    item {
+                        Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(vertical = 8.dp)
+                                .clickable { onAddNewAddress() },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = BorderStroke(1.5.dp, colorResource(R.color.dark_blue).copy(alpha = 0.5f))
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Add",
-                                tint = colorResource(R.color.dark_blue),
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "+ Add a new Indian delivery address",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
-                                color = colorResource(R.color.dark_blue)
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Add",
+                                    tint = colorResource(R.color.dark_blue),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = "Add a new Indian delivery address",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = colorResource(R.color.dark_blue)
+                                )
+                            }
+                        }
+                    }
+
+                    // Address List
+                    state.data?.let { addresses ->
+                        items(addresses, key = { it.id }) { address ->
+                            val isSelected = address.id == selectedAddressId
+
+                            AnimatedVisibility(
+                                visible = address.id != deletingAddressId,
+                                exit = fadeOut() + shrinkVertically()
+                            ) {
+                                AddressCard(
+                                    address = address,
+                                    isSelected = isSelected,
+                                    onSelect = { viewModel.selectAddress(address.id) },
+                                    onEdit = { onEditAddress(address.id) },
+                                    onDelete = { addressToDelete = address }
+                                )
+                            }
                         }
                     }
                 }
-
-                // Address List
-                state.data?.let { addresses ->
-                    items(addresses, key = { it.id }) { address ->
-                        val isSelected = address.id == selectedAddressId
-
-                        AddressCard(
-                            address = address,
-                            isSelected = isSelected,
-                            onSelect = { viewModel.selectAddress(address.id) },
-                            onEdit = { onEditAddress(address.id) },
-                            onDelete = { viewModel.deleteAddress(address.id) }
-                        )
-                    }
-                }
             }
-        }
 
-        // Sticky Bottom Delivery Action Bar
-        state.data?.let { addresses ->
-            val chosenAddress = addresses.firstOrNull { it.id == selectedAddressId } ?: addresses.firstOrNull()
+            // Sticky Bottom Delivery Action Bar
+            state.data?.let { addresses ->
+                val chosenAddress = addresses.firstOrNull { it.id == selectedAddressId } ?: addresses.firstOrNull()
 
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth(),
-                shadowElevation = 12.dp,
-                color = Color.White
-            ) {
-                Row(
+                Surface(
                     modifier = Modifier
+                        .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .navigationBarsPadding(),
+                    shadowElevation = 12.dp,
+                    color = Color.White
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Deliver to:",
-                            fontSize = 11.sp,
-                            color = Color.Gray
-                        )
-                        Text(
-                            text = chosenAddress?.fullName ?: "Select Address",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E293B),
-                            maxLines = 1
-                        )
-                        Text(
-                            text = "${chosenAddress?.city ?: ""}, ${chosenAddress?.pinCode ?: ""}",
-                            fontSize = 12.sp,
-                            color = Color(0xFF64748B),
-                            maxLines = 1
-                        )
-                    }
-
-                    Button(
-                        onClick = {
-                            if (chosenAddress != null) {
-                                onDeliverHere(chosenAddress)
-                            }
-                        },
-                        enabled = chosenAddress != null,
-                        modifier = Modifier.height(48.dp),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFF9800)
-                        )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = "Deliver Here  ➔",
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            fontSize = 14.sp
-                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Deliver to:",
+                                fontSize = 11.sp,
+                                color = Color.Gray
+                            )
+                            Text(
+                                text = chosenAddress?.fullName ?: "Select Address",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E293B),
+                                maxLines = 1
+                            )
+                            val addressDetails = if (chosenAddress != null) {
+                                listOfNotNull(
+                                    chosenAddress.city.takeIf { it.isNotBlank() },
+                                    chosenAddress.pinCode.takeIf { it.isNotBlank() }
+                                ).joinToString(", ")
+                            } else ""
+                            if (addressDetails.isNotBlank()) {
+                                Text(
+                                    text = addressDetails,
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF64748B),
+                                    maxLines = 1
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                if (chosenAddress != null) {
+                                    onDeliverHere(chosenAddress)
+                                }
+                            },
+                            enabled = chosenAddress != null,
+                            modifier = Modifier.height(48.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFFF9800)
+                            )
+                        ) {
+                            Text(
+                                text = "Deliver Here  ➔",
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                fontSize = 14.sp
+                            )
+                        }
                     }
                 }
             }

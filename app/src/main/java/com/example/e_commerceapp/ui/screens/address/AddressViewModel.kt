@@ -24,6 +24,9 @@ class AddressViewModel @Inject constructor(
     private val _selectedAddressId = MutableStateFlow<String?>(null)
     val selectedAddressId: StateFlow<String?> = _selectedAddressId
 
+    private val _isSaving = MutableStateFlow(false)
+    val isSaving: StateFlow<Boolean> = _isSaving
+
     init {
         loadAddresses()
     }
@@ -51,12 +54,21 @@ class AddressViewModel @Inject constructor(
     }
 
     fun saveAddress(address: AddressEntity, onSuccess: () -> Unit, onError: (String) -> Unit = {}) {
+        if (_isSaving.value) return
+        _isSaving.value = true
         viewModelScope.launch {
-            val result = addressRepository.saveAddress(address)
-            if (result.isSuccess) {
-                onSuccess()
-            } else {
-                onError(result.exceptionOrNull()?.message ?: "Failed to save address")
+            try {
+                val result = addressRepository.saveAddress(address)
+                if (result.isSuccess) {
+                    loadAddresses()
+                    onSuccess()
+                } else {
+                    onError(result.exceptionOrNull()?.message ?: "Failed to save address")
+                }
+            } catch (e: Exception) {
+                onError(e.message ?: "Failed to save address")
+            } finally {
+                _isSaving.value = false
             }
         }
     }

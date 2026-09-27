@@ -171,7 +171,7 @@ fun AddEditProductScreen(
             )
 
             AdminInputField(
-                label = "Image URL *",
+                label = "Product Image URL *",
                 value = imageUrl,
                 onValueChange = { imageUrl = it }
             )
@@ -300,6 +300,10 @@ fun AddEditProductScreen(
                     }
                     if (mrp < price) {
                         errorMessage = "MRP (₹) cannot be less than selling price (₹)"
+                        return@Button
+                    }
+                    if (imageUrl.isNotBlank() && !imageUrl.startsWith("http://", ignoreCase = true) && !imageUrl.startsWith("https://", ignoreCase = true)) {
+                        errorMessage = "Product image URL must start with http:// or https://"
                         return@Button
                     }
 

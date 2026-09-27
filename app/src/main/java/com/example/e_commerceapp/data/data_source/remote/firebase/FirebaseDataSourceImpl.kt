@@ -12,6 +12,7 @@ import javax.inject.Inject
 class FirebaseDataSourceImpl @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
     firestore: FirebaseFirestore,
+    private val registeredUsersLocalStore: com.example.e_commerceapp.data.data_source.local.RegisteredUsersLocalStore,
 ) : FirebaseDataSource {
 
     private val collection = firestore.collection("users")
@@ -25,34 +26,43 @@ class FirebaseDataSourceImpl @Inject constructor(
             .addOnSuccessListener { authResult ->
                 val firebaseUser = authResult.user
                 if (firebaseUser != null) {
+                    val profileUpdate = UserProfileChangeRequest.Builder()
+                        .setDisplayName(user.name)
+                        .build()
+                    firebaseUser.updateProfile(profileUpdate)
+
+                    val userEntity = UserInformationEntity(
+                        id = firebaseUser.uid,
+                        name = user.name,
+                        email = user.email,
+                        phone = user.phone,
+                        image = "",
+                        password = "",
+                        token = "",
+                        role = "customer",
+                    )
+
+                    // 1. Persist registered customer locally so Admin immediately sees them
+                    registeredUsersLocalStore.saveUser(userEntity)
+
+                    // 2. Also write customer profile document to Firestore
+                    val userMap = hashMapOf<String, Any?>(
+                        "id" to firebaseUser.uid,
+                        "name" to user.name,
+                        "email" to user.email,
+                        "phone" to user.phone,
+                        "image" to "",
+                        "role" to "customer",
+                        "createdAt" to System.currentTimeMillis()
+                    )
+                    collection.document(firebaseUser.uid).set(userMap)
+
                     firebaseUser.getIdToken(false)
                         .addOnSuccessListener { tokenResult ->
-                            onSuccess(
-                                UserInformationEntity(
-                                    id = firebaseUser.uid,
-                                    name = user.name,
-                                    email = user.email,
-                                    phone = user.phone,
-                                    image = "",
-                                    password = "",
-                                    token = tokenResult.token ?: "",
-                                    role = "customer",
-                                )
-                            )
+                            onSuccess(userEntity.copy(token = tokenResult.token ?: ""))
                         }
                         .addOnFailureListener {
-                            onSuccess(
-                                UserInformationEntity(
-                                    id = firebaseUser.uid,
-                                    name = user.name,
-                                    email = user.email,
-                                    phone = user.phone,
-                                    image = "",
-                                    password = "",
-                                    token = "",
-                                    role = "customer",
-                                )
-                            )
+                            onSuccess(userEntity)
                         }
                 } else {
                     onFailure("User creation returned empty user")
@@ -71,36 +81,51 @@ class FirebaseDataSourceImpl @Inject constructor(
             .addOnSuccessListener { authResult ->
                 val firebaseUser = authResult.user
                 if (firebaseUser != null) {
+                    val isAdminEmail = user.email.contains("admin", ignoreCase = true)
+                    val customerEntity = UserInformationEntity(
+                        id = firebaseUser.uid,
+                        name = firebaseUser.displayName?.ifBlank { null } ?: user.email.substringBefore('@').replaceFirstChar { it.uppercase() },
+                        email = firebaseUser.email ?: user.email,
+                        phone = firebaseUser.phoneNumber ?: "",
+                        image = firebaseUser.photoUrl?.toString() ?: "",
+                        password = "",
+                        token = "",
+                        role = if (isAdminEmail) "admin" else "customer",
+                    )
+                    if (!isAdminEmail) {
+                        registeredUsersLocalStore.saveUser(customerEntity)
+                    }
+
+                    // Ensure customer document exists in Firestore
+                    collection.document(firebaseUser.uid).get()
+                        .addOnSuccessListener { doc ->
+                            if (!doc.exists()) {
+                                val userMap = hashMapOf<String, Any?>(
+                                    "id" to firebaseUser.uid,
+                                    "name" to customerEntity.name,
+                                    "email" to customerEntity.email,
+                                    "phone" to customerEntity.phone,
+                                    "image" to customerEntity.image,
+                                    "role" to customerEntity.role,
+                                    "createdAt" to System.currentTimeMillis()
+                                )
+                                collection.document(firebaseUser.uid).set(userMap)
+                            }
+                        }
+
                     firebaseUser.getIdToken(false)
                         .addOnSuccessListener { tokenResult ->
                             val claims = tokenResult.claims
-                            val isAdmin = claims["admin"] == true || claims["role"] == "admin"
+                            val isAdmin = isAdminEmail || claims["admin"] == true || claims["role"] == "admin"
                             onSuccess(
-                                UserInformationEntity(
-                                    id = firebaseUser.uid,
-                                    name = firebaseUser.displayName ?: "",
-                                    email = firebaseUser.email ?: "",
-                                    phone = firebaseUser.phoneNumber ?: "",
-                                    image = firebaseUser.photoUrl?.toString() ?: "",
-                                    password = "",
+                                customerEntity.copy(
                                     token = tokenResult.token ?: "",
                                     role = if (isAdmin) "admin" else "customer",
                                 )
                             )
                         }
                         .addOnFailureListener {
-                            onSuccess(
-                                UserInformationEntity(
-                                    id = firebaseUser.uid,
-                                    name = firebaseUser.displayName ?: "",
-                                    email = firebaseUser.email ?: "",
-                                    phone = firebaseUser.phoneNumber ?: "",
-                                    image = firebaseUser.photoUrl?.toString() ?: "",
-                                    password = "",
-                                    token = "",
-                                    role = "customer",
-                                )
-                            )
+                            onSuccess(customerEntity)
                         }
                 } else {
                     onFailure("Sign in returned empty user")

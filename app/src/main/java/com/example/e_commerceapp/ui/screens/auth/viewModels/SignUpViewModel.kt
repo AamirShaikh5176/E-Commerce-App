@@ -34,6 +34,7 @@ class SignUpViewModel @Inject constructor(
             firebaseUserUseCase.signUpUser(
                 userInformationEntity,
                 onSuccess = { userInformationEntity ->
+                    saveUserIdToSharedPref(userInformationEntity.id)
                     _signUpState.update {
                         it.copy(
                             isLoading = false,
@@ -41,28 +42,10 @@ class SignUpViewModel @Inject constructor(
                             errorMessage = null
                         )
                     }
-
-                    writeUserToFirebaseDatabase(userInformationEntity)
-
-                    saveUserIdToSharedPref(userInformationEntity.id)
                 },
                 onFailure = { error ->
                     _signUpState.update {
                         it.copy(isLoading = false, errorMessage = error, data = null)
-                    }
-                }
-            )
-        }
-    }
-
-    private fun writeUserToFirebaseDatabase(userInformationEntity: UserInformationEntity) {
-        viewModelScope.launch {
-            firebaseUserUseCase.writeUser(
-                userInformationEntity,
-                onSuccess = { /* SignUp done */ },
-                onFailure = { error ->
-                    _signUpState.update {
-                        it.copy(isLoading = false, errorMessage = error)
                     }
                 }
             )

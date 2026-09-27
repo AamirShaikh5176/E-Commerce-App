@@ -175,7 +175,7 @@ class AdminViewModel @Inject constructor(
             try {
                 _opStatus.update { AdminOpStatus.Loading }
                 firestoreCatalogDataSource.saveProduct(product)
-                _opStatus.update { AdminOpStatus.Success("Product saved successfully") }
+                _opStatus.update { AdminOpStatus.Idle }
                 onDone()
             } catch (e: Exception) {
                 _opStatus.update { AdminOpStatus.Error("Failed to save product: ${e.message}") }

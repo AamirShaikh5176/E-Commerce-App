@@ -34,7 +34,7 @@ object DemoCatalogData {
         )
     }
 
-    val demoProducts: List<FirestoreProductDto> = listOf(
+    val demoProducts: MutableList<FirestoreProductDto> = mutableListOf(
         // ==========================================
         // 1. MOBILES (6 Products)
         // ==========================================
@@ -1087,5 +1087,14 @@ object DemoCatalogData {
             (q in listOf("sports", "fitness", "sport") && (catId == "sports" || catName.contains("sports") || tags.contains("sports") || tags.contains("fitness"))) ||
             (q in listOf("accessories", "accessory", "watches", "watch") && (catId == "accessories" || catName.contains("accessories") || tags.contains("accessories") || tags.contains("watch")))
         }.map { it.toSearchProductEntity() }
+    }
+
+    fun updateProduct(product: FirestoreProductDto) {
+        val index = demoProducts.indexOfFirst { it.id == product.id }
+        if (index >= 0) {
+            demoProducts[index] = product
+        } else {
+            demoProducts.add(0, product)
+        }
     }
 }

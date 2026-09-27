@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -227,7 +228,7 @@ fun ProductDetailsDesign(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 80.dp) // space for sticky bottom bar
+                .padding(bottom = 96.dp) // space for sticky bottom bar
         ) {
             // Header with back button and wishlist icon
             Card(
@@ -591,7 +592,9 @@ fun ProductDetailsDesign(
                                 text = deliveryEstimateText,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = if (pinCheckSuccess) Color(0xFF2E7D32) else Color(0xFFD32F2F)
+                                color = if (pinCheckSuccess) Color(0xFF2E7D32) else Color(0xFFD32F2F),
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
 
@@ -615,7 +618,9 @@ fun ProductDetailsDesign(
                                     Text(
                                         text = "Cash on Delivery Available",
                                         fontSize = 12.sp,
-                                        color = Color(0xFF475569)
+                                        color = Color(0xFF475569),
+                                        maxLines = 1,
+                                        softWrap = false
                                     )
                                 }
                             }
@@ -632,7 +637,9 @@ fun ProductDetailsDesign(
                                 Text(
                                     text = "7-Day Replacement Policy",
                                     fontSize = 12.sp,
-                                    color = Color(0xFF475569)
+                                    color = Color(0xFF475569),
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }
@@ -786,14 +793,15 @@ fun ProductDetailsDesign(
         Surface(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .navigationBarsPadding(),
             shadowElevation = 10.dp,
             color = Color.White
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -802,12 +810,13 @@ fun ProductDetailsDesign(
                     onClick = { onClickCart(product.copy(quantity = quantity)) },
                     modifier = Modifier
                         .weight(1f)
-                        .height(50.dp),
+                        .defaultMinSize(minHeight = 54.dp),
                     shape = RoundedCornerShape(10.dp),
                     border = BorderStroke(1.5.dp, colorResource(R.color.dark_blue)),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = colorResource(R.color.dark_blue)
-                    )
+                    ),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.ShoppingCart,
@@ -826,26 +835,35 @@ fun ProductDetailsDesign(
                 Button(
                     onClick = { onBuyNowClick(product.copy(quantity = quantity)) },
                     modifier = Modifier
-                        .weight(1.2f)
-                        .height(50.dp),
+                        .weight(1f)
+                        .defaultMinSize(minHeight = 54.dp),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFFFF9800) // Modern Flipkart/Amazon orange action color
-                    )
+                    ),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Payments,
-                        contentDescription = "Buy Now",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Buy Now • ${CurrencyUtils.formatInr(totalPrice)}",
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        fontSize = 14.sp
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "Buy Now",
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            lineHeight = 16.sp
+                        )
+                        Text(
+                            text = CurrencyUtils.formatInr(totalPrice),
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            lineHeight = 16.sp,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
                 }
             }
         }
