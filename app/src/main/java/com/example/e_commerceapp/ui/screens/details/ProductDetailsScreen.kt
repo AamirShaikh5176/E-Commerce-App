@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -92,6 +93,7 @@ import com.example.e_commerceapp.ui.screens.common.ErrorMessage
 import com.example.e_commerceapp.ui.screens.common.HideNavigationBarOnly
 import com.example.e_commerceapp.ui.screens.common.Loading
 import com.example.e_commerceapp.ui.screens.common.QuantityButton
+import com.example.e_commerceapp.utils.AuthUtils
 import com.example.e_commerceapp.utils.CurrencyUtils
 
 @Composable
@@ -116,12 +118,16 @@ fun ProductDetailScreen(
                 pendingProduct = null
             },
             onLoginClick = {
+                val p = pendingProduct
                 showGuestPrompt = false
-                pendingProduct?.let { onLoginClick(it) }
+                pendingProduct = null
+                p?.let { onLoginClick(it) }
             },
             onCreateAccountClick = {
+                val p = pendingProduct
                 showGuestPrompt = false
-                pendingProduct?.let { onCreateAccountClick(it) }
+                pendingProduct = null
+                p?.let { onCreateAccountClick(it) }
             }
         )
     }
@@ -143,12 +149,12 @@ fun ProductDetailScreen(
         ProductDetailsDesign(
             product = product,
             onBuyNowClick = { productEntity ->
-                val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                val isAuthed = AuthUtils.isAuthenticated(context)
                 android.util.Log.d(
                     "BuyNowAuth",
-                    "ProductDetails onBuyNowClick: currentUser != null: ${currentUser != null}, uid: ${currentUser?.uid}, email: ${currentUser?.email}"
+                    "ProductDetails onBuyNowClick: isAuthed=$isAuthed"
                 )
-                if (currentUser == null) {
+                if (!isAuthed) {
                     pendingProduct = productEntity
                     showGuestPrompt = true
                 } else {
@@ -591,22 +597,44 @@ fun ProductDetailsDesign(
 
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        Row(
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             if (product.isCodAvailable) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = "✓ ",
+                                        color = Color(0xFF2E7D32),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    )
+                                    Text(
+                                        text = "Cash on Delivery Available",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF475569)
+                                    )
+                                }
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
                                 Text(
-                                    text = "✔ Cash on Delivery Available",
-                                    fontSize = 11.sp,
+                                    text = "✓ ",
+                                    color = Color(0xFF2E7D32),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                                Text(
+                                    text = "7-Day Replacement Policy",
+                                    fontSize = 12.sp,
                                     color = Color(0xFF475569)
                                 )
                             }
-                            Text(
-                                text = "✔ 7-Day Replacement Policy",
-                                fontSize = 11.sp,
-                                color = Color(0xFF475569)
-                            )
                         }
                     }
                 }

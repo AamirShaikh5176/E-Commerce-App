@@ -89,10 +89,7 @@ fun GuestLoginRequiredDialog(
 
                 // 1. LOGIN (Primary filled button)
                 Button(
-                    onClick = {
-                        onDismissRequest()
-                        onLoginClick()
-                    },
+                    onClick = onLoginClick,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
@@ -111,10 +108,7 @@ fun GuestLoginRequiredDialog(
 
                 // 2. CREATE ACCOUNT (Secondary outlined button)
                 OutlinedButton(
-                    onClick = {
-                        onDismissRequest()
-                        onCreateAccountClick()
-                    },
+                    onClick = onCreateAccountClick,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),

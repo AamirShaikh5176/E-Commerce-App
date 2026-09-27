@@ -71,8 +71,8 @@ fun AddressSelectionScreen(
     onLoginClick: () -> Unit = {},
     viewModel: AddressViewModel = hiltViewModel(),
 ) {
-    val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
-    if (currentUser == null) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    if (!com.example.e_commerceapp.utils.AuthUtils.isAuthenticated(context)) {
         GuestLoginPrompt(
             onBackClick = onBackClick,
             onLoginClick = onLoginClick

@@ -35,6 +35,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -110,9 +111,11 @@ fun SignUpScreen(
                 }
             }
 
-            signUpState.data?.let {
-                Log.i("SignUpScreen", "SignUpScreen: $it")
-                navigateToHomeScreen(it)
+            LaunchedEffect(signUpState.data) {
+                signUpState.data?.let {
+                    Log.i("SignUpScreen", "SignUpScreen: $it")
+                    navigateToHomeScreen(it)
+                }
             }
         }
     }

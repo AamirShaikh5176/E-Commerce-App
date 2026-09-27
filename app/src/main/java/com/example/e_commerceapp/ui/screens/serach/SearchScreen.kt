@@ -363,7 +363,9 @@ fun SearchRecommendations(
                                     text = CurrencyUtils.formatInr(product.price),
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 15.sp,
-                                    color = Color(0xFF0F172A)
+                                    color = Color(0xFF0F172A),
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                                 if (product.mrpPrice > product.price) {
                                     Spacer(modifier = Modifier.width(6.dp))
@@ -371,14 +373,18 @@ fun SearchRecommendations(
                                         text = CurrencyUtils.formatInr(product.mrpPrice),
                                         fontSize = 12.sp,
                                         color = Color(0xFF94A3B8),
-                                        textDecoration = TextDecoration.LineThrough
+                                        textDecoration = TextDecoration.LineThrough,
+                                        maxLines = 1,
+                                        softWrap = false
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = "${product.discountPercentage.toInt()}% off",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF16A34A)
+                                        color = Color(0xFF16A34A),
+                                        maxLines = 1,
+                                        softWrap = false
                                     )
                                 }
                             }

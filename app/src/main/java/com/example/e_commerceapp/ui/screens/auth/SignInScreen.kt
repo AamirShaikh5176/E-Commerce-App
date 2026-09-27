@@ -120,10 +120,10 @@ fun SignInScreen(
                 }
             }
 
-            if (loginState.data != null) {
-                val userInformationEntity = loginState.data
-
-                userInformationEntity?.let { navigateToHomeScreen(it) }
+            LaunchedEffect(loginState.data) {
+                loginState.data?.let { userInformationEntity ->
+                    navigateToHomeScreen(userInformationEntity)
+                }
             }
         }
     }

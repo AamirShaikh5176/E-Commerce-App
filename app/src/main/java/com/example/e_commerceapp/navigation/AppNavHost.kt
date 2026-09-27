@@ -36,9 +36,11 @@ import com.example.e_commerceapp.ui.screens.orders.MyOrdersScreen
 import com.example.e_commerceapp.ui.screens.orders.OrderDetailsScreen
 import com.example.e_commerceapp.ui.screens.settings.SettingsScreen
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import com.example.e_commerceapp.utils.AuthUtils
 import com.google.firebase.auth.FirebaseAuth
 
 
@@ -48,6 +50,7 @@ fun AppNavHost(
     modifier: Modifier = Modifier,
 ) {
     var pendingCheckoutTotalPrice by rememberSaveable { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
 
     NavHost(
         navController = navController,
@@ -78,10 +81,11 @@ fun AppNavHost(
                     )
                     if (pendingPrice != null) {
                         pendingCheckoutTotalPrice = null
-                        navController.popBackStack()
                         val route = "${AddressSelectionDestination.route}/$pendingPrice"
                         android.util.Log.d("BuyNowAuth", "Continuing to address selection: $route")
-                        navController.navigate(route)
+                        navController.navigate(route) {
+                            popUpTo(ProductDetailsScreen.route + "/{productId}") { inclusive = false }
+                        }
                     } else if (navController.previousBackStackEntry != null) {
                         navController.popBackStack()
                     } else {
@@ -109,10 +113,11 @@ fun AppNavHost(
                     )
                     if (pendingPrice != null) {
                         pendingCheckoutTotalPrice = null
-                        navController.popBackStack()
                         val route = "${AddressSelectionDestination.route}/$pendingPrice"
                         android.util.Log.d("BuyNowAuth", "Continuing to address selection: $route")
-                        navController.navigate(route)
+                        navController.navigate(route) {
+                            popUpTo(ProductDetailsScreen.route + "/{productId}") { inclusive = false }
+                        }
                     } else if (navController.previousBackStackEntry != null) {
                         navController.popBackStack()
                     } else {
@@ -170,14 +175,14 @@ fun AppNavHost(
             ProductDetailScreen(
                 productId = productId,
                 onBuyNowClick = { product ->
-                    val currentUser = FirebaseAuth.getInstance().currentUser
                     val effectivePrice = (product.price * product.quantity).toString()
                     val route = "${AddressSelectionDestination.route}/$effectivePrice"
+                    val isAuthed = AuthUtils.isAuthenticated(context)
                     android.util.Log.d(
                         "BuyNowAuth",
-                        "AppNavHost onBuyNowClick: currentUser != null -> ${currentUser != null}, route -> $route"
+                        "AppNavHost onBuyNowClick: isAuthed -> $isAuthed, route -> $route"
                     )
-                    if (currentUser == null) {
+                    if (!isAuthed) {
                         pendingCheckoutTotalPrice = effectivePrice
                         navController.navigate(SignInScreen.route)
                     } else {
@@ -209,13 +214,13 @@ fun AppNavHost(
         composable(CartScreen.route) {
             CartScreen(
                 onCheckoutClicked = { totalPrice ->
-                    val currentUser = FirebaseAuth.getInstance().currentUser
                     val route = "${AddressSelectionDestination.route}/${totalPrice}"
+                    val isAuthed = AuthUtils.isAuthenticated(context)
                     android.util.Log.d(
                         "BuyNowAuth",
-                        "AppNavHost Cart onCheckoutClicked: currentUser != null -> ${currentUser != null}, route -> $route"
+                        "AppNavHost Cart onCheckoutClicked: isAuthed -> $isAuthed, route -> $route"
                     )
-                    if (currentUser == null) {
+                    if (!isAuthed) {
                         pendingCheckoutTotalPrice = totalPrice
                         navController.navigate(SignInScreen.route)
                     } else {
@@ -264,7 +269,7 @@ fun AppNavHost(
             ProfileScreen(
                 onBackClick = { navController.popBackStack() },
                 logout = {
-                    FirebaseAuth.getInstance().signOut()
+                    AuthUtils.logout(context)
                     navController.navigate(HomeScreen.route) {
                         popUpTo(0)
                     }
@@ -275,16 +280,14 @@ fun AppNavHost(
                 onClickedChangeTheme = {},
                 onClickedChangePass = {},
                 onNavigateToAddresses = {
-                    val currentUser = FirebaseAuth.getInstance().currentUser
-                    if (currentUser == null) {
+                    if (!AuthUtils.isAuthenticated(context)) {
                         navController.navigate(SignInScreen.route)
                     } else {
                         navController.navigate("${AddressSelectionDestination.route}/0.0")
                     }
                 },
                 onNavigateToMyOrders = {
-                    val currentUser = FirebaseAuth.getInstance().currentUser
-                    if (currentUser == null) {
+                    if (!AuthUtils.isAuthenticated(context)) {
                         navController.navigate(SignInScreen.route)
                     } else {
                         navController.navigate(MyOrdersDestination.route)
@@ -437,7 +440,7 @@ fun AppNavHost(
             AdminAuthGuard(onUnauthorized = { navController.popBackStack() }) {
                 AdminDashboardScreen(
                     onLogout = {
-                        FirebaseAuth.getInstance().signOut()
+                        AuthUtils.logout(context)
                         navController.navigate(HomeScreen.route) {
                             popUpTo(0) { inclusive = true }
                         }

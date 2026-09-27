@@ -93,8 +93,9 @@ fun ProfileScreen(
 ) {
     val profileState by viewModel.profileState.collectAsStateWithLifecycle()
     val isAdmin by viewModel.isAdminState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     val currentFirebaseUser = FirebaseAuth.getInstance().currentUser
-    val isGuest = currentFirebaseUser == null
+    val isGuest = !com.example.e_commerceapp.utils.AuthUtils.isAuthenticated(context)
 
     var showThemeDialog by remember { mutableStateOf(false) }
     var showGuestOrdersPrompt by remember { mutableStateOf(false) }

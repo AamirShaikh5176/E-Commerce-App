@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -141,55 +142,110 @@ fun ProductItem(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            // 3. Indian Rupee Price, MRP & Discount Badge (Responsive Column Layout)
-            Column(
+            // 3. Indian Rupee Price, MRP & Discount Badge (Responsive Layout)
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = CurrencyUtils.formatInr(product.price),
-                        color = Color(0xFF0F172A),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        fontFamily = FontFamily(Font(R.font.medium)),
-                        maxLines = 1,
-                        softWrap = false
-                    )
-                    if (product.mrpPrice > product.price) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = CurrencyUtils.formatInr(product.mrpPrice),
-                            color = Color(0xFF94A3B8),
-                            fontSize = 11.sp,
-                            textDecoration = TextDecoration.LineThrough,
-                            maxLines = 1,
-                            softWrap = false,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
+                val isNarrow = maxWidth < 148.dp || (maxWidth < 165.dp && product.price >= 100000)
 
-                if (product.discountPercentage > 0) {
-                    Spacer(modifier = Modifier.height(3.dp))
-                    Box(
-                        modifier = Modifier
-                            .wrapContentWidth()
-                            .background(Color(0xFFDCFCE7), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 5.dp, vertical = 2.dp)
-                    ) {
+                if (isNarrow && product.mrpPrice > product.price) {
+                    // Responsive 2-line layout for narrow cards or long prices:
+                    // Line 1: Selling Price (Full width, bold, 0% clipping)
+                    // Line 2: MRP (strikethrough) + Discount Badge (horizontal, intact)
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = "${product.discountPercentage.toInt()}% OFF",
-                            color = Color(0xFF16A34A),
+                            text = CurrencyUtils.formatInr(product.price),
+                            color = Color(0xFF0F172A),
                             fontWeight = FontWeight.Bold,
-                            fontSize = 10.sp,
+                            fontSize = 14.sp,
+                            fontFamily = FontFamily(Font(R.font.medium)),
                             maxLines = 1,
                             softWrap = false
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = CurrencyUtils.formatInr(product.mrpPrice),
+                                color = Color(0xFF94A3B8),
+                                fontSize = 11.sp,
+                                textDecoration = TextDecoration.LineThrough,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                            if (product.discountPercentage > 0) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color(0xFFDCFCE7), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "${product.discountPercentage.toInt()}% OFF",
+                                        color = Color(0xFF16A34A),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp,
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Standard layout:
+                    // Line 1: Selling Price + MRP
+                    // Line 2: Discount Badge
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = CurrencyUtils.formatInr(product.price),
+                                color = Color(0xFF0F172A),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                fontFamily = FontFamily(Font(R.font.medium)),
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                            if (product.mrpPrice > product.price) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = CurrencyUtils.formatInr(product.mrpPrice),
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 11.sp,
+                                    textDecoration = TextDecoration.LineThrough,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        if (product.discountPercentage > 0) {
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Box(
+                                modifier = Modifier
+                                    .wrapContentWidth()
+                                    .background(Color(0xFFDCFCE7), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 5.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "${product.discountPercentage.toInt()}% OFF",
+                                    color = Color(0xFF16A34A),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 10.sp,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
+                        }
                     }
                 }
             }

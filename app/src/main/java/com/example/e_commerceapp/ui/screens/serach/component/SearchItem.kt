@@ -112,6 +112,8 @@ fun SearchItem(
                     color = Color(0xFF1B5E20),
                     fontWeight = FontWeight.Bold,
                     fontSize = 17.sp,
+                    maxLines = 1,
+                    softWrap = false,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
             }

@@ -283,7 +283,7 @@ fun SettingsScreen(
 
                         androidx.compose.material3.Button(
                             onClick = {
-                                FirebaseAuth.getInstance().signOut()
+                                com.example.e_commerceapp.utils.AuthUtils.logout(context)
                                 onBackClick()
                             },
                             colors = androidx.compose.material3.ButtonDefaults.buttonColors(
