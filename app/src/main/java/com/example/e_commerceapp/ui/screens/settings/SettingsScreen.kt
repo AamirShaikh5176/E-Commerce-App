@@ -278,6 +278,29 @@ fun SettingsScreen(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        androidx.compose.material3.Button(
+                            onClick = {
+                                FirebaseAuth.getInstance().signOut()
+                                onBackClick()
+                            },
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFEF4444)
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(42.dp),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = "Log Out",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        }
                     }
                 }
             }

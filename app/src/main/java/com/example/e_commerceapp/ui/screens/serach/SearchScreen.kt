@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -157,19 +158,49 @@ fun SearchScreen(
 
             searchState.data != null -> {
                 searchState.data?.let { products ->
-                    LazyColumn {
-                        items(
-                            items = products,
-                            key = { it.id }
-                        ) { searchProductEntity ->
-                            SearchItem(
-                                searchProductEntity = searchProductEntity,
-                                onItemClicked = onProductClicked,
-                                onClickedFavorite = {
-                                    toggleFavorite(searchProductEntity, viewModel, context)
-                                },
-                                isFavorite = searchProductEntity.isFavorite
+                    if (products.isEmpty()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 48.dp, start = 24.dp, end = 24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null,
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier.size(56.dp)
                             )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "No products found for '$searchQuery'",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Try checking your spelling or search for popular categories like Mobiles, Fashion, or Electronics.",
+                                fontSize = 13.sp,
+                                color = Color(0xFF64748B),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    } else {
+                        LazyColumn {
+                            items(
+                                items = products,
+                                key = { it.id }
+                            ) { searchProductEntity ->
+                                SearchItem(
+                                    searchProductEntity = searchProductEntity,
+                                    onItemClicked = onProductClicked,
+                                    onClickedFavorite = {
+                                        toggleFavorite(searchProductEntity, viewModel, context)
+                                    },
+                                    isFavorite = searchProductEntity.isFavorite
+                                )
+                            }
                         }
                     }
                 }
@@ -188,7 +219,7 @@ fun SearchRecommendations(
 ) {
     val trendingSearches = listOf(
         "Mobiles", "Laptops", "Fashion", "Beauty",
-        "Shoes", "Smart Watch", "Groceries", "Fragrances"
+        "Shoes", "Smart Watch", "Groceries", "Sports"
     )
 
     LazyColumn(
@@ -234,14 +265,7 @@ fun SearchRecommendations(
         val displayCategories = if (categories.isNotEmpty()) {
             categories
         } else {
-            listOf(
-                Category("Mobiles", "smartphones", ""),
-                Category("Laptops", "laptops", ""),
-                Category("Fashion", "tops", ""),
-                Category("Beauty", "skincare", ""),
-                Category("Groceries", "groceries", ""),
-                Category("Furniture", "furniture", "")
-            )
+            com.example.e_commerceapp.data.demo.DemoCatalogData.demoCategories
         }
 
         item {
@@ -294,7 +318,7 @@ fun SearchRecommendations(
                 )
             }
 
-            items(recommendedProducts.take(15)) { product ->
+            items(recommendedProducts) { product ->
                 Card(
                     onClick = { onProductSelected(product) },
                     modifier = Modifier.fillMaxWidth(),

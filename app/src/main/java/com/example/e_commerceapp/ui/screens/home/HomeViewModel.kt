@@ -41,9 +41,14 @@ class HomeViewModel @Inject constructor(
         getAllCategoryText()
         loadAllProducts()
 
-        val userId = sharedPreferences.getString(PREF_FIREBASE_USERID_KEY, "")
-        if (!userId.isNullOrEmpty()) {
-            getUserInformation(userId.toString())
+        val currentFirebaseUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+        val userId = if (currentFirebaseUser != null) {
+            currentFirebaseUser.uid
+        } else {
+            ""
+        }
+        if (userId.isNotEmpty()) {
+            getUserInformation(userId)
         }
     }
 

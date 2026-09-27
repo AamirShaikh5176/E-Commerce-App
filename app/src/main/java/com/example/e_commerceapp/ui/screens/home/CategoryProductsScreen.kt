@@ -90,8 +90,14 @@ fun CategoryProductsScreen(
                     cat == term || cat.contains(term) || term.contains(cat) ||
                     it.title.lowercase().contains(term) ||
                     it.brand.lowercase().contains(term) ||
-                    (term.contains("mobile") && (cat.contains("mobile") || cat.contains("smartphones"))) ||
-                    (term.contains("electronic") && (cat.contains("electronic") || cat.contains("smartphones") || cat.contains("mobiles") || cat.contains("accessories")))
+                    ((term.contains("mobile") || term.contains("smartphone") || term.contains("phone")) && (cat.contains("mobile") || cat.contains("smartphone"))) ||
+                    ((term.contains("electronic") || term.contains("laptop") || term.contains("tablet")) && (cat.contains("electronic") || cat.contains("laptop") || cat.contains("tablet"))) ||
+                    ((term.contains("fashion") || term.contains("clothing") || term.contains("wear") || term.contains("shoes")) && (cat.contains("fashion") || cat.contains("clothing"))) ||
+                    ((term.contains("beauty") || term.contains("skincare") || term.contains("cosmetic")) && (cat.contains("beauty") || cat.contains("skincare"))) ||
+                    ((term.contains("home") || term.contains("furniture") || term.contains("decor")) && (cat.contains("home") || cat.contains("furniture"))) ||
+                    ((term.contains("grocer") || term.contains("food")) && (cat.contains("grocer") || cat.contains("food"))) ||
+                    ((term.contains("sport") || term.contains("fitness")) && (cat.contains("sport") || cat.contains("fitness"))) ||
+                    ((term.contains("accessor") || term.contains("watch")) && (cat.contains("accessor") || cat.contains("watch")))
                 }
                 if (matched.isNotEmpty()) matched else allProducts
             }

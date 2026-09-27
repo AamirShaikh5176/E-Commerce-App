@@ -83,11 +83,15 @@ fun AdminProductListScreen(
         val matchesQuery = searchQuery.isBlank() ||
                 product.title.contains(searchQuery, ignoreCase = true) ||
                 product.brand.contains(searchQuery, ignoreCase = true) ||
-                product.categoryId.contains(searchQuery, ignoreCase = true)
+                product.categoryId.contains(searchQuery, ignoreCase = true) ||
+                product.categoryName.contains(searchQuery, ignoreCase = true) ||
+                product.tags.any { it.contains(searchQuery, ignoreCase = true) }
 
         val matchesCategory = selectedCategory == "All" ||
                 product.categoryId.equals(selectedCategory, ignoreCase = true) ||
-                product.categoryName.equals(selectedCategory, ignoreCase = true)
+                product.categoryName.equals(selectedCategory, ignoreCase = true) ||
+                com.example.e_commerceapp.data.demo.DemoCatalogData.isCategoryMatch(product.categoryId, selectedCategory) ||
+                com.example.e_commerceapp.data.demo.DemoCatalogData.isCategoryMatch(product.categoryName, selectedCategory)
 
         matchesQuery && matchesCategory
     }
@@ -218,11 +222,15 @@ fun AdminProductListScreen(
                     )
                 }
                 items(categories) { category ->
-                    val catName = category.name.ifBlank { category.slug }
+                    val catName = category.name.ifBlank { category.slug.ifBlank { category.id } }
+                    val catIdentifier = category.slug.ifBlank { category.id.ifBlank { category.name } }
+                    val isSelected = selectedCategory.equals(catName, ignoreCase = true) ||
+                            selectedCategory.equals(catIdentifier, ignoreCase = true) ||
+                            (category.slug.isNotBlank() && selectedCategory.equals(category.slug, ignoreCase = true))
+
                     FilterChip(
-                        selected = selectedCategory.equals(catName, ignoreCase = true) ||
-                                selectedCategory.equals(category.slug, ignoreCase = true),
-                        onClick = { selectedCategory = category.slug },
+                        selected = isSelected,
+                        onClick = { selectedCategory = if (isSelected) "All" else catName },
                         label = { Text(catName) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = Color(0xFF0284C7),

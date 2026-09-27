@@ -99,25 +99,29 @@ fun ProductDetailScreen(
     productId: String,
     onBuyNowClick: (ProductDetailsEntity) -> Unit,
     onBackClick: () -> Unit,
-    onLoginClick: () -> Unit = {},
-    onCreateAccountClick: () -> Unit = {},
+    onLoginClick: (ProductDetailsEntity) -> Unit = {},
+    onCreateAccountClick: (ProductDetailsEntity) -> Unit = {},
     viewModel: ProductDetailsViewModel = hiltViewModel(),
 ) {
     HideNavigationBarOnly()
 
     val context = LocalContext.current
     var showGuestPrompt by remember { mutableStateOf(false) }
+    var pendingProduct by remember { mutableStateOf<ProductDetailsEntity?>(null) }
 
     if (showGuestPrompt) {
         com.example.e_commerceapp.ui.screens.common.GuestLoginRequiredDialog(
-            onDismissRequest = { showGuestPrompt = false },
+            onDismissRequest = {
+                showGuestPrompt = false
+                pendingProduct = null
+            },
             onLoginClick = {
                 showGuestPrompt = false
-                onLoginClick()
+                pendingProduct?.let { onLoginClick(it) }
             },
             onCreateAccountClick = {
                 showGuestPrompt = false
-                onCreateAccountClick()
+                pendingProduct?.let { onCreateAccountClick(it) }
             }
         )
     }
@@ -140,7 +144,12 @@ fun ProductDetailScreen(
             product = product,
             onBuyNowClick = { productEntity ->
                 val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                android.util.Log.d(
+                    "BuyNowAuth",
+                    "ProductDetails onBuyNowClick: currentUser != null: ${currentUser != null}, uid: ${currentUser?.uid}, email: ${currentUser?.email}"
+                )
                 if (currentUser == null) {
+                    pendingProduct = productEntity
                     showGuestPrompt = true
                 } else {
                     onBuyNowClick(productEntity)

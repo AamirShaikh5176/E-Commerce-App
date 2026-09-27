@@ -8,7 +8,7 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface ApiService {
-    @GET("products")
+    @GET("products?limit=0")
     suspend fun getProductsListFromApi(): ProductsResponse
 
     @GET("products/search")

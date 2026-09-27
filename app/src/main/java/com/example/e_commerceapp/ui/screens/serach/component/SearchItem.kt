@@ -87,9 +87,9 @@ fun SearchItem(
                 Column {
                     Text(
                         text = searchProductEntity.title,
-                        fontSize = 16.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
 
@@ -146,12 +146,14 @@ fun SearchItem(
                         modifier = Modifier.size(16.dp)
                     )
 
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
 
                     Text(
                         text = "${searchProductEntity.discountPercentage}% OFF",
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
 

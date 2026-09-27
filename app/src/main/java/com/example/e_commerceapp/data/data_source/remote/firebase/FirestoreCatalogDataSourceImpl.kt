@@ -109,11 +109,7 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
                 val normalizedCategory = categoryName.trim().lowercase()
                 val products = snapshot.documents.mapNotNull { doc ->
                     val dto = doc.toObject(FirestoreProductDto::class.java)
-                    if (dto != null && (
-                            dto.categoryId.lowercase() == normalizedCategory ||
-                            dto.categoryName.lowercase() == normalizedCategory ||
-                            dto.tags.any { it.lowercase() == normalizedCategory }
-                        )) {
+                    if (dto != null && matchesCategoryFilter(dto.categoryId, dto.categoryName, dto.tags, normalizedCategory)) {
                         dto.toProductEntity(doc.id)
                     } else {
                         null
@@ -125,17 +121,49 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
         awaitClose { subscription.remove() }
     }.flowOn(ioDispatcher)
 
+    private fun matchesCategoryFilter(catId: String, catName: String, tags: List<String>, target: String): Boolean {
+        val id = catId.trim().lowercase()
+        val name = catName.trim().lowercase()
+        val t = target.trim().lowercase()
+        val lowerTags = tags.map { it.trim().lowercase() }
+
+        if (id == t || name == t || lowerTags.contains(t) || name.contains(t) || t.contains(name)) return true
+        if (t in listOf("mobiles", "smartphones", "phone", "phones") && (id in listOf("mobiles", "smartphones") || name.contains("mobile") || lowerTags.contains("mobiles") || lowerTags.contains("smartphones"))) return true
+        if (t in listOf("electronics", "electronic", "laptops", "tablets") && (id in listOf("electronics", "laptops", "tablets") || name.contains("electronic") || lowerTags.contains("electronics"))) return true
+        if (t in listOf("fashion", "clothing", "shoes", "wear") && (id == "fashion" || name.contains("fashion") || lowerTags.contains("fashion") || lowerTags.contains("shoes"))) return true
+        if (t in listOf("beauty", "skincare", "grooming", "cosmetics") && (id in listOf("beauty", "skincare", "fragrances") || name.contains("beauty") || lowerTags.contains("beauty"))) return true
+        if (t in listOf("home", "furniture", "kitchen", "appliances") && (id in listOf("home", "furniture") || name.contains("home") || lowerTags.contains("home"))) return true
+        if (t in listOf("groceries", "grocery", "food") && (id in listOf("groceries", "grocery") || name.contains("grocer") || lowerTags.contains("groceries"))) return true
+        if (t in listOf("sports", "fitness", "sport") && (id in listOf("sports", "fitness") || name.contains("sport") || lowerTags.contains("sports"))) return true
+        if (t in listOf("accessories", "accessory", "watches") && (id == "accessories" || name.contains("accessor") || lowerTags.contains("accessories") || lowerTags.contains("watch"))) return true
+        return false
+    }
+
     override fun searchProductsFlow(query: String): Flow<List<SearchProductEntity>> =
         getProductsFlow().map { products ->
             val trimmed = query.trim().lowercase()
             if (trimmed.isBlank()) {
                 emptyList()
             } else {
-                products.filter {
-                    it.title.lowercase().contains(trimmed) ||
-                    it.description.lowercase().contains(trimmed) ||
-                    it.brand.lowercase().contains(trimmed) ||
-                    it.category.lowercase().contains(trimmed)
+                products.filter { product ->
+                    val cat = product.category.lowercase()
+                    val title = product.title.lowercase()
+                    val desc = product.description.lowercase()
+                    val brand = product.brand.lowercase()
+
+                    title.contains(trimmed) ||
+                    desc.contains(trimmed) ||
+                    brand.contains(trimmed) ||
+                    cat.contains(trimmed) ||
+                    trimmed.contains(cat) ||
+                    (trimmed in listOf("mobiles", "smartphones", "phone", "phones") && (cat == "mobiles" || cat == "smartphones" || cat.contains("mobile") || cat.contains("phone"))) ||
+                    (trimmed in listOf("electronics", "electronic", "laptops", "tablets") && (cat == "electronics" || cat == "laptops" || cat == "tablets" || cat.contains("electronic"))) ||
+                    (trimmed in listOf("fashion", "clothing", "shoes", "wear") && (cat == "fashion" || cat.contains("shirt") || cat.contains("shoes") || cat.contains("dress") || cat.contains("jeans"))) ||
+                    (trimmed in listOf("beauty", "skincare", "grooming", "cosmetics") && (cat == "beauty" || cat.contains("serum") || cat.contains("grooming") || cat.contains("skin"))) ||
+                    (trimmed in listOf("home", "furniture", "kitchen", "appliances") && (cat == "home" || cat.contains("mattress") || cat.contains("bedsheet") || cat.contains("appliance"))) ||
+                    (trimmed in listOf("groceries", "grocery", "food") && (cat == "groceries" || cat.contains("tea") || cat.contains("oil") || cat.contains("food"))) ||
+                    (trimmed in listOf("sports", "fitness", "sport") && (cat == "sports" || cat.contains("racket") || cat.contains("football") || cat.contains("yoga"))) ||
+                    (trimmed in listOf("accessories", "accessory", "watches", "watch") && (cat == "accessories" || cat.contains("watch") || cat.contains("sunglasses") || cat.contains("bag")))
                 }.map {
                     SearchProductEntity(
                         id = it.id,
@@ -275,6 +303,15 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
             !snapshot.isEmpty
         } catch (_: Exception) {
             false
+        }
+    }
+
+    override suspend fun getProductsCount(): Int = withContext(ioDispatcher) {
+        try {
+            val snapshot = productsCollection.get().awaitTask()
+            snapshot.size()
+        } catch (_: Exception) {
+            0
         }
     }
 

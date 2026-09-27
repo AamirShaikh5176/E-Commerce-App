@@ -67,12 +67,7 @@ class FirestoreCatalogRepositoryImpl @Inject constructor(
             if (results.isNotEmpty()) {
                 emit(results)
             } else {
-                val q = query.trim().lowercase()
-                val demoFiltered = com.example.e_commerceapp.data.demo.DemoCatalogData.toSearchProductEntityList().filter {
-                    it.title.lowercase().contains(q) ||
-                    it.description.lowercase().contains(q)
-                }
-                emit(demoFiltered)
+                emit(com.example.e_commerceapp.data.demo.DemoCatalogData.search(query))
             }
         }
     }.flowOn(ioDispatcher)

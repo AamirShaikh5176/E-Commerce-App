@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocalOffer
@@ -63,12 +64,12 @@ fun ProductItem(
         ),
     ) {
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxWidth()
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(160.dp)
+                    .height(150.dp)
                     .background(colorResource(R.color.light_gray))
             ) {
                 Image(
@@ -77,39 +78,32 @@ fun ProductItem(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(12.dp)
+                        .padding(10.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // 1. Product Name (controlled 2-line layout with consistent height)
             Text(
                 text = product.title,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                style = TextStyle(fontSize = 16.sp),
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                minLines = 2,
+                style = TextStyle(fontSize = 13.sp, lineHeight = 17.sp),
                 overflow = TextOverflow.Ellipsis,
                 fontFamily = FontFamily(Font(R.font.medium)),
+                color = Color(0xFF1E293B),
                 modifier = Modifier.padding(horizontal = 8.dp)
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
-//            Text(
-//                text = product.description,
-//                maxLines = 1,
-//                style = TextStyle(fontSize = 14.sp, color = Color.Gray),
-//                overflow = TextOverflow.Ellipsis,
-//                modifier = Modifier.padding(horizontal = 8.dp),
-//                fontFamily = FontFamily(Font(R.font.light)),
-//                fontWeight = FontWeight.Bold
-//            )
-//            Spacer(modifier = Modifier.height(8.dp))
-
-            // Flipkart Rating Pill & Assured Badge
+            // 2. Rating Pill & Assured Badge
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 3.dp),
+                    .padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
@@ -123,7 +117,7 @@ fun ProductItem(
                     Text(
                         text = "${String.format(java.util.Locale.US, "%.1f", product.rating)} ★",
                         color = Color.White,
-                        fontSize = 11.sp,
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -145,52 +139,72 @@ fun ProductItem(
                 }
             }
 
-            // 💰 Indian Rupee Price, MRP & Savings
-            Row(
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // 3. Indian Rupee Price, MRP & Discount Badge (Responsive Column Layout)
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 8.dp)
             ) {
-                Text(
-                    text = CurrencyUtils.formatInr(product.price),
-                    color = Color(0xFF0F172A),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp,
-                    fontFamily = FontFamily(Font(R.font.medium))
-                )
-                if (product.mrpPrice > product.price) {
-                    Spacer(modifier = Modifier.width(6.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text(
-                        text = CurrencyUtils.formatInr(product.mrpPrice),
-                        color = Color(0xFF94A3B8),
-                        fontSize = 12.sp,
-                        textDecoration = TextDecoration.LineThrough
+                        text = CurrencyUtils.formatInr(product.price),
+                        color = Color(0xFF0F172A),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        fontFamily = FontFamily(Font(R.font.medium)),
+                        maxLines = 1,
+                        softWrap = false
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    if (product.mrpPrice > product.price) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = CurrencyUtils.formatInr(product.mrpPrice),
+                            color = Color(0xFF94A3B8),
+                            fontSize = 11.sp,
+                            textDecoration = TextDecoration.LineThrough,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                if (product.discountPercentage > 0) {
+                    Spacer(modifier = Modifier.height(3.dp))
                     Box(
                         modifier = Modifier
+                            .wrapContentWidth()
                             .background(Color(0xFFDCFCE7), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                            .padding(horizontal = 5.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = "${product.discountPercentage.toInt()}% OFF",
                             color = Color(0xFF16A34A),
                             fontWeight = FontWeight.Bold,
-                            fontSize = 10.sp
+                            fontSize = 10.sp,
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(5.dp))
 
-            // Delivery & COD info
+            // 4. Delivery & COD info
             Text(
                 text = "Free Delivery • ${if (product.isCodAvailable) "COD Available" else "Prepaid"}",
                 color = Color(0xFF059669),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                lineHeight = 14.sp,
                 modifier = Modifier.padding(horizontal = 8.dp)
             )
 

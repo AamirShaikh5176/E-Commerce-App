@@ -143,7 +143,7 @@ fun ProfileScreen(
         Loading()
     }
 
-    if (isGuest || profileState.data == null) {
+    if (isGuest) {
         GuestProfileContent(
             onBackClick = onBackClick,
             onSettings = onSettings,
@@ -153,8 +153,18 @@ fun ProfileScreen(
             onNavigateToAdminLogin = onNavigateToAdminLogin
         )
     } else {
+        val userEntity = profileState.data ?: UserInformationEntity(
+            id = currentFirebaseUser?.uid ?: "",
+            name = currentFirebaseUser?.displayName ?: currentFirebaseUser?.email?.substringBefore("@") ?: "Customer",
+            email = currentFirebaseUser?.email ?: "",
+            phone = currentFirebaseUser?.phoneNumber ?: "",
+            image = currentFirebaseUser?.photoUrl?.toString() ?: "",
+            password = "",
+            token = "",
+            role = "customer"
+        )
         ProfileScreenContent(
-            userInformationEntity = profileState.data!!,
+            userInformationEntity = userEntity,
             isAdmin = isAdmin,
             onBackClick = onBackClick,
             onSettings = onSettings,

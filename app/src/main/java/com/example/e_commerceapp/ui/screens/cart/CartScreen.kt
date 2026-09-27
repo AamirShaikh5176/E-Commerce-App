@@ -87,28 +87,28 @@ fun CartScreen(
     onCartClicked: (UserCartEntity) -> Unit,
     onBackClick: () -> Unit,
     onBadgeCountChange: (Int) -> Unit,
-    onLoginClick: () -> Unit = {},
-    onCreateAccountClick: () -> Unit = {},
+    onLoginClick: (String) -> Unit = {},
+    onCreateAccountClick: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     var showGuestPrompt by remember { mutableStateOf(false) }
+    val totalPriceState by viewModel.totalPriceState.collectAsStateWithLifecycle()
 
     if (showGuestPrompt) {
         com.example.e_commerceapp.ui.screens.common.GuestLoginRequiredDialog(
             onDismissRequest = { showGuestPrompt = false },
             onLoginClick = {
                 showGuestPrompt = false
-                onLoginClick()
+                onLoginClick(totalPriceState.toString())
             },
             onCreateAccountClick = {
                 showGuestPrompt = false
-                onCreateAccountClick()
+                onCreateAccountClick(totalPriceState.toString())
             }
         )
     }
 
     val cartState by viewModel.userCartsState.collectAsStateWithLifecycle()
-    val totalPriceState by viewModel.totalPriceState.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     var deletedCart by remember { mutableStateOf<UserCartEntity?>(null) }

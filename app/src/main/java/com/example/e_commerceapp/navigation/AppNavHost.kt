@@ -35,6 +35,10 @@ import com.example.e_commerceapp.ui.screens.admin.AdminUserListScreen
 import com.example.e_commerceapp.ui.screens.orders.MyOrdersScreen
 import com.example.e_commerceapp.ui.screens.orders.OrderDetailsScreen
 import com.example.e_commerceapp.ui.screens.settings.SettingsScreen
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import com.google.firebase.auth.FirebaseAuth
 
 
@@ -43,6 +47,8 @@ fun AppNavHost(
     navController: NavHostController,
     modifier: Modifier = Modifier,
 ) {
+    var pendingCheckoutTotalPrice by rememberSaveable { mutableStateOf<String?>(null) }
+
     NavHost(
         navController = navController,
         startDestination = SplashScreen.route,
@@ -65,7 +71,18 @@ fun AppNavHost(
         composable(SignUpScreen.route) {
             SignUpScreen(
                 navigateToHomeScreen = { userInfirmationEntity ->
-                    if (navController.previousBackStackEntry != null) {
+                    val pendingPrice = pendingCheckoutTotalPrice
+                    android.util.Log.d(
+                        "BuyNowAuth",
+                        "SignUpScreen success: pendingCheckoutTotalPrice = $pendingPrice"
+                    )
+                    if (pendingPrice != null) {
+                        pendingCheckoutTotalPrice = null
+                        navController.popBackStack()
+                        val route = "${AddressSelectionDestination.route}/$pendingPrice"
+                        android.util.Log.d("BuyNowAuth", "Continuing to address selection: $route")
+                        navController.navigate(route)
+                    } else if (navController.previousBackStackEntry != null) {
                         navController.popBackStack()
                     } else {
                         navController.navigate(HomeScreen.route) {
@@ -85,7 +102,18 @@ fun AppNavHost(
                     navController.navigate(SignUpScreen.route)
                 },
                 navigateToHomeScreen = {
-                    if (navController.previousBackStackEntry != null) {
+                    val pendingPrice = pendingCheckoutTotalPrice
+                    android.util.Log.d(
+                        "BuyNowAuth",
+                        "SignInScreen success: pendingCheckoutTotalPrice = $pendingPrice"
+                    )
+                    if (pendingPrice != null) {
+                        pendingCheckoutTotalPrice = null
+                        navController.popBackStack()
+                        val route = "${AddressSelectionDestination.route}/$pendingPrice"
+                        android.util.Log.d("BuyNowAuth", "Continuing to address selection: $route")
+                        navController.navigate(route)
+                    } else if (navController.previousBackStackEntry != null) {
                         navController.popBackStack()
                     } else {
                         navController.navigate(HomeScreen.route) {
@@ -141,17 +169,39 @@ fun AppNavHost(
 
             ProductDetailScreen(
                 productId = productId,
-                onBuyNowClick = {
+                onBuyNowClick = { product ->
                     val currentUser = FirebaseAuth.getInstance().currentUser
+                    val effectivePrice = (product.price * product.quantity).toString()
+                    val route = "${AddressSelectionDestination.route}/$effectivePrice"
+                    android.util.Log.d(
+                        "BuyNowAuth",
+                        "AppNavHost onBuyNowClick: currentUser != null -> ${currentUser != null}, route -> $route"
+                    )
                     if (currentUser == null) {
+                        pendingCheckoutTotalPrice = effectivePrice
                         navController.navigate(SignInScreen.route)
                     } else {
-                        val route = "${AddressSelectionDestination.route}/${it.price}"
                         navController.navigate(route = route)
                     }
                 },
-                onLoginClick = { navController.navigate(SignInScreen.route) },
-                onCreateAccountClick = { navController.navigate(SignUpScreen.route) },
+                onLoginClick = { product ->
+                    val effectivePrice = (product.price * product.quantity).toString()
+                    pendingCheckoutTotalPrice = effectivePrice
+                    android.util.Log.d(
+                        "BuyNowAuth",
+                        "AppNavHost onLoginClick: pendingPrice=$effectivePrice, navigating to SignIn"
+                    )
+                    navController.navigate(SignInScreen.route)
+                },
+                onCreateAccountClick = { product ->
+                    val effectivePrice = (product.price * product.quantity).toString()
+                    pendingCheckoutTotalPrice = effectivePrice
+                    android.util.Log.d(
+                        "BuyNowAuth",
+                        "AppNavHost onCreateAccountClick: pendingPrice=$effectivePrice, navigating to SignUp"
+                    )
+                    navController.navigate(SignUpScreen.route)
+                },
                 onBackClick = { navController.popBackStack() },
             )
         }
@@ -160,10 +210,15 @@ fun AppNavHost(
             CartScreen(
                 onCheckoutClicked = { totalPrice ->
                     val currentUser = FirebaseAuth.getInstance().currentUser
+                    val route = "${AddressSelectionDestination.route}/${totalPrice}"
+                    android.util.Log.d(
+                        "BuyNowAuth",
+                        "AppNavHost Cart onCheckoutClicked: currentUser != null -> ${currentUser != null}, route -> $route"
+                    )
                     if (currentUser == null) {
+                        pendingCheckoutTotalPrice = totalPrice
                         navController.navigate(SignInScreen.route)
                     } else {
-                        val route = "${AddressSelectionDestination.route}/${totalPrice}"
                         navController.navigate(route = route)
                     }
                 },
@@ -171,8 +226,22 @@ fun AppNavHost(
                     val route = "${ProductDetailsScreen.route}/${it.productId}"
                     navController.navigate(route = route)
                 },
-                onLoginClick = { navController.navigate(SignInScreen.route) },
-                onCreateAccountClick = { navController.navigate(SignUpScreen.route) },
+                onLoginClick = { totalPrice ->
+                    pendingCheckoutTotalPrice = totalPrice
+                    android.util.Log.d(
+                        "BuyNowAuth",
+                        "AppNavHost Cart onLoginClick: pendingPrice=$totalPrice, navigating to SignIn"
+                    )
+                    navController.navigate(SignInScreen.route)
+                },
+                onCreateAccountClick = { totalPrice ->
+                    pendingCheckoutTotalPrice = totalPrice
+                    android.util.Log.d(
+                        "BuyNowAuth",
+                        "AppNavHost Cart onCreateAccountClick: pendingPrice=$totalPrice, navigating to SignUp"
+                    )
+                    navController.navigate(SignUpScreen.route)
+                },
                 onBackClick = { navController.popBackStack() },
                 onBadgeCountChange = {},
             )
