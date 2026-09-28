@@ -10,7 +10,7 @@ interface LocalRepository {
 
     suspend fun getAllCartsFromDb(): Flow<List<UserCartEntity>>
 
-    suspend fun getOneCartByProductId(productId: String): UserCartEntity
+    suspend fun getOneCartByProductId(productId: String): UserCartEntity?
 
     suspend fun getTotalPriceFromDb(): Flow<Double>
 
@@ -25,10 +25,12 @@ interface LocalRepository {
 
     suspend fun getAllFavoriteProductsFromDb(): Flow<List<FavoriteProductEntity>>
 
-    suspend fun getOneFavoriteProductByProductId(productId: String): FavoriteProductEntity
+    suspend fun getOneFavoriteProductByProductId(productId: String): FavoriteProductEntity?
 
     suspend fun insertFavoriteProductToDb(favoriteProductEntity: FavoriteProductEntity)
 
     suspend fun deleteFavoriteProduct(favoriteProductEntity: FavoriteProductEntity)
+
+    suspend fun clearGuestSession()
 
 }

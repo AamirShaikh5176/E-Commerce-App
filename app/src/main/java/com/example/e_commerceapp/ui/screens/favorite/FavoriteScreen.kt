@@ -63,6 +63,10 @@ fun FavoriteScreen(
     val context = LocalContext.current
     val favoriteState by viewModel.favoriteState.collectAsStateWithLifecycle()
 
+    LaunchedEffect(Unit) {
+        viewModel.refreshFavorites()
+    }
+
     val snackbarHostState = remember { SnackbarHostState() }
     var deletedFavoriteProduct by remember { mutableStateOf<FavoriteProductEntity?>(null) }
 

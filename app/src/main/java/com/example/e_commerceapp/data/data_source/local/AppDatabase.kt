@@ -5,7 +5,7 @@ import androidx.room.RoomDatabase
 import com.example.e_commerceapp.domain.entity.cart.UserCartEntity
 import com.example.e_commerceapp.domain.entity.product.FavoriteProductEntity
 
-@Database(entities = [UserCartEntity::class, FavoriteProductEntity::class], version = 2)
+@Database(entities = [UserCartEntity::class, FavoriteProductEntity::class], version = 3)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun appDao(): AppDao
 }

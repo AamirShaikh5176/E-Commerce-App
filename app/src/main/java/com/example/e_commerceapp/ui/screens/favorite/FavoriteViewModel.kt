@@ -20,17 +20,19 @@ class FavoriteViewModel @Inject constructor(
     private val _favoriteState = MutableStateFlow(ScreenState<List<FavoriteProductEntity>>())
     val favoriteState: StateFlow<ScreenState<List<FavoriteProductEntity>>> = _favoriteState
 
+    private var favoriteJob: kotlinx.coroutines.Job? = null
+
     init {
-        getAllFavoriteProducts()
+        refreshFavorites()
     }
 
-    private fun getAllFavoriteProducts() {
-        viewModelScope.launch {
+    fun refreshFavorites() {
+        favoriteJob?.cancel()
+        favoriteJob = viewModelScope.launch {
             _favoriteState.update {
                 it.copy(
                     isLoading = true,
-                    errorMessage = null,
-                    data = null
+                    errorMessage = null
                 )
             }
             try {

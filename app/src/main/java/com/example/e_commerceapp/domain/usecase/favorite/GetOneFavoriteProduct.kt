@@ -7,7 +7,7 @@ import javax.inject.Inject
 class GetOneFavoriteProduct @Inject constructor(
     private val localRepository: LocalRepository,
 ) {
-    suspend operator fun invoke(productId: String): FavoriteProductEntity {
+    suspend operator fun invoke(productId: String): FavoriteProductEntity? {
         return localRepository.getOneFavoriteProductByProductId(productId)
     }
 }

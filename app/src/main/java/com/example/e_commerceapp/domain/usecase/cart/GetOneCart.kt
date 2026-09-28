@@ -7,7 +7,7 @@ import javax.inject.Inject
 class GetOneCart @Inject constructor(
     private val localRepository: LocalRepository,
 ) {
-    suspend operator fun invoke(productId: String): UserCartEntity {
+    suspend operator fun invoke(productId: String): UserCartEntity? {
         return localRepository.getOneCartByProductId(productId)
     }
 }

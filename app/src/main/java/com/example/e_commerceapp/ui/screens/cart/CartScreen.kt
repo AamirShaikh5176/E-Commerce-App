@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -64,6 +66,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -93,6 +96,10 @@ fun CartScreen(
     val context = LocalContext.current
     var showGuestPrompt by remember { mutableStateOf(false) }
     val totalPriceState by viewModel.totalPriceState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.refreshCart()
+    }
 
     if (showGuestPrompt) {
         com.example.e_commerceapp.ui.screens.common.GuestLoginRequiredDialog(
@@ -421,15 +428,15 @@ fun SuccessScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    OutlinedTextField(
+                                    BasicTextField(
                                         value = couponInput,
                                         onValueChange = { couponInput = it.uppercase() },
-                                        placeholder = { Text("Enter FESTIVE100", fontSize = 13.sp) },
                                         singleLine = true,
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .height(48.dp),
-                                        shape = RoundedCornerShape(8.dp),
+                                        textStyle = TextStyle(
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color(0xFF1E293B)
+                                        ),
                                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                                         keyboardActions = KeyboardActions(
                                             onDone = {
@@ -437,10 +444,30 @@ fun SuccessScreen(
                                                 applyCouponCode(couponInput)
                                             }
                                         ),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            unfocusedBorderColor = Color(0xFFCBD5E1),
-                                            focusedBorderColor = colorResource(R.color.dark_blue)
-                                        )
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(48.dp)
+                                            .border(
+                                                width = 1.dp,
+                                                color = Color(0xFFCBD5E1),
+                                                shape = RoundedCornerShape(8.dp)
+                                            )
+                                            .padding(horizontal = 12.dp),
+                                        decorationBox = { innerTextField ->
+                                            Box(
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentAlignment = Alignment.CenterStart
+                                            ) {
+                                                if (couponInput.isEmpty()) {
+                                                    Text(
+                                                        text = "Enter FESTIVE100",
+                                                        fontSize = 13.sp,
+                                                        color = Color(0xFF94A3B8)
+                                                    )
+                                                }
+                                                innerTextField()
+                                            }
+                                        }
                                     )
 
                                     Spacer(modifier = Modifier.width(8.dp))

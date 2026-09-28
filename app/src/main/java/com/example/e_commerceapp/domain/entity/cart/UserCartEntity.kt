@@ -4,16 +4,18 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "user_carts")
+@Entity(
+    tableName = "user_carts",
+    primaryKeys = ["user_id", "product_id"]
+)
 data class UserCartEntity(
-    @PrimaryKey
-    @ColumnInfo(name = "product_id")
-    val productId: String,
-    @ColumnInfo(name = "product_title") val title: String,
-    @ColumnInfo(name = "product_description") val description: String,
-    @ColumnInfo(name = "product_rating") val  rating : String,
-    @ColumnInfo(name = "product_price") val price: Double,
-    @ColumnInfo(name = "product_availableQuantity") val availableQuantity: Int,
+    @ColumnInfo(name = "user_id") val userId: String = "",
+    @ColumnInfo(name = "product_id") val productId: String = "",
+    @ColumnInfo(name = "product_title") val title: String = "",
+    @ColumnInfo(name = "product_description") val description: String = "",
+    @ColumnInfo(name = "product_rating") val rating: String = "",
+    @ColumnInfo(name = "product_price") val price: Double = 0.0,
+    @ColumnInfo(name = "product_availableQuantity") val availableQuantity: Int = 0,
     @ColumnInfo(name = "product_quantity") val quantity: Int = 1,
-    @ColumnInfo(name = "product_image") val image: String,
+    @ColumnInfo(name = "product_image") val image: String = "",
 )

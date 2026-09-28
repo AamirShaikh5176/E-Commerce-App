@@ -24,14 +24,17 @@ class CartViewModel @Inject constructor(
     private val _totalPriceState = MutableStateFlow(0.0)
     val totalPriceState: StateFlow<Double> = _totalPriceState
 
+    private var cartJob: kotlinx.coroutines.Job? = null
+
     init {
-        getAllCarts()
+        refreshCart()
     }
 
-    private fun getAllCarts() {
-        viewModelScope.launch {
+    fun refreshCart() {
+        cartJob?.cancel()
+        cartJob = viewModelScope.launch {
             _userCartsState.update {
-                it.copy(isLoading = true, errorMessage = null, data = null)
+                it.copy(isLoading = true, errorMessage = null)
             }
             try {
                 cartUseCase.getAllCart().collect { listUserCartEntity ->
