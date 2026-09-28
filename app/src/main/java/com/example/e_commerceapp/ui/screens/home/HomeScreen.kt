@@ -112,6 +112,7 @@ fun HomeContent(
     // Live countdown timer state (hours, minutes, seconds)
     var remainingSeconds by remember { mutableLongStateOf(15840L) }
     LaunchedEffect(Unit) {
+        viewModel.refreshUser()
         while (remainingSeconds > 0) {
             delay(1000)
             remainingSeconds--
@@ -207,10 +208,24 @@ fun HomeContent(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        val currentFirebaseUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+        val fallbackName = currentFirebaseUser?.displayName?.ifBlank { null }
+            ?: currentFirebaseUser?.email?.substringBefore('@')?.replaceFirstChar { it.uppercase() }
+        val effectiveUser = userState.data ?: if (currentFirebaseUser != null) {
+            com.example.e_commerceapp.domain.entity.user.UserInformationEntity(
+                id = currentFirebaseUser.uid,
+                name = fallbackName ?: "Customer",
+                email = currentFirebaseUser.email ?: "",
+                phone = currentFirebaseUser.phoneNumber ?: "",
+                password = "",
+                token = ""
+            )
+        } else null
+
         // 1. Header (Greeting + Search Shortcut)
         item {
             HeaderHomeScreen(
-                userInformationEntity = userState.data,
+                userInformationEntity = effectiveUser,
                 onNotificationClick = onNotificationClick,
                 onClickSearchBar = onClickSearchBar
             )
@@ -239,7 +254,7 @@ fun HomeContent(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    val customerName = userState.data?.name?.ifBlank { "Guest User" } ?: "Guest User"
+                    val customerName = effectiveUser?.name?.ifBlank { null } ?: "Guest User"
                     Text(
                         text = "Deliver to $customerName, $currentPinCode • $currentCity",
                         color = Color(0xFF065F46),

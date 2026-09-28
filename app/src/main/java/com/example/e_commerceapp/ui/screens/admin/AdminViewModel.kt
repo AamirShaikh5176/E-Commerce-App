@@ -63,7 +63,10 @@ class AdminViewModel @Inject constructor(
             try {
                 val result = catalogDataMigrator.migrateCatalog(force = true)
                 if (result.isSuccess) {
-                    _opStatus.update { AdminOpStatus.Success("Catalog synchronized successfully") }
+                    val count = result.getOrDefault(48)
+                    _opStatus.update { AdminOpStatus.Success("Catalog synchronized! $count products updated in Firestore.") }
+                    kotlinx.coroutines.delay(3000)
+                    _opStatus.update { AdminOpStatus.Idle }
                 } else {
                     _opStatus.update { AdminOpStatus.Error("Failed to sync catalog: ${result.exceptionOrNull()?.message}") }
                 }

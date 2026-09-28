@@ -58,6 +58,7 @@ fun AdminCategoryScreen(
     onBackClick: () -> Unit,
 ) {
     val categories by viewModel.categories.collectAsStateWithLifecycle()
+    val opStatus by viewModel.opStatus.collectAsStateWithLifecycle()
     var showAddDialog by remember { mutableStateOf(false) }
     var categoryToDelete by remember { mutableStateOf<FirestoreCategoryDto?>(null) }
     var categoryToEdit by remember { mutableStateOf<FirestoreCategoryDto?>(null) }
@@ -219,13 +220,10 @@ fun AdminCategoryScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.syncCatalog() }) {
-                        Icon(
-                            imageVector = Icons.Default.Sync,
-                            contentDescription = "Sync Categories",
-                            tint = Color(0xFF38BDF8)
-                        )
-                    }
+                    AdminSyncButton(
+                        opStatus = opStatus,
+                        onSyncClick = { viewModel.syncCatalog() }
+                    )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0F172A))
             )
@@ -241,13 +239,17 @@ fun AdminCategoryScreen(
         },
         containerColor = Color(0xFF0B132B)
     ) { paddingValues ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
             item {
                 Spacer(modifier = Modifier.height(6.dp))
             }
@@ -363,5 +365,11 @@ fun AdminCategoryScreen(
                 Spacer(modifier = Modifier.height(80.dp))
             }
         }
+
+        AdminSyncConfirmationBanner(
+            opStatus = opStatus,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
+}
 }

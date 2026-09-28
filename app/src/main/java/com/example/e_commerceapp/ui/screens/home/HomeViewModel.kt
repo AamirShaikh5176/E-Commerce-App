@@ -47,14 +47,17 @@ class HomeViewModel @Inject constructor(
         getAllCategoryText()
         loadAllProducts()
 
+        refreshUser()
+    }
+
+    fun refreshUser() {
         val currentFirebaseUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
-        val userId = if (currentFirebaseUser != null) {
-            currentFirebaseUser.uid
-        } else {
-            ""
-        }
-        if (userId.isNotEmpty()) {
+        val savedUid = sharedPreferences.getString(com.example.e_commerceapp.utils.Constants.PREF_FIREBASE_USERID_KEY, null)
+        val userId = currentFirebaseUser?.uid ?: savedUid ?: ""
+        if (userId.isNotBlank()) {
             getUserInformation(userId)
+        } else {
+            _userState.update { it.copy(isLoading = false, errorMessage = null, data = null) }
         }
     }
 
@@ -85,22 +88,45 @@ class HomeViewModel @Inject constructor(
 
     private fun getUserInformation(userId: String) {
         viewModelScope.launch {
-            _userState.update { it.copy(isLoading = true, errorMessage = null, data = null) }
+            _userState.update { it.copy(isLoading = true, errorMessage = null) }
+
+            val currentFirebaseUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            val fallbackName = currentFirebaseUser?.displayName?.ifBlank { null }
+                ?: currentFirebaseUser?.email?.substringBefore('@')?.replaceFirstChar { it.uppercase() }
+                ?: "Customer"
 
             firebaseUserUseCase.readUser(
                 userId = userId,
                 onSuccess = { userInformationEntity ->
+                    val resolvedName = userInformationEntity.name.ifBlank { fallbackName }
                     _userState.update {
                         it.copy(
                             isLoading = false,
                             errorMessage = null,
-                            data = userInformationEntity
+                            data = userInformationEntity.copy(name = resolvedName)
                         )
                     }
                 },
                 onFailure = { errorMessage ->
-                    _userState.update {
-                        it.copy(isLoading = false, errorMessage = errorMessage, data = null)
+                    if (currentFirebaseUser != null) {
+                        _userState.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = null,
+                                data = com.example.e_commerceapp.domain.entity.user.UserInformationEntity(
+                                    id = currentFirebaseUser.uid,
+                                    name = fallbackName,
+                                    email = currentFirebaseUser.email ?: "",
+                                    phone = currentFirebaseUser.phoneNumber ?: "",
+                                    password = "",
+                                    token = ""
+                                )
+                            )
+                        }
+                    } else {
+                        _userState.update {
+                            it.copy(isLoading = false, errorMessage = errorMessage, data = null)
+                        }
                     }
                 }
             )

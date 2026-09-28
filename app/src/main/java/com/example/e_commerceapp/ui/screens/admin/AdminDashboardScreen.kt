@@ -74,6 +74,7 @@ fun AdminDashboardScreen(
 
     val metrics by viewModel.metrics.collectAsStateWithLifecycle()
     val orders by viewModel.orders.collectAsStateWithLifecycle()
+    val opStatus by viewModel.opStatus.collectAsStateWithLifecycle()
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     // Logout confirmation dialog
@@ -151,6 +152,10 @@ fun AdminDashboardScreen(
                     }
                 },
                 actions = {
+                    AdminSyncButton(
+                        opStatus = opStatus,
+                        onSyncClick = { viewModel.syncCatalog() }
+                    )
                     IconButton(onClick = { showLogoutDialog = true }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Logout,
@@ -166,13 +171,17 @@ fun AdminDashboardScreen(
         },
         containerColor = Color(0xFF0B132B)
     ) { paddingValues ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
             item {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -367,7 +376,13 @@ fun AdminDashboardScreen(
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }
+
+        AdminSyncConfirmationBanner(
+            opStatus = opStatus,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
+}
 }
 
 @Composable

@@ -86,11 +86,9 @@ fun AppNavHost(
                         navController.navigate(route) {
                             popUpTo(ProductDetailsScreen.route + "/{productId}") { inclusive = false }
                         }
-                    } else if (navController.previousBackStackEntry != null) {
-                        navController.popBackStack()
                     } else {
                         navController.navigate(HomeScreen.route) {
-                            popUpTo(SignUpScreen.route) { inclusive = true }
+                            popUpTo(0) { inclusive = true }
                         }
                     }
                 },
@@ -118,11 +116,9 @@ fun AppNavHost(
                         navController.navigate(route) {
                             popUpTo(ProductDetailsScreen.route + "/{productId}") { inclusive = false }
                         }
-                    } else if (navController.previousBackStackEntry != null) {
-                        navController.popBackStack()
                     } else {
                         navController.navigate(HomeScreen.route) {
-                            popUpTo(SignInScreen.route) { inclusive = true }
+                            popUpTo(0) { inclusive = true }
                         }
                     }
                 },

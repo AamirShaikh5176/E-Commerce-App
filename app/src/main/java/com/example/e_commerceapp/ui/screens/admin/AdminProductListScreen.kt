@@ -74,6 +74,7 @@ fun AdminProductListScreen(
 ) {
     val products by viewModel.products.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
+    val opStatus by viewModel.opStatus.collectAsStateWithLifecycle()
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("All") }
@@ -146,13 +147,10 @@ fun AdminProductListScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.syncCatalog() }) {
-                        Icon(
-                            imageVector = Icons.Default.Sync,
-                            contentDescription = "Sync Catalog",
-                            tint = Color(0xFF38BDF8)
-                        )
-                    }
+                    AdminSyncButton(
+                        opStatus = opStatus,
+                        onSyncClick = { viewModel.syncCatalog() }
+                    )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0F172A))
             )
@@ -168,12 +166,16 @@ fun AdminProductListScreen(
         },
         containerColor = Color(0xFF0B132B)
     ) { paddingValues ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp)
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+            ) {
             Spacer(modifier = Modifier.height(8.dp))
 
             // Search Bar
@@ -302,7 +304,13 @@ fun AdminProductListScreen(
                 }
             }
         }
+
+        AdminSyncConfirmationBanner(
+            opStatus = opStatus,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
+}
 }
 
 @Composable
