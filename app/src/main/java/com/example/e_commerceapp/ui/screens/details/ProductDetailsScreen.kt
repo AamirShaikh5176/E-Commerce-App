@@ -444,11 +444,11 @@ fun ProductDetailsDesign(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // Price Section (Indian Rupee with MRP & Savings)
                 Row(
-                    verticalAlignment = Alignment.Bottom
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = CurrencyUtils.formatInr(product.price),
@@ -457,29 +457,30 @@ fun ProductDetailsDesign(
                         fontSize = 28.sp
                     )
 
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     Text(
                         text = CurrencyUtils.formatInr(product.mrpPrice),
                         color = Color.Gray,
                         fontSize = 16.sp,
-                        textDecoration = TextDecoration.LineThrough,
-                        modifier = Modifier.padding(bottom = 3.dp)
+                        textDecoration = TextDecoration.LineThrough
                     )
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = Color(0xFFE8F5E9)
-                    ) {
-                        Text(
-                            text = "Save ${CurrencyUtils.formatInr(savingsAmount)} ($discountPercent% OFF)",
-                            color = Color(0xFF2E7D32),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
-                        )
+                    if (discountPercent > 0) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = Color(0xFFE8F5E9)
+                        ) {
+                            Text(
+                                text = "Save ${CurrencyUtils.formatInr(savingsAmount)} ($discountPercent% OFF)",
+                                color = Color(0xFF2E7D32),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.5.sp,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                            )
+                        }
                     }
                 }
 
@@ -793,8 +794,7 @@ fun ProductDetailsDesign(
         Surface(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .navigationBarsPadding(),
+                .fillMaxWidth(),
             shadowElevation = 10.dp,
             color = Color.White
         ) {

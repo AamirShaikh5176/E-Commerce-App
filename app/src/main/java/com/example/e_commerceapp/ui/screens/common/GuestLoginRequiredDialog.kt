@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 
 @Composable
 fun GuestLoginRequiredDialog(
@@ -36,7 +37,12 @@ fun GuestLoginRequiredDialog(
     onLoginClick: () -> Unit,
     onCreateAccountClick: () -> Unit,
 ) {
-    Dialog(onDismissRequest = onDismissRequest) {
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        properties = DialogProperties(
+            decorFitsSystemWindows = false
+        )
+    ) {
         Surface(
             shape = RoundedCornerShape(20.dp),
             color = Color.White,
