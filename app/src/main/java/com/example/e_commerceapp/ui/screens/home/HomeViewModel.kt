@@ -23,6 +23,7 @@ class HomeViewModel @Inject constructor(
     private val productsUseCase: ProductsUseCase,
     private val firebaseUserUseCase: FirebaseUserUseCase,
     private val sharedPreferences: SharedPreferences,
+    private val catalogDataMigrator: com.example.e_commerceapp.data.data_source.remote.migrator.CatalogDataMigrator,
 ) : ViewModel() {
 
     private val _userState = MutableStateFlow(ScreenState<UserInformationEntity>())
@@ -38,6 +39,11 @@ class HomeViewModel @Inject constructor(
     val categoryState: StateFlow<ScreenState<List<Category>>> = _categoryState
 
     init {
+        viewModelScope.launch {
+            try {
+                catalogDataMigrator.migrateCatalogIfNeeded()
+            } catch (_: Exception) {}
+        }
         getAllCategoryText()
         loadAllProducts()
 
