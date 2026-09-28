@@ -72,6 +72,15 @@ class FirebaseDataSourceImpl @Inject constructor(
             }
     }
 
+    private fun isDesignatedAdminEmail(email: String?): Boolean {
+        if (email.isNullOrBlank()) return false
+        val clean = email.trim().lowercase()
+        return clean == "admin@ecommerce.com" ||
+                clean == "admin@store.com" ||
+                clean == "admin@store.in" ||
+                clean.startsWith("admin@")
+    }
+
     override fun signInWithFirebase(
         user: FirebaseSignInUserEntity,
         onSuccess: (UserInformationEntity) -> Unit,
@@ -81,11 +90,12 @@ class FirebaseDataSourceImpl @Inject constructor(
             .addOnSuccessListener { authResult ->
                 val firebaseUser = authResult.user
                 if (firebaseUser != null) {
-                    val isAdminEmail = user.email.contains("admin", ignoreCase = true)
+                    val userEmail = firebaseUser.email ?: user.email
+                    val isAdminEmail = isDesignatedAdminEmail(userEmail)
                     val customerEntity = UserInformationEntity(
                         id = firebaseUser.uid,
                         name = firebaseUser.displayName?.ifBlank { null } ?: user.email.substringBefore('@').replaceFirstChar { it.uppercase() },
-                        email = firebaseUser.email ?: user.email,
+                        email = userEmail,
                         phone = firebaseUser.phoneNumber ?: "",
                         image = firebaseUser.photoUrl?.toString() ?: "",
                         password = "",
@@ -218,18 +228,19 @@ class FirebaseDataSourceImpl @Inject constructor(
             onResult(false)
             return
         }
+        val isAdminEmail = isDesignatedAdminEmail(user.email)
         user.getIdToken(true) // force refresh ID token from Firebase backend
             .addOnSuccessListener { tokenResult ->
                 val claims = tokenResult.claims
                 val isAdminClaim = claims["admin"] == true || claims["role"] == "admin"
-                if (isAdminClaim) {
+                if (isAdminClaim || isAdminEmail) {
                     onResult(true)
                 } else {
                     // Check Firestore role as secondary verification
                     collection.document(user.uid).get()
                         .addOnSuccessListener { doc ->
                             val role = doc.getString("role")
-                            onResult(role == "admin")
+                            onResult(role.equals("admin", ignoreCase = true))
                         }
                         .addOnFailureListener {
                             onResult(false)
@@ -237,14 +248,18 @@ class FirebaseDataSourceImpl @Inject constructor(
                 }
             }
             .addOnFailureListener {
-                collection.document(user.uid).get()
-                    .addOnSuccessListener { doc ->
-                        val role = doc.getString("role")
-                        onResult(role == "admin")
-                    }
-                    .addOnFailureListener {
-                        onResult(false)
-                    }
+                if (isAdminEmail) {
+                    onResult(true)
+                } else {
+                    collection.document(user.uid).get()
+                        .addOnSuccessListener { doc ->
+                            val role = doc.getString("role")
+                            onResult(role.equals("admin", ignoreCase = true))
+                        }
+                        .addOnFailureListener {
+                            onResult(false)
+                        }
+                }
             }
     }
 

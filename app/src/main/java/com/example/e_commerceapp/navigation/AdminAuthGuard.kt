@@ -48,26 +48,55 @@ fun AdminAuthGuard(
     LaunchedEffect(Unit) {
         val user = FirebaseAuth.getInstance().currentUser
         if (user == null) {
-            // When navigating from AdminLogin screen without Firebase Auth session
-            authState = AdminAuthState.Authorized
+            authState = AdminAuthState.Denied("Administrator sign-in is required to access the dashboard.")
             return@LaunchedEffect
         }
+
+        val cleanEmail = user.email?.trim()?.lowercase() ?: ""
+        val isDesignatedAdminEmail = cleanEmail == "admin@ecommerce.com" ||
+                cleanEmail == "admin@store.com" ||
+                cleanEmail == "admin@store.in" ||
+                cleanEmail.startsWith("admin@")
 
         // Force token refresh to verify current claims
         user.getIdToken(true)
             .addOnSuccessListener { tokenResult ->
                 val claims = tokenResult.claims
-                val hasAdminClaim = claims["admin"] == true ||
-                        claims["role"] == "admin" ||
-                        user.email?.contains("admin", ignoreCase = true) == true
-                if (hasAdminClaim) {
+                val hasAdminClaim = claims["admin"] == true || claims["role"] == "admin"
+                if (hasAdminClaim || isDesignatedAdminEmail) {
                     authState = AdminAuthState.Authorized
                 } else {
-                    authState = AdminAuthState.Authorized
+                    FirebaseFirestore.getInstance().collection("users").document(user.uid).get()
+                        .addOnSuccessListener { doc ->
+                            val role = doc.getString("role")
+                            if (role.equals("admin", ignoreCase = true)) {
+                                authState = AdminAuthState.Authorized
+                            } else {
+                                authState = AdminAuthState.Denied("Access restricted: Account '${user.email}' is a customer account and does not have administrator privileges.")
+                            }
+                        }
+                        .addOnFailureListener {
+                            authState = AdminAuthState.Denied("Access restricted: Unable to verify administrator privileges.")
+                        }
                 }
             }
             .addOnFailureListener {
-                authState = AdminAuthState.Authorized
+                if (isDesignatedAdminEmail) {
+                    authState = AdminAuthState.Authorized
+                } else {
+                    FirebaseFirestore.getInstance().collection("users").document(user.uid).get()
+                        .addOnSuccessListener { doc ->
+                            val role = doc.getString("role")
+                            if (role.equals("admin", ignoreCase = true)) {
+                                authState = AdminAuthState.Authorized
+                            } else {
+                                authState = AdminAuthState.Denied("Access restricted: Account '${user.email}' does not have administrator privileges.")
+                            }
+                        }
+                        .addOnFailureListener {
+                            authState = AdminAuthState.Denied("Access restricted: Authentication error.")
+                        }
+                }
             }
     }
 

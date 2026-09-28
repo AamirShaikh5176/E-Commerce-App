@@ -66,6 +66,8 @@ class ProfileViewModel @Inject constructor(
                     }
                     if (userInformationEntity.role.equals("admin", ignoreCase = true)) {
                         _isAdminState.update { true }
+                    } else {
+                        _isAdminState.update { false }
                     }
                 },
                 onFailure = { errorMessage ->
@@ -99,6 +101,8 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             firebaseUserUseCase.logoutUser(onSuccess = {
                 sharedPreferences.edit().clear().apply()
+                _isAdminState.update { false }
+                _profileState.update { ScreenState<UserInformationEntity>() }
             })
         }
     }

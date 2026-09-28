@@ -17,10 +17,19 @@ class RegisteredUsersLocalStore @Inject constructor(
     private val prefs = context.getSharedPreferences("registered_users_store", Context.MODE_PRIVATE)
     private val keyCustomers = "registered_customers_json"
 
+    private fun isDesignatedAdminEmail(email: String?): Boolean {
+        if (email.isNullOrBlank()) return false
+        val clean = email.trim().lowercase()
+        return clean == "admin@ecommerce.com" ||
+                clean == "admin@store.com" ||
+                clean == "admin@store.in" ||
+                clean.startsWith("admin@")
+    }
+
     fun saveUser(user: UserInformationEntity) {
         if (user.email.isBlank()) return
         // Do not add admin users as registered customers
-        if (user.role.equals("admin", ignoreCase = true) || user.email.contains("admin", ignoreCase = true)) {
+        if (user.role.equals("admin", ignoreCase = true) || isDesignatedAdminEmail(user.email)) {
             return
         }
 
@@ -71,11 +80,10 @@ class RegisteredUsersLocalStore @Inject constructor(
                 }
             }
 
-            // Sync current authenticated Firebase user if customer and not yet listed
             val curUser = FirebaseAuth.getInstance().currentUser
             if (curUser != null && !curUser.email.isNullOrBlank()) {
                 val email = curUser.email!!
-                val isNotAdmin = !email.contains("admin", ignoreCase = true)
+                val isNotAdmin = !isDesignatedAdminEmail(email)
                 if (isNotAdmin && result.none { it.id == curUser.uid || it.email.equals(email, ignoreCase = true) }) {
                     val entity = UserInformationEntity(
                         id = curUser.uid,
