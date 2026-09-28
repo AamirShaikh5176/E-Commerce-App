@@ -62,8 +62,8 @@ class CatalogDataMigrator @Inject constructor(
     }
 
     /**
-     * Fetches products and categories, normalizes prices to INR (₹), maps to canonical
-     * category taxonomy, and batch-writes to Firestore collections.
+     * Seeds canonical categories and the 48 curated authoritative products
+     * with full details (INR prices, descriptions, images, reviews, stock) into Firestore.
      */
     suspend fun migrateCatalog(force: Boolean = false): Result<Int> = withContext(ioDispatcher) {
         try {
@@ -72,54 +72,8 @@ class CatalogDataMigrator @Inject constructor(
             firestoreCatalogDataSource.saveCategoriesBatch(categoriesToSeed)
             Log.d(tag, "Migrated ${categoriesToSeed.size} canonical categories to Firestore.")
 
-            // 2. Fetch products from API first
-            val productsResponse = try {
-                apiService.getProductsListFromApi()
-            } catch (e: Exception) {
-                Log.w(tag, "Could not fetch products from remote API: ${e.message}")
-                null
-            }
-            val apiProducts = productsResponse?.products ?: emptyList()
-
-            val firestoreProducts = if (apiProducts.size >= 48) {
-                apiProducts.map { dto ->
-                    val (canonicalId, canonicalName) = mapApiCategoryToCanonical(dto.category)
-                    val inrPrice = (dto.price * 80.0).roundToLong().toDouble()
-                    val mrpPrice = if (dto.discountPercentage > 0) {
-                        (inrPrice * (1.0 + (dto.discountPercentage / 100.0))).roundToLong().toDouble()
-                    } else {
-                        (inrPrice * 1.35).roundToLong().toDouble()
-                    }.coerceAtLeast(inrPrice)
-
-                    val normalizedTags = (dto.tags + listOf(canonicalId, canonicalName.lowercase())).distinct()
-
-                    FirestoreProductDto(
-                        id = dto.id.toString(),
-                        title = dto.title,
-                        description = dto.description,
-                        price = inrPrice,
-                        mrpPrice = mrpPrice,
-                        discountPercentage = dto.discountPercentage,
-                        categoryId = canonicalId,
-                        categoryName = canonicalName,
-                        images = dto.images,
-                        imageUrl = dto.images.firstOrNull() ?: dto.thumbnail,
-                        stockQuantity = dto.stock.coerceAtLeast(15),
-                        inStock = dto.stock > 0,
-                        rating = dto.rating,
-                        reviewsCount = dto.reviews.size.coerceAtLeast(24),
-                        brand = dto.brand.ifBlank { "Generic" },
-                        tags = normalizedTags,
-                        deliveryDays = 2,
-                        isCodAvailable = true,
-                        quantity = dto.minimumOrderQuantity.coerceAtLeast(1),
-                        createdAt = System.currentTimeMillis(),
-                        updatedAt = System.currentTimeMillis(),
-                    )
-                }
-            } else {
-                DemoCatalogData.demoProducts
-            }
+            // 2. Seed authoritative curated catalog (48 high-quality products across all categories)
+            val firestoreProducts = DemoCatalogData.demoProducts
 
             firestoreCatalogDataSource.saveProductsBatch(firestoreProducts)
             Log.d(tag, "Successfully migrated ${firestoreProducts.size} products to Firestore with canonical category mappings.")
