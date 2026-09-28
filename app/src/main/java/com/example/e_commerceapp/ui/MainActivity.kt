@@ -24,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat.getSystemService
@@ -116,6 +117,7 @@ fun App(
         } else {
 
             Scaffold(
+                contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
                 bottomBar = {
                     if (isBottomBarVisible) {
                         AppBottomNavBar(
@@ -151,7 +153,7 @@ fun App(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(bottom = innerPadding.calculateBottomPadding())
+                        .padding(bottom = if (isBottomBarVisible) innerPadding.calculateBottomPadding() else 0.dp)
                 ) {
                     AppNavHost(
                         navController = navController,

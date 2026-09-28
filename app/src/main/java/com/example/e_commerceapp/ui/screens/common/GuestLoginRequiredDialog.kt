@@ -43,6 +43,26 @@ fun GuestLoginRequiredDialog(
             decorFitsSystemWindows = false
         )
     ) {
+        val view = androidx.compose.ui.platform.LocalView.current
+        androidx.compose.runtime.SideEffect {
+            var currentParent = view.parent
+            var dialogWindow: android.view.Window? = null
+            while (currentParent != null) {
+                if (currentParent is androidx.compose.ui.window.DialogWindowProvider) {
+                    dialogWindow = currentParent.window
+                    break
+                }
+                currentParent = currentParent.parent
+            }
+            dialogWindow?.let { window ->
+                androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+                val controller = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+                controller.hide(androidx.core.view.WindowInsetsCompat.Type.navigationBars())
+                controller.systemBarsBehavior =
+                    androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        }
+
         Surface(
             shape = RoundedCornerShape(20.dp),
             color = Color.White,

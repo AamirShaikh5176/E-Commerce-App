@@ -18,15 +18,15 @@ fun HideNavigationBarOnly() {
     val view = LocalView.current
     val activity = context as? ComponentActivity ?: return
 
-    LaunchedEffect(view) {
+    DisposableEffect(view) {
         val window = activity.window
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
-        val controller = ViewCompat.getWindowInsetsController(view)
-        controller?.let {
-            it.hide(WindowInsetsCompat.Type.navigationBars())
-            it.systemBarsBehavior =
-                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        }
+        val controller = WindowCompat.getInsetsController(window, window.decorView)
+        controller.hide(WindowInsetsCompat.Type.navigationBars())
+        controller.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
+        onDispose { }
     }
 }
