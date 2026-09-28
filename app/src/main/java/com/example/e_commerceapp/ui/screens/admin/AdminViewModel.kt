@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -77,6 +78,7 @@ class AdminViewModel @Inject constructor(
         .map { list ->
             if (list.isNotEmpty()) list else com.example.e_commerceapp.data.demo.DemoCatalogData.demoProducts
         }
+        .catch { emit(com.example.e_commerceapp.data.demo.DemoCatalogData.demoProducts) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.example.e_commerceapp.data.demo.DemoCatalogData.demoProducts)
 
     val categories: StateFlow<List<FirestoreCategoryDto>> = firestoreCatalogDataSource
@@ -84,14 +86,17 @@ class AdminViewModel @Inject constructor(
         .map { list ->
             if (list.isNotEmpty()) list else com.example.e_commerceapp.data.demo.DemoCatalogData.demoCategoryDtos
         }
+        .catch { emit(com.example.e_commerceapp.data.demo.DemoCatalogData.demoCategoryDtos) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), com.example.e_commerceapp.data.demo.DemoCatalogData.demoCategoryDtos)
 
     val orders: StateFlow<List<FirestoreOrderDto>> = firestoreCatalogDataSource
         .getOrdersFlow()
+        .catch { emit(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val users: StateFlow<List<UserInformationEntity>> = firestoreCatalogDataSource
         .getUsersFlow()
+        .catch { emit(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _opStatus = MutableStateFlow<AdminOpStatus>(AdminOpStatus.Idle)

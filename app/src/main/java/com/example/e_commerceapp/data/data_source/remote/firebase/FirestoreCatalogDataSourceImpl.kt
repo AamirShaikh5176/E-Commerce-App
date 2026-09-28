@@ -100,7 +100,8 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
     override fun getRawProductByIdFlow(productId: String): Flow<FirestoreProductDto?> = callbackFlow {
         val subscription = productsCollection.document(productId).addSnapshotListener { snapshot, error ->
             if (error != null) {
-                close(error)
+                android.util.Log.e("CatalogDataSource", "getRawProductByIdFlow error: ${error.message}")
+                trySend(com.example.e_commerceapp.data.demo.DemoCatalogData.demoProducts.find { p -> p.id == productId })
                 return@addSnapshotListener
             }
             if (snapshot != null && snapshot.exists()) {
@@ -116,7 +117,11 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
     override fun getProductsByCategoryFlow(categoryName: String): Flow<List<ProductEntity>> = callbackFlow {
         val subscription = productsCollection.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                close(error)
+                android.util.Log.e("CatalogDataSource", "getProductsByCategoryFlow error: ${error.message}")
+                val fallback = com.example.e_commerceapp.data.demo.DemoCatalogData.toProductEntityList().filter { prod ->
+                    matchesCategoryFilter(prod.category, prod.category, emptyList(), categoryName.trim().lowercase())
+                }
+                trySend(fallback)
                 return@addSnapshotListener
             }
             if (snapshot != null) {
@@ -337,9 +342,11 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
     }
 
     override fun getOrdersFlow(): Flow<List<FirestoreOrderDto>> = callbackFlow {
+        trySend(emptyList())
         val subscription = ordersCollection.addSnapshotListener { snapshot, error ->
             if (error != null) {
-                close(error)
+                android.util.Log.e("CatalogDataSource", "getOrdersFlow error: ${error.message}")
+                trySend(emptyList())
                 return@addSnapshotListener
             }
             if (snapshot != null) {
@@ -353,11 +360,13 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
     }.flowOn(ioDispatcher)
 
     override fun getUserOrdersFlow(userId: String): Flow<List<FirestoreOrderDto>> = callbackFlow {
+        trySend(emptyList())
         val subscription = ordersCollection
             .whereEqualTo("userId", userId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    android.util.Log.e("CatalogDataSource", "getUserOrdersFlow error: ${error.message}")
+                    trySend(emptyList())
                     return@addSnapshotListener
                 }
                 if (snapshot != null) {
@@ -373,7 +382,8 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
     override fun getOrderByIdFlow(orderId: String): Flow<FirestoreOrderDto?> = callbackFlow {
         val subscription = ordersCollection.document(orderId).addSnapshotListener { snapshot, error ->
             if (error != null) {
-                close(error)
+                android.util.Log.e("CatalogDataSource", "getOrderByIdFlow error: ${error.message}")
+                trySend(null)
                 return@addSnapshotListener
             }
             val order = snapshot?.toObject(FirestoreOrderDto::class.java)?.copy(orderId = snapshot.id)
