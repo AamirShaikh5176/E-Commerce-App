@@ -289,6 +289,9 @@ fun AppNavHost(
                         navController.navigate(MyOrdersDestination.route)
                     }
                 },
+                onNavigateToWishlist = {
+                    navController.navigate(FavoriteScreen.route)
+                },
                 onNavigateToAdmin = {
                     navController.navigate(AdminDashboardDestination.route)
                 },
