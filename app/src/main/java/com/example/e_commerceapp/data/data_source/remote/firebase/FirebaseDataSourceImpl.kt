@@ -3,7 +3,11 @@ package com.example.e_commerceapp.data.data_source.remote.firebase
 import android.net.Uri
 import com.example.e_commerceapp.domain.entity.user.FirebaseSignInUserEntity
 import com.example.e_commerceapp.domain.entity.user.UserInformationEntity
+import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthException
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import com.mustafaunlu.ecommerce_compose.data.source.remote.FirebaseDataSource
@@ -140,9 +144,84 @@ class FirebaseDataSourceImpl @Inject constructor(
                 } else {
                     onFailure("Sign in returned empty user")
                 }
-            }.addOnFailureListener {
-                onFailure(it.message ?: "An error occurred")
+            }.addOnFailureListener { exception ->
+                onFailure(mapFirebaseAuthException(exception))
             }
+    }
+
+    private fun mapFirebaseAuthException(exception: Exception): String {
+        return when (exception) {
+            is FirebaseAuthInvalidUserException -> {
+                when (exception.errorCode) {
+                    "ERROR_USER_DISABLED" -> "This user account has been disabled."
+                    else -> "No user found with this email address."
+                }
+            }
+            is FirebaseAuthInvalidCredentialsException -> {
+                when (exception.errorCode) {
+                    "ERROR_INVALID_EMAIL" -> "Please enter a valid email address."
+                    "ERROR_WRONG_PASSWORD" -> "Incorrect password."
+                    else -> {
+                        val msg = exception.message?.lowercase() ?: ""
+                        when {
+                            msg.contains("no user record") || msg.contains("user not found") || msg.contains("user may have been deleted") -> {
+                                "No user found with this email address."
+                            }
+                            msg.contains("badly formatted") || msg.contains("invalid email") -> {
+                                "Please enter a valid email address."
+                            }
+                            msg.contains("password") -> {
+                                "Incorrect password."
+                            }
+                            else -> "No user found with this email address."
+                        }
+                    }
+                }
+            }
+            is FirebaseNetworkException -> {
+                "Network error. Please check your internet connection."
+            }
+            is FirebaseAuthException -> {
+                when (exception.errorCode) {
+                    "ERROR_USER_NOT_FOUND" -> "No user found with this email address."
+                    "ERROR_WRONG_PASSWORD" -> "Incorrect password."
+                    "ERROR_INVALID_EMAIL" -> "Please enter a valid email address."
+                    "ERROR_USER_DISABLED" -> "This user account has been disabled."
+                    "ERROR_TOO_MANY_REQUESTS" -> "Too many unsuccessful attempts. Please try again later."
+                    "ERROR_NETWORK_REQUEST_FAILED" -> "Network error. Please check your internet connection."
+                    else -> {
+                        val msg = exception.message?.lowercase() ?: ""
+                        when {
+                            msg.contains("no user") || msg.contains("user not found") -> "No user found with this email address."
+                            msg.contains("password") -> "Incorrect password."
+                            msg.contains("email") -> "Please enter a valid email address."
+                            else -> "Authentication failed. Please check your credentials and try again."
+                        }
+                    }
+                }
+            }
+            else -> {
+                val msg = exception.message?.lowercase() ?: ""
+                when {
+                    msg.contains("no user") || msg.contains("user not found") || msg.contains("user may have been deleted") -> {
+                        "No user found with this email address."
+                    }
+                    msg.contains("wrong password") || msg.contains("password is invalid") -> {
+                        "Incorrect password."
+                    }
+                    msg.contains("badly formatted") || msg.contains("invalid email") -> {
+                        "Please enter a valid email address."
+                    }
+                    msg.contains("network") || msg.contains("connection") -> {
+                        "Network error. Please check your internet connection."
+                    }
+                    msg.contains("too many requests") -> {
+                        "Too many unsuccessful attempts. Please try again later."
+                    }
+                    else -> "Authentication failed. Please check your credentials and try again."
+                }
+            }
+        }
     }
 
     override fun forgotPassword(email: String, onSuccess: () -> Unit, onFailure: (String) -> Unit) {

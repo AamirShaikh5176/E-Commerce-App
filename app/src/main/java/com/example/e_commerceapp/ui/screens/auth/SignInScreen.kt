@@ -74,10 +74,12 @@ fun SignInScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(loginState.errorMessage) {
-        loginState.errorMessage?.let {
-            snackbarHostState.showSnackbar(
-                message = "Email or password is incorrect",
-            )
+        loginState.errorMessage?.let { errorMsg ->
+            if (errorMsg.isNotBlank()) {
+                snackbarHostState.showSnackbar(
+                    message = errorMsg,
+                )
+            }
         }
     }
 
