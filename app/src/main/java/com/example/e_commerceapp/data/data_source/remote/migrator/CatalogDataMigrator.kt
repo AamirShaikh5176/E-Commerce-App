@@ -33,13 +33,16 @@ class CatalogDataMigrator @Inject constructor(
     suspend fun migrateCatalogIfNeeded(): Result<Int> = withContext(ioDispatcher) {
         try {
             val count = firestoreCatalogDataSource.getProductsCount()
-            val hasCategories = firestoreCatalogDataSource.hasCategories()
-            if (count >= 48 && hasCategories) {
-                Log.d(tag, "Firestore catalog already has $count products and categories. Migration skipped.")
+            if (count == -1) {
+                Log.d(tag, "Could not reach Firestore (network error/offline). Skipping catalog migration to preserve data.")
+                return@withContext Result.success(0)
+            }
+            if (count > 0) {
+                Log.d(tag, "Firestore catalog already contains $count products. Preserving existing user catalog for lifetime.")
                 return@withContext Result.success(count)
             }
-            Log.d(tag, "Firestore catalog needs seed/update (productCount=$count, hasCategories=$hasCategories). Starting migration...")
-            migrateCatalog(force = true)
+            Log.d(tag, "Firestore catalog is empty. Performing initial catalog seed...")
+            migrateCatalog(force = false)
         } catch (e: Exception) {
             Log.e(tag, "Error checking catalog migration state: ${e.message}", e)
             Result.failure(e)

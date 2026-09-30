@@ -37,7 +37,6 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
     private val usersCollection = firestore.collection("users")
 
     override fun getProductsFlow(): Flow<List<ProductEntity>> = callbackFlow {
-        trySend(com.example.e_commerceapp.data.demo.DemoCatalogData.toProductEntityList())
         val subscription = productsCollection.addSnapshotListener { snapshot, error ->
             if (error != null) {
                 trySend(com.example.e_commerceapp.data.demo.DemoCatalogData.toProductEntityList())
@@ -47,9 +46,7 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
                 val firestoreProducts = snapshot.documents.mapNotNull { doc ->
                     doc.toObject(FirestoreProductDto::class.java)?.toProductEntity(doc.id)
                 }
-                val map = com.example.e_commerceapp.data.demo.DemoCatalogData.toProductEntityList().associateBy { it.id }.toMutableMap()
-                firestoreProducts.forEach { map[it.id] = it }
-                trySend(map.values.toList())
+                trySend(firestoreProducts)
             } else {
                 trySend(com.example.e_commerceapp.data.demo.DemoCatalogData.toProductEntityList())
             }
@@ -58,7 +55,6 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
     }.flowOn(ioDispatcher)
 
     override fun getRawProductsFlow(): Flow<List<FirestoreProductDto>> = callbackFlow {
-        trySend(com.example.e_commerceapp.data.demo.DemoCatalogData.demoProducts.toList())
         val subscription = productsCollection.addSnapshotListener { snapshot, error ->
             if (error != null) {
                 trySend(com.example.e_commerceapp.data.demo.DemoCatalogData.demoProducts.toList())
@@ -70,9 +66,7 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
                         id = doc.getString("id")?.ifBlank { doc.id } ?: doc.id
                     )
                 }
-                val map = com.example.e_commerceapp.data.demo.DemoCatalogData.demoProducts.associateBy { it.id }.toMutableMap()
-                firestoreProducts.forEach { map[it.id] = it }
-                trySend(map.values.toList())
+                trySend(firestoreProducts)
             } else {
                 trySend(com.example.e_commerceapp.data.demo.DemoCatalogData.demoProducts.toList())
             }
@@ -81,7 +75,6 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
     }.flowOn(ioDispatcher)
 
     override fun getProductByIdFlow(productId: String): Flow<ProductDetailsEntity?> = callbackFlow {
-        trySend(com.example.e_commerceapp.data.demo.DemoCatalogData.findProductDetailsById(productId))
         val subscription = productsCollection.document(productId).addSnapshotListener { snapshot, error ->
             if (error != null) {
                 trySend(com.example.e_commerceapp.data.demo.DemoCatalogData.findProductDetailsById(productId))
@@ -124,7 +117,7 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
                 trySend(fallback)
                 return@addSnapshotListener
             }
-            if (snapshot != null) {
+            if (snapshot != null && !snapshot.isEmpty) {
                 val normalizedCategory = categoryName.trim().lowercase()
                 val products = snapshot.documents.mapNotNull { doc ->
                     val dto = doc.toObject(FirestoreProductDto::class.java)
@@ -135,6 +128,11 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
                     }
                 }
                 trySend(products)
+            } else {
+                val fallback = com.example.e_commerceapp.data.demo.DemoCatalogData.toProductEntityList().filter { prod ->
+                    matchesCategoryFilter(prod.category, prod.category, emptyList(), categoryName.trim().lowercase())
+                }
+                trySend(fallback)
             }
         }
         awaitClose { subscription.remove() }
@@ -239,13 +237,7 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
         }
         val productWithId = if (product.id.isBlank()) product.copy(id = docRef.id) else product
         com.example.e_commerceapp.data.demo.DemoCatalogData.updateProduct(productWithId)
-        try {
-            withTimeoutOrNull(1000L) {
-                docRef.set(productWithId).await()
-            }
-        } catch (e: Exception) {
-            android.util.Log.w("CatalogDataSource", "Firestore saveProduct offline: ${e.message}")
-        }
+        docRef.set(productWithId).awaitTask()
     }
 
     override suspend fun deleteProduct(productId: String): Unit = withContext(ioDispatcher) {
@@ -281,7 +273,18 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
     }
 
     override suspend fun saveProductsBatch(products: List<FirestoreProductDto>): Unit = withContext(ioDispatcher) {
-        products.chunked(400).forEach { chunk ->
+        // Query existing products so we NEVER overwrite existing products or user edits in Firestore
+        val existingDocIds = try {
+            productsCollection.get().awaitTask().documents.map { it.id }.toSet()
+        } catch (_: Exception) {
+            emptySet()
+        }
+        val newProducts = products.filter { it.id.isBlank() || it.id !in existingDocIds }
+        if (newProducts.isEmpty()) {
+            android.util.Log.d("CatalogDataSource", "All products already exist in Firestore. Skipping batch write to preserve custom changes.")
+            return@withContext
+        }
+        newProducts.chunked(400).forEach { chunk ->
             val batch = firestore.batch()
             for (product in chunk) {
                 val docRef = if (product.id.isNotBlank()) {
@@ -297,7 +300,25 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
     }
 
     override suspend fun saveCategoriesBatch(categories: List<FirestoreCategoryDto>): Unit = withContext(ioDispatcher) {
-        categories.chunked(400).forEach { chunk ->
+        val existingDocIds = try {
+            categoriesCollection.get().awaitTask().documents.map { it.id }.toSet()
+        } catch (_: Exception) {
+            emptySet()
+        }
+        val newCategories = categories.filter { category ->
+            val docId = if (category.slug.isNotBlank()) {
+                category.slug
+            } else if (category.id.isNotBlank()) {
+                category.id
+            } else {
+                ""
+            }
+            docId.isBlank() || docId !in existingDocIds
+        }
+        if (newCategories.isEmpty()) {
+            return@withContext
+        }
+        newCategories.chunked(400).forEach { chunk ->
             val batch = firestore.batch()
             for (category in chunk) {
                 val docRef = if (category.slug.isNotBlank()) {
@@ -337,7 +358,7 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
             val snapshot = productsCollection.get().awaitTask()
             snapshot.size()
         } catch (_: Exception) {
-            0
+            -1
         }
     }
 
