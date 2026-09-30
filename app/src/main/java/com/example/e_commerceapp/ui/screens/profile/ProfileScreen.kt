@@ -84,7 +84,7 @@ fun ProfileScreen(
     onBackClick: () -> Unit,
     onSettings: () -> Unit,
     onClickedChangeTheme: () -> Unit = {},
-    onClickedChangePass: () -> Unit,
+    onClickedChangePass: () -> Unit = {},
     onNavigateToAddresses: () -> Unit = {},
     onNavigateToMyOrders: () -> Unit = {},
     onNavigateToWishlist: () -> Unit = {},
@@ -494,9 +494,9 @@ fun ProfileScreenContent(
             HorizontalLine()
 
             ProfileOptionItem(
-                icon = Icons.Outlined.Password,
-                title = "Change Password",
-                onClick = onClickedChangePass
+                icon = Icons.Outlined.Edit,
+                title = "Edit Profile",
+                onClick = { showSheet = true }
             )
 
             HorizontalLine()
