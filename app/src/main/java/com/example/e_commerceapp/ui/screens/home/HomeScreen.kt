@@ -102,6 +102,23 @@ fun HomeContent(
     val categoryState by viewModel.categoryState.collectAsStateWithLifecycle()
     val allProductsState by viewModel.allProductsState.collectAsStateWithLifecycle()
     val selectedCategoryProducts by viewModel.productState.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val isAuth = com.example.e_commerceapp.utils.AuthUtils.isAuthenticated(context)
+    val currentFirebaseUser = if (isAuth) com.google.firebase.auth.FirebaseAuth.getInstance().currentUser else null
+    val fallbackName = currentFirebaseUser?.displayName?.ifBlank { null }
+        ?: currentFirebaseUser?.email?.substringBefore('@')?.replaceFirstChar { it.uppercase() }
+    val effectiveUser = if (isAuth) {
+        userState.data ?: if (currentFirebaseUser != null) {
+            com.example.e_commerceapp.domain.entity.user.UserInformationEntity(
+                id = currentFirebaseUser.uid,
+                name = fallbackName ?: "Customer",
+                email = currentFirebaseUser.email ?: "",
+                phone = currentFirebaseUser.phoneNumber ?: "",
+                password = "",
+                token = ""
+            )
+        } else null
+    } else null
 
     var selectedCategory by remember { mutableStateOf<String?>(null) }
     var currentPinCode by remember { mutableStateOf("560038") }
@@ -208,20 +225,6 @@ fun HomeContent(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        val currentFirebaseUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
-        val fallbackName = currentFirebaseUser?.displayName?.ifBlank { null }
-            ?: currentFirebaseUser?.email?.substringBefore('@')?.replaceFirstChar { it.uppercase() }
-        val effectiveUser = userState.data ?: if (currentFirebaseUser != null) {
-            com.example.e_commerceapp.domain.entity.user.UserInformationEntity(
-                id = currentFirebaseUser.uid,
-                name = fallbackName ?: "Customer",
-                email = currentFirebaseUser.email ?: "",
-                phone = currentFirebaseUser.phoneNumber ?: "",
-                password = "",
-                token = ""
-            )
-        } else null
-
         // 1. Header (Greeting + Search Shortcut)
         item {
             HeaderHomeScreen(

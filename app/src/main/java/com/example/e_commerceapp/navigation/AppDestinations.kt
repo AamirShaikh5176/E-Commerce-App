@@ -75,6 +75,10 @@ object SettingsDestination : AppDestinations {
     override val route = "settings"
 }
 
+object HelpSupportDestination : AppDestinations {
+    override val route = "help_support"
+}
+
 // --------------------- Admin Destinations ---------------------
 object AdminLoginDestination : AppDestinations {
     override val route = "admin_login"

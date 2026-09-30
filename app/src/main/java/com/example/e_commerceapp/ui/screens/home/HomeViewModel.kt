@@ -53,9 +53,14 @@ class HomeViewModel @Inject constructor(
     fun refreshUser() {
         val currentFirebaseUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
         val savedUid = sharedPreferences.getString(com.example.e_commerceapp.utils.Constants.PREF_FIREBASE_USERID_KEY, null)
-        val userId = currentFirebaseUser?.uid ?: savedUid ?: ""
-        if (userId.isNotBlank()) {
-            getUserInformation(userId)
+        val isAuthenticated = !savedUid.isNullOrBlank() &&
+                currentFirebaseUser != null &&
+                !currentFirebaseUser.isAnonymous &&
+                !currentFirebaseUser.email.isNullOrBlank() &&
+                currentFirebaseUser.uid == savedUid
+
+        if (isAuthenticated && !savedUid.isNullOrBlank()) {
+            getUserInformation(savedUid)
         } else {
             _userState.update { it.copy(isLoading = false, errorMessage = null, data = null) }
         }

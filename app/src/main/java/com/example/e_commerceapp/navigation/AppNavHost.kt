@@ -35,6 +35,7 @@ import com.example.e_commerceapp.ui.screens.admin.AdminUserListScreen
 import com.example.e_commerceapp.ui.screens.orders.MyOrdersScreen
 import com.example.e_commerceapp.ui.screens.orders.OrderDetailsScreen
 import com.example.e_commerceapp.ui.screens.settings.SettingsScreen
+import com.example.e_commerceapp.ui.screens.support.HelpSupportScreen
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -292,6 +293,9 @@ fun AppNavHost(
                 onNavigateToWishlist = {
                     navController.navigate(FavoriteScreen.route)
                 },
+                onNavigateToHelpSupport = {
+                    navController.navigate(HelpSupportDestination.route)
+                },
                 onNavigateToAdmin = {
                     navController.navigate(AdminDashboardDestination.route)
                 },
@@ -515,6 +519,18 @@ fun AppNavHost(
             SettingsScreen(
                 onBackClick = { navController.popBackStack() },
                 onChangePasswordClick = {}
+            )
+        }
+
+        composable(HelpSupportDestination.route) {
+            HelpSupportScreen(
+                onBackClick = { navController.popBackStack() },
+                onNavigateToOrderDetails = { orderId ->
+                    navController.navigate("${OrderDetailsDestination.route}/$orderId")
+                },
+                onNavigateToLogin = {
+                    navController.navigate(SignInScreen.route)
+                }
             )
         }
 

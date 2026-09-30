@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Help
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Logout
@@ -87,6 +88,7 @@ fun ProfileScreen(
     onNavigateToAddresses: () -> Unit = {},
     onNavigateToMyOrders: () -> Unit = {},
     onNavigateToWishlist: () -> Unit = {},
+    onNavigateToHelpSupport: () -> Unit = {},
     onNavigateToAdmin: () -> Unit = {},
     onNavigateToAdminLogin: () -> Unit = {},
     onNavigateToLogin: () -> Unit = {},
@@ -169,6 +171,7 @@ fun ProfileScreen(
             onMyOrdersClick = { showGuestOrdersPrompt = true },
             onNavigateToWishlist = onNavigateToWishlist,
             onCouponsClick = { showCouponDialog = true },
+            onNavigateToHelpSupport = onNavigateToHelpSupport,
             onNavigateToLogin = onNavigateToLogin,
             onNavigateToAdminLogin = onNavigateToAdminLogin
         )
@@ -196,6 +199,7 @@ fun ProfileScreen(
             onNavigateToAddresses = onNavigateToAddresses,
             onNavigateToMyOrders = onNavigateToMyOrders,
             onNavigateToWishlist = onNavigateToWishlist,
+            onNavigateToHelpSupport = onNavigateToHelpSupport,
             onCouponsClick = { showCouponDialog = true },
             onNavigateToAdmin = onNavigateToAdmin,
             onLogout = {
@@ -215,6 +219,7 @@ fun GuestProfileContent(
     onMyOrdersClick: () -> Unit,
     onNavigateToWishlist: () -> Unit = {},
     onCouponsClick: () -> Unit = {},
+    onNavigateToHelpSupport: () -> Unit = {},
     onNavigateToLogin: () -> Unit,
     onNavigateToAdminLogin: () -> Unit,
 ) {
@@ -317,6 +322,14 @@ fun GuestProfileContent(
             HorizontalLine()
 
             ProfileOptionItem(
+                icon = Icons.Default.Help,
+                title = "Help & Support",
+                onClick = onNavigateToHelpSupport
+            )
+
+            HorizontalLine()
+
+            ProfileOptionItem(
                 icon = Icons.Outlined.ColorLens,
                 title = "Change Theme",
                 onClick = onOpenThemeDialog
@@ -349,6 +362,7 @@ fun ProfileScreenContent(
     onNavigateToAddresses: () -> Unit = {},
     onNavigateToMyOrders: () -> Unit = {},
     onNavigateToWishlist: () -> Unit = {},
+    onNavigateToHelpSupport: () -> Unit = {},
     onCouponsClick: () -> Unit = {},
     onNavigateToAdmin: () -> Unit = {},
     onLogout: () -> Unit,
@@ -459,6 +473,14 @@ fun ProfileScreenContent(
                 icon = Icons.Outlined.Settings,
                 title = "Settings",
                 onClick = onSettings
+            )
+
+            HorizontalLine()
+
+            ProfileOptionItem(
+                icon = Icons.Default.Help,
+                title = "Help & Support",
+                onClick = onNavigateToHelpSupport
             )
 
             HorizontalLine()

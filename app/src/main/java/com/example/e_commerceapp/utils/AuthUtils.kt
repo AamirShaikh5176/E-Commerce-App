@@ -16,8 +16,12 @@ object AuthUtils {
 
         val sharedPrefs = context.getSharedPreferences(Constants.PREF_FILE_NAME, Context.MODE_PRIVATE)
         val savedUid = sharedPrefs.getString(Constants.PREF_FIREBASE_USERID_KEY, null)
-        if (savedUid.isNullOrBlank()) return false
-        if (savedUid != firebaseUser.uid) return false
+        if (savedUid.isNullOrBlank() || savedUid != firebaseUser.uid) {
+            try {
+                FirebaseAuth.getInstance().signOut()
+            } catch (_: Exception) {}
+            return false
+        }
 
         return true
     }
