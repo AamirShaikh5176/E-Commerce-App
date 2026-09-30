@@ -49,6 +49,8 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -91,6 +93,13 @@ fun PaymentMethodScreen(
     val selectedAddress by viewModel.selectedAddress.collectAsStateWithLifecycle()
     val orderState by viewModel.orderState.collectAsStateWithLifecycle()
     val upiQrConfig by viewModel.upiQrConfig.collectAsStateWithLifecycle()
+    val superCoinsWallet by viewModel.superCoinsWallet.collectAsStateWithLifecycle()
+    val useSuperCoins by viewModel.useSuperCoins.collectAsStateWithLifecycle()
+    val coinsToRedeem by viewModel.coinsToRedeem.collectAsStateWithLifecycle()
+
+    val effectivePayable = remember(parsedPrice, coinsToRedeem) {
+        (parsedPrice - coinsToRedeem).coerceAtLeast(0.0)
+    }
 
     var upiRefInput by remember { mutableStateOf("") }
     var showOnlineSimModal by remember { mutableStateOf(false) }
@@ -122,7 +131,7 @@ fun PaymentMethodScreen(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Amount Payable: ${CurrencyUtils.formatInr(parsedPrice)}",
+                        text = "Amount Payable: ${CurrencyUtils.formatInr(effectivePayable)}",
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
                         color = Color(0xFF16A34A)
@@ -308,6 +317,101 @@ fun PaymentMethodScreen(
                     }
                     Spacer(modifier = Modifier.height(14.dp))
                 }
+
+                // SuperCoins Store Credit Redemption Section
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, if (useSuperCoins && coinsToRedeem > 0) Color(0xFFF59E0B) else Color(0xFFE2E8F0))
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(text = "🪙", fontSize = 24.sp)
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "SuperCoins Store Credit",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                        color = Color(0xFF0F172A)
+                                    )
+                                    Text(
+                                        text = "Available: ${superCoinsWallet.balance} SuperCoins (₹${superCoinsWallet.balance})",
+                                        fontSize = 12.sp,
+                                        color = if (superCoinsWallet.balance > 0) Color(0xFFD97706) else Color.Gray,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+
+                            if (superCoinsWallet.balance > 0) {
+                                Switch(
+                                    checked = useSuperCoins,
+                                    onCheckedChange = { checked ->
+                                        viewModel.toggleUseSuperCoins(checked, parsedPrice)
+                                    },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = Color.White,
+                                        checkedTrackColor = Color(0xFFF59E0B)
+                                    )
+                                )
+                            }
+                        }
+
+                        if (useSuperCoins && coinsToRedeem > 0) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFFFEF3C7),
+                                border = BorderStroke(1.dp, Color(0xFFFDE68A)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(10.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = "SuperCoins Applied:",
+                                            fontSize = 12.sp,
+                                            color = Color(0xFF92400E)
+                                        )
+                                        Text(
+                                            text = "-$coinsToRedeem Coins (-₹$coinsToRedeem)",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF15803D)
+                                        )
+                                    }
+                                    if (effectivePayable == 0.0) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "🎉 100% of order covered with SuperCoins!",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF15803D)
+                                        )
+                                    }
+                                }
+                            }
+                        } else if (superCoinsWallet.balance == 0L) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "💡 Earn 10% SuperCoins back on every completed order!",
+                                fontSize = 11.sp,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
 
                 // Section Title
                 Text(
@@ -628,53 +732,85 @@ fun PaymentMethodScreen(
             ) {
                 Column {
                     Text(
-                        text = "Total Payable",
+                        text = if (effectivePayable == 0.0) "Order Fully Covered" else "Total Payable",
                         fontSize = 11.sp,
-                        color = Color.Gray
+                        color = if (effectivePayable == 0.0) Color(0xFF16A34A) else Color.Gray,
+                        fontWeight = if (effectivePayable == 0.0) FontWeight.Bold else FontWeight.Normal
                     )
                     Text(
-                        text = CurrencyUtils.formatInr(parsedPrice),
+                        text = if (effectivePayable == 0.0) "₹0.00" else CurrencyUtils.formatInr(effectivePayable),
                         fontSize = 20.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF1E293B)
+                        color = if (effectivePayable == 0.0) Color(0xFF16A34A) else Color(0xFF1E293B)
                     )
+                    if (coinsToRedeem > 0 && effectivePayable > 0.0) {
+                        Text(
+                            text = "Saved ₹$coinsToRedeem with Coins",
+                            fontSize = 10.sp,
+                            color = Color(0xFF16A34A),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
 
-                Button(
-                    onClick = {
-                        when (selectedMethod) {
-                            PaymentMethod.COD -> {
-                                viewModel.placeCodOrder(parsedPrice)
-                            }
-                            PaymentMethod.ONLINE -> {
-                                showOnlineSimModal = true
-                            }
-                            PaymentMethod.UPI_QR -> {
-                                viewModel.placeUpiQrOrder(parsedPrice, upiRefInput.trim())
-                            }
-                        }
-                    },
-                    modifier = Modifier.height(48.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = when (selectedMethod) {
-                            PaymentMethod.COD -> Color(0xFF16A34A)
-                            PaymentMethod.ONLINE -> Color(0xFF0284C7)
-                            PaymentMethod.UPI_QR -> Color(0xFF7C3AED)
-                        }
-                    )
-                ) {
-                    val actionLabel = when (selectedMethod) {
-                        PaymentMethod.COD -> "Place COD Order"
-                        PaymentMethod.ONLINE -> "Pay Online  ➔"
-                        PaymentMethod.UPI_QR -> "Place Order Directly"
+                if (effectivePayable == 0.0) {
+                    Button(
+                        onClick = {
+                            viewModel.placeSuperCoinsOnlyOrder(parsedPrice)
+                        },
+                        modifier = Modifier.height(48.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706))
+                    ) {
+                        Text(
+                            text = "Confirm with SuperCoins (₹0) 🎉",
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            fontSize = 13.sp
+                        )
                     }
-                    Text(
-                        text = actionLabel,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        fontSize = 14.sp
-                    )
+                } else {
+                    Button(
+                        onClick = {
+                            when (selectedMethod) {
+                                PaymentMethod.COD -> {
+                                    viewModel.placeCodOrder(parsedPrice)
+                                }
+                                PaymentMethod.ONLINE -> {
+                                    showOnlineSimModal = true
+                                }
+                                PaymentMethod.UPI_QR -> {
+                                    viewModel.placeUpiQrOrder(parsedPrice, upiRefInput.trim())
+                                }
+                                PaymentMethod.SUPERCOINS -> {
+                                    viewModel.placeSuperCoinsOnlyOrder(parsedPrice)
+                                }
+                            }
+                        },
+                        modifier = Modifier.height(48.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = when (selectedMethod) {
+                                PaymentMethod.COD -> Color(0xFF16A34A)
+                                PaymentMethod.ONLINE -> Color(0xFF0284C7)
+                                PaymentMethod.UPI_QR -> Color(0xFF7C3AED)
+                                PaymentMethod.SUPERCOINS -> Color(0xFFD97706)
+                            }
+                        )
+                    ) {
+                        val actionLabel = when (selectedMethod) {
+                            PaymentMethod.COD -> "Place COD Order"
+                            PaymentMethod.ONLINE -> "Pay Online  ➔"
+                            PaymentMethod.UPI_QR -> "Place Order Directly"
+                            PaymentMethod.SUPERCOINS -> "Confirm with Coins"
+                        }
+                        Text(
+                            text = actionLabel,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            fontSize = 14.sp
+                        )
+                    }
                 }
             }
         }

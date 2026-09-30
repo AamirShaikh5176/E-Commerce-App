@@ -47,6 +47,7 @@ sealed interface AdminOpStatus {
 class AdminViewModel @Inject constructor(
     private val firestoreCatalogDataSource: FirestoreCatalogDataSource,
     private val catalogDataMigrator: CatalogDataMigrator,
+    private val superCoinsRepository: com.example.e_commerceapp.domain.repository.SuperCoinsRepository,
 ) : ViewModel() {
 
     init {
@@ -227,6 +228,17 @@ class AdminViewModel @Inject constructor(
                 _opStatus.update { AdminOpStatus.Loading }
                 firestoreCatalogDataSource.updateOrderStatus(orderId, status, trackingNumber, courierPartner)
                 _opStatus.update { AdminOpStatus.Success("Order status updated to $status") }
+
+                // SuperCoins lifecycle handling
+                val targetOrder = orders.value.firstOrNull { it.orderId == orderId }
+                val targetUserId = targetOrder?.userId.orEmpty()
+                if (targetUserId.isNotBlank()) {
+                    if (status.equals("CONFIRMED", ignoreCase = true) || status.equals("DELIVERED", ignoreCase = true)) {
+                        superCoinsRepository.awardOrderRewardIfEligible(orderId, targetUserId)
+                    } else if (status.equals("CANCELLED", ignoreCase = true)) {
+                        superCoinsRepository.refundRedeemedCoinsIfEligible(orderId, targetUserId)
+                    }
+                }
             } catch (e: Exception) {
                 _opStatus.update { AdminOpStatus.Error("Failed to update order: ${e.message}") }
             }

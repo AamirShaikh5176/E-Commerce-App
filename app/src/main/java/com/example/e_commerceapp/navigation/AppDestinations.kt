@@ -79,6 +79,10 @@ object HelpSupportDestination : AppDestinations {
     override val route = "help_support"
 }
 
+object SuperCoinsDestination : AppDestinations {
+    override val route = "supercoins"
+}
+
 // --------------------- Admin Destinations ---------------------
 object AdminLoginDestination : AppDestinations {
     override val route = "admin_login"

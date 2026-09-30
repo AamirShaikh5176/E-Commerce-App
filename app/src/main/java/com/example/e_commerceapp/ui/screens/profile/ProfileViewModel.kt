@@ -27,6 +27,7 @@ class ProfileViewModel @Inject constructor(
     private val localRepository: LocalRepository,
     private val firestoreCatalogDataSource: FirestoreCatalogDataSource,
     private val firebaseAuth: FirebaseAuth,
+    private val superCoinsRepository: com.example.e_commerceapp.domain.repository.SuperCoinsRepository,
 ) : ViewModel() {
 
     private val _profileState = MutableStateFlow(ScreenState<UserInformationEntity>())
@@ -47,8 +48,12 @@ class ProfileViewModel @Inject constructor(
     private val _couponCountState = MutableStateFlow(0)
     val couponCountState: StateFlow<Int> = _couponCountState.asStateFlow()
 
+    private val _superCoinsBalance = MutableStateFlow(0L)
+    val superCoinsBalance: StateFlow<Long> = _superCoinsBalance.asStateFlow()
+
     private var ordersJob: Job? = null
     private var wishlistJob: Job? = null
+    private var superCoinsJob: Job? = null
 
     init {
         refreshProfileData()
@@ -64,11 +69,25 @@ class ProfileViewModel @Inject constructor(
         if (userId.isNotEmpty()) {
             getUserInformation(userId)
             observeOrderCount(userId)
+            observeSuperCoins(userId)
         } else {
             _orderCountState.update { 0 }
+            _superCoinsBalance.update { 0L }
         }
         observeWishlistCount()
         checkAdminStatus()
+    }
+
+    private fun observeSuperCoins(userId: String) {
+        superCoinsJob?.cancel()
+        superCoinsJob = viewModelScope.launch {
+            superCoinsRepository.initializeWelcomeBonusIfEligible(userId)
+            superCoinsRepository.getWalletFlow(userId)
+                .catch { _superCoinsBalance.update { 0L } }
+                .collect { wallet ->
+                    _superCoinsBalance.update { wallet.balance }
+                }
+        }
     }
 
     private fun observeWishlistCount() {
@@ -152,9 +171,11 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             ordersJob?.cancel()
             wishlistJob?.cancel()
+            superCoinsJob?.cancel()
             _orderCountState.update { 0 }
             _wishlistCountState.update { 0 }
             _couponCountState.update { 0 }
+            _superCoinsBalance.update { 0L }
             firebaseUserUseCase.logoutUser(onSuccess = {
                 sharedPreferences.edit().clear().apply()
                 _isAdminState.update { false }

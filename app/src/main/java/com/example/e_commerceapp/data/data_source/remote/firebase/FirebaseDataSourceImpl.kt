@@ -15,7 +15,7 @@ import javax.inject.Inject
 
 class FirebaseDataSourceImpl @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
-    firestore: FirebaseFirestore,
+    private val firestore: FirebaseFirestore,
     private val registeredUsersLocalStore: com.example.e_commerceapp.data.data_source.local.RegisteredUsersLocalStore,
 ) : FirebaseDataSource {
 
@@ -60,6 +60,31 @@ class FirebaseDataSourceImpl @Inject constructor(
                         "createdAt" to System.currentTimeMillis()
                     )
                     collection.document(firebaseUser.uid).set(userMap)
+
+                    // 3. Initialize 500 SuperCoins Welcome Bonus for newly registered user (stored in Firebase)
+                    val walletRef = collection.document(firebaseUser.uid)
+                        .collection("wallet").document("supercoins")
+                    val txnRef = walletRef.collection("transactions").document()
+                    val now = System.currentTimeMillis()
+
+                    val initialWallet = hashMapOf<String, Any>(
+                        "balance" to 500L,
+                        "lifetimeEarned" to 500L,
+                        "lifetimeRedeemed" to 0L,
+                        "createdAt" to now,
+                        "updatedAt" to now
+                    )
+                    walletRef.set(initialWallet)
+
+                    val initialTxn = hashMapOf<String, Any>(
+                        "id" to txnRef.id,
+                        "type" to "WELCOME_BONUS",
+                        "amount" to 500L,
+                        "description" to "Welcome Bonus",
+                        "orderId" to "",
+                        "timestamp" to now
+                    )
+                    txnRef.set(initialTxn)
 
                     firebaseUser.getIdToken(false)
                         .addOnSuccessListener { tokenResult ->

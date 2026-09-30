@@ -1,8 +1,10 @@
 package com.example.e_commerceapp.ui.screens.profile
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -92,6 +94,7 @@ fun ProfileScreen(
     onNavigateToAdmin: () -> Unit = {},
     onNavigateToAdminLogin: () -> Unit = {},
     onNavigateToLogin: () -> Unit = {},
+    onNavigateToSuperCoins: () -> Unit = {},
     logout: () -> Unit,
 ) {
     val profileState by viewModel.profileState.collectAsStateWithLifecycle()
@@ -99,6 +102,7 @@ fun ProfileScreen(
     val orderCount by viewModel.orderCountState.collectAsStateWithLifecycle()
     val wishlistCount by viewModel.wishlistCountState.collectAsStateWithLifecycle()
     val couponCount by viewModel.couponCountState.collectAsStateWithLifecycle()
+    val superCoinsBalance by viewModel.superCoinsBalance.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val currentFirebaseUser = FirebaseAuth.getInstance().currentUser
     val isGuest = !com.example.e_commerceapp.utils.AuthUtils.isAuthenticated(context)
@@ -192,6 +196,7 @@ fun ProfileScreen(
             orderCount = orderCount,
             wishlistCount = wishlistCount,
             couponCount = couponCount,
+            superCoinsBalance = superCoinsBalance,
             onBackClick = onBackClick,
             onSettings = onSettings,
             onOpenThemeDialog = { showThemeDialog = true },
@@ -201,6 +206,7 @@ fun ProfileScreen(
             onNavigateToWishlist = onNavigateToWishlist,
             onNavigateToHelpSupport = onNavigateToHelpSupport,
             onCouponsClick = { showCouponDialog = true },
+            onNavigateToSuperCoins = onNavigateToSuperCoins,
             onNavigateToAdmin = onNavigateToAdmin,
             onLogout = {
                 logout()
@@ -286,6 +292,11 @@ fun GuestProfileContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Guest SuperCoins promotional card (strictly isolated)
+        GuestSuperCoinsCard(onLoginClick = onNavigateToLogin)
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         Button(
             onClick = onNavigateToLogin,
             shape = RoundedCornerShape(12.dp),
@@ -355,6 +366,7 @@ fun ProfileScreenContent(
     orderCount: Int = 0,
     wishlistCount: Int = 0,
     couponCount: Int = 0,
+    superCoinsBalance: Long = 0L,
     onBackClick: () -> Unit,
     onSettings: () -> Unit,
     onOpenThemeDialog: () -> Unit,
@@ -364,6 +376,7 @@ fun ProfileScreenContent(
     onNavigateToWishlist: () -> Unit = {},
     onNavigateToHelpSupport: () -> Unit = {},
     onCouponsClick: () -> Unit = {},
+    onNavigateToSuperCoins: () -> Unit = {},
     onNavigateToAdmin: () -> Unit = {},
     onLogout: () -> Unit,
 ) {
@@ -435,6 +448,14 @@ fun ProfileScreenContent(
             onOrdersClick = onNavigateToMyOrders,
             onWishlistClick = onNavigateToWishlist,
             onCouponsClick = onCouponsClick
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // SuperCoins Card displaying authoritative Firebase balance
+        ProfileSuperCoinsCard(
+            balance = superCoinsBalance,
+            onClick = onNavigateToSuperCoins
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -977,4 +998,150 @@ fun CouponInfoDialog(
         }
     )
 }
+
+@Composable
+fun ProfileSuperCoinsCard(
+    balance: Long,
+    onClick: () -> Unit,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable { onClick() },
+        shape = RoundedCornerShape(14.dp),
+        elevation = CardDefaults.cardElevation(2.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, Color(0xFFFDE68A))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(
+                            Color(0xFFFEF3C7).copy(alpha = 0.6f),
+                            Color(0xFFFFFBEB).copy(alpha = 0.3f)
+                        )
+                    )
+                )
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .background(Color(0xFFFEF3C7), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "🪙", fontSize = 24.sp)
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column {
+                        Text(
+                            text = "SuperCoins",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF92400E)
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                text = "$balance",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFFB45309)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Available SuperCoins",
+                                fontSize = 12.sp,
+                                color = Color(0xFF78350F),
+                                modifier = Modifier.padding(bottom = 2.dp)
+                            )
+                        }
+                    }
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "View History",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFD97706)
+                    )
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowRight,
+                        contentDescription = "View History",
+                        tint = Color(0xFFD97706),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun GuestSuperCoinsCard(
+    onLoginClick: () -> Unit,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable { onLoginClick() },
+        shape = RoundedCornerShape(14.dp),
+        elevation = CardDefaults.cardElevation(2.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .background(Color(0xFFFEF3C7), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = "🪙", fontSize = 20.sp)
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "SuperCoins Rewards",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Get 500 SuperCoins on signup + 10% back",
+                        fontSize = 11.sp,
+                        color = Color.Gray
+                    )
+                }
+            }
+            Text(
+                text = "Login >",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF0284C7)
+            )
+        }
+    }
+}
+
 

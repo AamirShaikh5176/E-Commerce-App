@@ -40,4 +40,8 @@ data class FirestoreOrderDto(
     val paymentReference: String = "",
     val createdAt: Long = 0L,
     val updatedAt: Long = 0L,
+    val superCoinsRedeemed: Long = 0L,
+    val superCoinsEarned: Long = 0L,
+    val superCoinsRewardGranted: Boolean = false,
+    val superCoinsRefunded: Boolean = false,
 )

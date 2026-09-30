@@ -14,6 +14,8 @@ import com.example.e_commerceapp.ui.screens.payment.paymetMethod.PaymentMethod
 import com.example.e_commerceapp.utils.ScreenState
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.example.e_commerceapp.data.model.supercoins.SuperCoinsWallet
+import com.example.e_commerceapp.domain.repository.SuperCoinsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,6 +40,7 @@ class PaymentViewModel @Inject constructor(
     private val addressRepository: AddressRepository,
     private val firebaseAuth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
+    private val superCoinsRepository: SuperCoinsRepository,
 ) : ViewModel() {
 
     private val _cartList = MutableStateFlow<List<UserCartEntity>>(emptyList())
@@ -55,10 +58,50 @@ class PaymentViewModel @Inject constructor(
     private val _upiQrConfig = MutableStateFlow(UpiQrConfig())
     val upiQrConfig: StateFlow<UpiQrConfig> = _upiQrConfig.asStateFlow()
 
+    private val _superCoinsWallet = MutableStateFlow(SuperCoinsWallet())
+    val superCoinsWallet: StateFlow<SuperCoinsWallet> = _superCoinsWallet.asStateFlow()
+
+    private val _useSuperCoins = MutableStateFlow(false)
+    val useSuperCoins: StateFlow<Boolean> = _useSuperCoins.asStateFlow()
+
+    private val _coinsToRedeem = MutableStateFlow(0L)
+    val coinsToRedeem: StateFlow<Long> = _coinsToRedeem.asStateFlow()
+
     init {
         loadCartItems()
         loadDefaultAddress()
         loadUpiQrConfig()
+        loadSuperCoinsWallet()
+    }
+
+    private fun loadSuperCoinsWallet() {
+        val uid = firebaseAuth.currentUser?.uid.orEmpty()
+        if (uid.isNotBlank()) {
+            viewModelScope.launch {
+                superCoinsRepository.getWalletFlow(uid).collect { wallet ->
+                    _superCoinsWallet.value = wallet
+                }
+            }
+        }
+    }
+
+    fun toggleUseSuperCoins(enabled: Boolean, totalAmount: Double) {
+        _useSuperCoins.value = enabled
+        if (enabled) {
+            val maxAvailable = _superCoinsWallet.value.balance
+            val maxNeeded = totalAmount.toLong()
+            _coinsToRedeem.value = minOf(maxAvailable, maxNeeded)
+        } else {
+            _coinsToRedeem.value = 0L
+        }
+    }
+
+    fun updateCoinsToRedeem(coins: Long, totalAmount: Double) {
+        val maxAvailable = _superCoinsWallet.value.balance
+        val maxNeeded = totalAmount.toLong()
+        val bounded = coins.coerceIn(0L, minOf(maxAvailable, maxNeeded))
+        _coinsToRedeem.value = bounded
+        _useSuperCoins.value = bounded > 0
     }
 
     private fun loadCartItems() {
@@ -108,6 +151,7 @@ class PaymentViewModel @Inject constructor(
 
     /**
      * Cash On Delivery: Creates an order with status PLACED and paymentStatus PENDING.
+     * Note: 10% SuperCoins reward will be awarded upon Admin confirmation/delivery.
      */
     fun placeCodOrder(totalAmount: Double, deliveryFee: Double = 0.0) {
         placeOrderInternal(
@@ -120,9 +164,20 @@ class PaymentViewModel @Inject constructor(
     }
 
     /**
+     * 100% SuperCoins Order: When remaining payable is 0.
+     */
+    fun placeSuperCoinsOnlyOrder(totalAmount: Double, deliveryFee: Double = 0.0) {
+        placeOrderInternal(
+            method = PaymentMethod.SUPERCOINS,
+            paymentStatus = "PAID",
+            orderStatus = "CONFIRMED",
+            totalAmount = totalAmount,
+            deliveryFee = deliveryFee
+        )
+    }
+
+    /**
      * Configurable Personal UPI QR:
-     * Does NOT mark payment as PAID automatically.
-     * Sets paymentStatus = "PENDING_VERIFICATION", requiring Admin confirmation.
      */
     fun placeUpiQrOrder(totalAmount: Double, upiRef: String = "", deliveryFee: Double = 0.0) {
         placeOrderInternal(
@@ -144,11 +199,32 @@ class PaymentViewModel @Inject constructor(
         viewModelScope.launch {
             _orderState.update { it.copy(isLoading = true, errorMessage = null, data = null) }
             val currentUser = firebaseAuth.currentUser
+            val userId = currentUser?.uid.orEmpty()
             val address = _selectedAddress.value
             val addressSummary = if (address != null) {
                 "${address.houseFlatNumber}, ${address.streetArea}, ${address.city} - ${address.pinCode}"
             } else {
                 "Standard Delivery Address"
+            }
+
+            val coinsUsed = _coinsToRedeem.value
+            val discountFromCoins = coinsUsed.toDouble()
+            val remainingPayable = (totalAmount - discountFromCoins).coerceAtLeast(0.0)
+            val finalAmount = remainingPayable + deliveryFee
+
+            // Redeem SuperCoins atomically if applied
+            if (coinsUsed > 0 && userId.isNotBlank()) {
+                val redeemResult = superCoinsRepository.redeemSuperCoinsForOrder(userId, orderId, coinsUsed)
+                if (redeemResult.isFailure) {
+                    _orderState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = redeemResult.exceptionOrNull()?.message ?: "Failed to redeem SuperCoins",
+                            data = null
+                        )
+                    }
+                    return@launch
+                }
             }
 
             val orderItems = _cartList.value.map {
@@ -163,16 +239,16 @@ class PaymentViewModel @Inject constructor(
 
             val orderDto = FirestoreOrderDto(
                 orderId = orderId,
-                userId = currentUser?.uid.orEmpty(),
+                userId = userId,
                 customerName = address?.fullName ?: currentUser?.displayName ?: "Customer",
                 customerPhone = address?.phoneNumber ?: currentUser?.phoneNumber ?: "",
                 customerEmail = currentUser?.email.orEmpty(),
                 shippingAddress = addressSummary,
                 items = orderItems,
                 itemsTotal = totalAmount,
-                discountTotal = 0.0,
+                discountTotal = discountFromCoins,
                 deliveryFee = deliveryFee,
-                finalTotal = totalAmount + deliveryFee,
+                finalTotal = finalAmount,
                 currency = "INR",
                 paymentMethod = "ONLINE",
                 paymentStatus = "PAID",
@@ -183,11 +259,17 @@ class PaymentViewModel @Inject constructor(
                 itemsCount = orderItems.sumOf { it.quantity }.coerceAtLeast(1),
                 createdAt = System.currentTimeMillis(),
                 updatedAt = System.currentTimeMillis(),
-                courierPartner = "BlueDart Express"
+                courierPartner = "BlueDart Express",
+                superCoinsRedeemed = coinsUsed,
             )
 
             val result = paymentUseCase.placeOrder(orderDto)
             if (result.isSuccess) {
+                // Award 10% SuperCoins reward for confirmed order
+                if (userId.isNotBlank()) {
+                    superCoinsRepository.awardOrderRewardIfEligible(orderId, userId)
+                }
+
                 paymentUseCase.clearUserCart()
                 _orderState.update {
                     it.copy(
@@ -195,7 +277,7 @@ class PaymentViewModel @Inject constructor(
                         errorMessage = null,
                         data = OrderSuccessData(
                             orderId = orderId,
-                            totalAmount = totalAmount + deliveryFee,
+                            totalAmount = finalAmount,
                             paymentMethod = PaymentMethod.ONLINE,
                             paymentStatus = "PAID",
                             customerName = orderDto.customerName,
@@ -204,6 +286,10 @@ class PaymentViewModel @Inject constructor(
                     )
                 }
             } else {
+                // Restore redeemed coins if order placement failed
+                if (coinsUsed > 0 && userId.isNotBlank()) {
+                    superCoinsRepository.refundRedeemedCoinsIfEligible(orderId, userId)
+                }
                 _orderState.update {
                     it.copy(
                         isLoading = false,
@@ -228,12 +314,37 @@ class PaymentViewModel @Inject constructor(
 
             val orderId = "OD" + System.currentTimeMillis().toString().takeLast(9)
             val currentUser = firebaseAuth.currentUser
+            val userId = currentUser?.uid.orEmpty()
             val address = _selectedAddress.value
 
             val addressSummary = if (address != null) {
                 "${address.houseFlatNumber}, ${address.streetArea}, ${address.city} - ${address.pinCode}"
             } else {
                 "Standard Delivery Address"
+            }
+
+            val coinsUsed = if (method == PaymentMethod.SUPERCOINS) {
+                totalAmount.toLong()
+            } else {
+                _coinsToRedeem.value
+            }
+            val discountFromCoins = coinsUsed.toDouble()
+            val remainingPayable = (totalAmount - discountFromCoins).coerceAtLeast(0.0)
+            val finalAmount = if (method == PaymentMethod.SUPERCOINS) 0.0 else remainingPayable + deliveryFee
+
+            // Redeem SuperCoins atomically if applied
+            if (coinsUsed > 0 && userId.isNotBlank()) {
+                val redeemResult = superCoinsRepository.redeemSuperCoinsForOrder(userId, orderId, coinsUsed)
+                if (redeemResult.isFailure) {
+                    _orderState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = redeemResult.exceptionOrNull()?.message ?: "Failed to redeem SuperCoins",
+                            data = null
+                        )
+                    }
+                    return@launch
+                }
             }
 
             val orderItems = _cartList.value.map {
@@ -248,16 +359,16 @@ class PaymentViewModel @Inject constructor(
 
             val orderDto = FirestoreOrderDto(
                 orderId = orderId,
-                userId = currentUser?.uid.orEmpty(),
+                userId = userId,
                 customerName = address?.fullName ?: currentUser?.displayName ?: "Customer",
                 customerPhone = address?.phoneNumber ?: currentUser?.phoneNumber ?: "",
                 customerEmail = currentUser?.email.orEmpty(),
                 shippingAddress = addressSummary,
                 items = orderItems,
                 itemsTotal = totalAmount,
-                discountTotal = 0.0,
+                discountTotal = discountFromCoins,
                 deliveryFee = deliveryFee,
-                finalTotal = totalAmount + deliveryFee,
+                finalTotal = finalAmount,
                 currency = "INR",
                 paymentMethod = method.name,
                 paymentStatus = paymentStatus,
@@ -266,11 +377,17 @@ class PaymentViewModel @Inject constructor(
                 itemsCount = orderItems.sumOf { it.quantity }.coerceAtLeast(1),
                 createdAt = System.currentTimeMillis(),
                 updatedAt = System.currentTimeMillis(),
-                courierPartner = "BlueDart Express"
+                courierPartner = "BlueDart Express",
+                superCoinsRedeemed = coinsUsed,
             )
 
             val result = paymentUseCase.placeOrder(orderDto)
             if (result.isSuccess) {
+                // If order is immediately CONFIRMED / PAID (e.g. 100% SuperCoins or UPI QR), award 10% reward
+                if ((orderStatus.equals("CONFIRMED", ignoreCase = true) || paymentStatus.equals("PAID", ignoreCase = true)) && userId.isNotBlank()) {
+                    superCoinsRepository.awardOrderRewardIfEligible(orderId, userId)
+                }
+
                 paymentUseCase.clearUserCart()
                 _orderState.update {
                     it.copy(
@@ -278,7 +395,7 @@ class PaymentViewModel @Inject constructor(
                         errorMessage = null,
                         data = OrderSuccessData(
                             orderId = orderId,
-                            totalAmount = totalAmount + deliveryFee,
+                            totalAmount = finalAmount,
                             paymentMethod = method,
                             paymentStatus = paymentStatus,
                             customerName = orderDto.customerName,
@@ -287,6 +404,10 @@ class PaymentViewModel @Inject constructor(
                     )
                 }
             } else {
+                // Restore redeemed coins if order placement failed
+                if (coinsUsed > 0 && userId.isNotBlank()) {
+                    superCoinsRepository.refundRedeemedCoinsIfEligible(orderId, userId)
+                }
                 _orderState.update {
                     it.copy(
                         isLoading = false,

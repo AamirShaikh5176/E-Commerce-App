@@ -72,14 +72,36 @@ service cloud.firestore {
       match /wishlist/{productId} {
         allow read, write: if isOwner(userId) || isAdmin();
       }
+
+      // SuperCoins Wallet: Secure user-specific store credit
+      match /wallet/{walletDoc} {
+        allow read: if isOwner(userId) || isAdmin();
+        // Allow creating/updating with valid balance invariants
+        allow create: if isOwner(userId)
+                      && request.resource.data.balance >= 0
+                      && request.resource.data.lifetimeEarned >= 0
+                      && request.resource.data.lifetimeRedeemed >= 0;
+        allow update: if (isOwner(userId)
+                      && request.resource.data.balance >= 0
+                      && request.resource.data.lifetimeEarned - request.resource.data.lifetimeRedeemed == request.resource.data.balance)
+                      || isAdmin();
+        allow delete: if isAdmin();
+
+        match /transactions/{txnId} {
+          allow read: if isOwner(userId) || isAdmin();
+          allow create: if isOwner(userId) || isAdmin();
+          allow update, delete: if isAdmin();
+        }
+      }
     }
 
     // Orders Collection: Customers create/read their own; Admins manage fulfillment
     match /orders/{orderId} {
       allow read: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      // Status updates & courier tracking restricted strictly to Admin
-      allow update, delete: if isAdmin();
+      // Status updates & reward idempotent tracking allowed for owner or Admin
+      allow update: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
+      allow delete: if isAdmin();
     }
   }
 }
