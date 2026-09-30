@@ -17,12 +17,22 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import com.example.e_commerceapp.utils.AccountDeletionManager
+import com.example.e_commerceapp.utils.AccountDeletionResult
+import com.example.e_commerceapp.utils.PolicyConfig
 import androidx.compose.material.icons.outlined.ColorLens
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Notifications
@@ -100,6 +110,30 @@ fun SettingsScreen(
     var isClearingCache by remember { mutableStateOf(false) }
     var showClearCacheDialog by remember { mutableStateOf(false) }
 
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    var showPasswordReAuthDialog by remember { mutableStateOf(false) }
+    var deletePasswordInput by remember { mutableStateOf("") }
+    var deletePasswordError by remember { mutableStateOf<String?>(null) }
+    var isDeletingAccount by remember { mutableStateOf(false) }
+    var selectedPolicyTitle by remember { mutableStateOf<String?>(null) }
+    var selectedPolicyContent by remember { mutableStateOf<String?>(null) }
+    var showGuestDeletePrompt by remember { mutableStateOf(false) }
+
+    fun openPolicy(title: String, url: String, fallbackContent: String) {
+        if (url.isNotBlank()) {
+            try {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                context.startActivity(intent)
+            } catch (_: Exception) {
+                selectedPolicyTitle = title
+                selectedPolicyContent = fallbackContent
+            }
+        } else {
+            selectedPolicyTitle = title
+            selectedPolicyContent = fallbackContent
+        }
+    }
+
     LaunchedEffect(Unit) {
         cacheInfo = StorageCacheManager.getCacheInfo(context)
         isLoadingCacheInfo = false
@@ -160,6 +194,222 @@ fun SettingsScreen(
             dismissButton = {
                 TextButton(onClick = { showClearCacheDialog = false }) {
                     Text("Cancel", color = Color.Gray)
+                }
+            }
+        )
+    }
+
+    if (showGuestDeletePrompt) {
+        AlertDialog(
+            onDismissRequest = { showGuestDeletePrompt = false },
+            title = {
+                Text(
+                    text = "Guest Session",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Text(
+                    text = "You are currently browsing as a guest. Account deletion is only available for registered user accounts.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 14.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showGuestDeletePrompt = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                ) {
+                    Text("OK", color = Color.White)
+                }
+            }
+        )
+    }
+
+    if (showDeleteConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!isDeletingAccount) showDeleteConfirmDialog = false },
+            title = {
+                Text(
+                    text = "Delete your account?",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFE11D48)
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "This will permanently delete your account and associated personal data. This action cannot be undone.",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "The following will be permanently removed:\n• Profile details and login credentials\n• Saved delivery addresses\n• Shopping cart items\n• Saved wishlist items\n\n*Historical order records are retained for transaction compliance.",
+                        fontSize = 12.sp,
+                        color = Color.Gray,
+                        lineHeight = 18.sp
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirmDialog = false
+                        deletePasswordInput = ""
+                        deletePasswordError = null
+                        showPasswordReAuthDialog = true
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE11D48))
+                ) {
+                    Text("Continue Deletion", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                    Text("Cancel", color = Color.Gray)
+                }
+            }
+        )
+    }
+
+    if (showPasswordReAuthDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!isDeletingAccount) showPasswordReAuthDialog = false },
+            title = {
+                Text(
+                    text = "Confirm Account Deletion",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "For your security, please enter your password to confirm permanent deletion of your account and personal data.",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = deletePasswordInput,
+                        onValueChange = {
+                            deletePasswordInput = it
+                            deletePasswordError = null
+                        },
+                        label = { Text("Password") },
+                        placeholder = { Text("Enter your account password") },
+                        singleLine = true,
+                        isError = deletePasswordError != null,
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (deletePasswordError != null) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = deletePasswordError ?: "",
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (deletePasswordInput.isBlank()) {
+                            deletePasswordError = "Please enter your password to proceed."
+                            return@Button
+                        }
+                        isDeletingAccount = true
+                        coroutineScope.launch {
+                            val result = AccountDeletionManager.deleteAccount(context, deletePasswordInput)
+                            isDeletingAccount = false
+                            when (result) {
+                                is AccountDeletionResult.Success -> {
+                                    showPasswordReAuthDialog = false
+                                    Toast.makeText(
+                                        context,
+                                        "Your account and personal data have been permanently deleted.",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                    onBackClick()
+                                }
+                                is AccountDeletionResult.RequiresRecentLogin -> {
+                                    deletePasswordError = "Session expired. Please re-enter your password."
+                                }
+                                is AccountDeletionResult.Failure -> {
+                                    deletePasswordError = result.errorMessage
+                                }
+                            }
+                        }
+                    },
+                    enabled = !isDeletingAccount,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE11D48))
+                ) {
+                    if (isDeletingAccount) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Deleting...", color = Color.White, fontWeight = FontWeight.Bold)
+                    } else {
+                        Text("Permanently Delete", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showPasswordReAuthDialog = false },
+                    enabled = !isDeletingAccount
+                ) {
+                    Text("Cancel", color = Color.Gray)
+                }
+            }
+        )
+    }
+
+    if (selectedPolicyTitle != null && selectedPolicyContent != null) {
+        AlertDialog(
+            onDismissRequest = {
+                selectedPolicyTitle = null
+                selectedPolicyContent = null
+            },
+            title = {
+                Text(
+                    text = selectedPolicyTitle ?: "",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        text = selectedPolicyContent ?: "",
+                        fontSize = 13.sp,
+                        lineHeight = 20.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        selectedPolicyTitle = null
+                        selectedPolicyContent = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                ) {
+                    Text("Close", color = Color.White)
                 }
             }
         )
@@ -533,7 +783,98 @@ fun SettingsScreen(
                 }
             }
 
-            // Section 4: About
+            // Section 5: Account & Privacy
+            SettingsSectionHeader(title = "ACCOUNT & PRIVACY", icon = Icons.Outlined.Security)
+
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(2.dp)
+            ) {
+                Column(modifier = Modifier.padding(6.dp)) {
+                    // Privacy Policy
+                    SettingsClickableRow(
+                        title = "Privacy Policy",
+                        subtitle = "How we collect, protect, and handle your data",
+                        onClick = {
+                            openPolicy(
+                                title = "Privacy Policy",
+                                url = PolicyConfig.PRIVACY_POLICY_URL,
+                                fallbackContent = "1. Information We Collect:\n" +
+                                        "We collect account information (name, email, phone number) and saved delivery addresses to provide shopping and delivery services.\n\n" +
+                                        "2. Data Security & Storage:\n" +
+                                        "Your data is securely stored on Google Firebase and encrypted in transit.\n\n" +
+                                        "3. User Rights & Data Deletion:\n" +
+                                        "You have complete control over your data. You may permanently delete your account and associated personal data at any time via Settings.\n\n" +
+                                        "4. External Policy URL:\n" +
+                                        "Live policy URL can be configured in PolicyConfig.kt."
+                            )
+                        }
+                    )
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+
+                    // Terms of Service
+                    SettingsClickableRow(
+                        title = "Terms of Service",
+                        subtitle = "Account terms and shopping conditions",
+                        onClick = {
+                            openPolicy(
+                                title = "Terms of Service",
+                                url = PolicyConfig.TERMS_OF_SERVICE_URL,
+                                fallbackContent = "1. Acceptance of Terms:\n" +
+                                        "By creating an account or placing orders, you agree to comply with our platform policies.\n\n" +
+                                        "2. Product Information & Pricing:\n" +
+                                        "All prices are quoted in Indian Rupees (₹) and include applicable taxes. We strive for accurate catalog descriptions.\n\n" +
+                                        "3. Order Confirmation:\n" +
+                                        "Orders are subject to item availability and payment confirmation.\n\n" +
+                                        "4. External Terms URL:\n" +
+                                        "Live terms URL can be configured in PolicyConfig.kt."
+                            )
+                        }
+                    )
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+
+                    // Shipping & Returns
+                    SettingsClickableRow(
+                        title = "Shipping & Returns",
+                        subtitle = "Delivery timelines and 7-day return policy",
+                        onClick = {
+                            openPolicy(
+                                title = "Shipping & Returns",
+                                url = PolicyConfig.SHIPPING_AND_RETURNS_URL,
+                                fallbackContent = "1. Delivery Timelines:\n" +
+                                        "Standard shipping takes 3-5 business days across India. Orders over ₹499 enjoy free shipping.\n\n" +
+                                        "2. 7-Day Return Policy:\n" +
+                                        "Items in original, unused condition with all tags attached can be returned within 7 days of delivery.\n\n" +
+                                        "3. Refund Processing:\n" +
+                                        "Refunds are credited to the original payment source within 3-5 business days of item inspection.\n\n" +
+                                        "4. External Shipping & Returns URL:\n" +
+                                        "Live policy URL can be configured in PolicyConfig.kt."
+                            )
+                        }
+                    )
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+
+                    // Delete Account
+                    SettingsClickableRow(
+                        title = "Delete Account",
+                        subtitle = "Permanently remove your account and personal data",
+                        isDestructive = true,
+                        onClick = {
+                            if (currentUser == null) {
+                                showGuestDeletePrompt = true
+                            } else {
+                                showDeleteConfirmDialog = true
+                            }
+                        }
+                    )
+                }
+            }
+
+            // Section 6: About
             SettingsSectionHeader(title = "ABOUT", icon = Icons.Outlined.Info)
 
             Card(
@@ -624,5 +965,41 @@ private fun ThemeOptionRow(
                 color = Color.Gray
             )
         }
+    }
+}
+
+@Composable
+private fun SettingsClickableRow(
+    title: String,
+    subtitle: String,
+    isDestructive: Boolean = false,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(horizontal = 10.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                color = if (isDestructive) Color(0xFFE11D48) else MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = subtitle,
+                fontSize = 11.sp,
+                color = if (isDestructive) Color(0xFFE11D48).copy(alpha = 0.8f) else Color.Gray
+            )
+        }
+        Icon(
+            imageVector = if (isDestructive) Icons.Default.DeleteOutline else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = if (isDestructive) Color(0xFFE11D48) else Color.Gray,
+            modifier = Modifier.size(18.dp)
+        )
     }
 }
