@@ -34,7 +34,8 @@ class SignUpViewModel @Inject constructor(
             firebaseUserUseCase.signUpUser(
                 userInformationEntity,
                 onSuccess = { userInformationEntity ->
-                    saveUserIdToSharedPref(userInformationEntity.id)
+                    // Do NOT auto-authenticate or save user ID to SharedPreferences.
+                    // User must explicitly log in from the Login screen.
                     _signUpState.update {
                         it.copy(
                             isLoading = false,
@@ -52,9 +53,7 @@ class SignUpViewModel @Inject constructor(
         }
     }
 
-    private fun saveUserIdToSharedPref(id: String) {
-        sharedPreferences.edit()
-            .putString(PREF_FIREBASE_USERID_KEY, id)
-            .apply()
+    fun resetSignUpState() {
+        _signUpState.update { ScreenState() }
     }
 }

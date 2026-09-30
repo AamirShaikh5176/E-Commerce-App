@@ -95,7 +95,10 @@ fun AppNavHost(
                     }
                 },
                 navigateToSignInScreen = {
-                    navController.navigate(SignInScreen.route)
+                    navController.navigate(SignInScreen.route) {
+                        popUpTo(SignUpScreen.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 },
             )
         }

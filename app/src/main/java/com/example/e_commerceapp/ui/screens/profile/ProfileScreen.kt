@@ -1032,7 +1032,10 @@ fun ProfileSuperCoinsCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Box(
                         modifier = Modifier
                             .size(46.dp)
@@ -1042,7 +1045,7 @@ fun ProfileSuperCoinsCard(
                         Text(text = "🪙", fontSize = 24.sp)
                     }
 
-                    Spacer(modifier = Modifier.width(14.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
 
                     Column {
                         Text(
@@ -1064,24 +1067,33 @@ fun ProfileSuperCoinsCard(
                                 text = "Available SuperCoins",
                                 fontSize = 12.sp,
                                 color = Color(0xFF78350F),
-                                modifier = Modifier.padding(bottom = 2.dp)
+                                modifier = Modifier.padding(bottom = 2.dp),
+                                maxLines = 1
                             )
                         }
                     }
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(start = 4.dp)
+                ) {
                     Text(
                         text = "View History",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFD97706)
+                        color = Color(0xFFD97706),
+                        maxLines = 1,
+                        softWrap = false
                     )
+                    Spacer(modifier = Modifier.width(2.dp))
                     Icon(
                         imageVector = Icons.Default.KeyboardArrowRight,
                         contentDescription = "View History",
                         tint = Color(0xFFD97706),
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
@@ -1110,7 +1122,10 @@ fun GuestSuperCoinsCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Box(
                     modifier = Modifier
                         .size(42.dp)
@@ -1120,25 +1135,32 @@ fun GuestSuperCoinsCard(
                     Text(text = "🪙", fontSize = 20.sp)
                 }
                 Spacer(modifier = Modifier.width(12.dp))
-                Column {
+                Column(modifier = Modifier.weight(1f, fill = false)) {
                     Text(
                         text = "SuperCoins Rewards",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1
                     )
                     Text(
                         text = "Get 500 SuperCoins on signup + 10% back",
                         fontSize = 11.sp,
-                        color = Color.Gray
+                        color = Color.Gray,
+                        lineHeight = 15.sp
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
             Text(
                 text = "Login >",
-                fontSize = 12.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0284C7)
+                color = Color(0xFF0284C7),
+                maxLines = 1,
+                softWrap = false
             )
         }
     }

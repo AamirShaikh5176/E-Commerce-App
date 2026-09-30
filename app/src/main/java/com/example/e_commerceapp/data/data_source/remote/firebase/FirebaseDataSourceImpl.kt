@@ -59,7 +59,7 @@ class FirebaseDataSourceImpl @Inject constructor(
                         "role" to "customer",
                         "createdAt" to System.currentTimeMillis()
                     )
-                    collection.document(firebaseUser.uid).set(userMap)
+                    val task1 = collection.document(firebaseUser.uid).set(userMap)
 
                     // 3. Initialize 500 SuperCoins Welcome Bonus for newly registered user (stored in Firebase)
                     val walletRef = collection.document(firebaseUser.uid)
@@ -74,7 +74,7 @@ class FirebaseDataSourceImpl @Inject constructor(
                         "createdAt" to now,
                         "updatedAt" to now
                     )
-                    walletRef.set(initialWallet)
+                    val task2 = walletRef.set(initialWallet)
 
                     val initialTxn = hashMapOf<String, Any>(
                         "id" to txnRef.id,
@@ -84,13 +84,16 @@ class FirebaseDataSourceImpl @Inject constructor(
                         "orderId" to "",
                         "timestamp" to now
                     )
-                    txnRef.set(initialTxn)
+                    val task3 = txnRef.set(initialTxn)
 
-                    firebaseUser.getIdToken(false)
-                        .addOnSuccessListener { tokenResult ->
-                            onSuccess(userEntity.copy(token = tokenResult.token ?: ""))
-                        }
-                        .addOnFailureListener {
+                    com.google.android.gms.tasks.Tasks.whenAllComplete(task1, task2, task3)
+                        .addOnCompleteListener {
+                            // Explicitly sign out newly registered user so they must log in
+                            try {
+                                firebaseAuth.signOut()
+                            } catch (e: Exception) {
+                                android.util.Log.e("FirebaseDataSource", "Error signing out after registration", e)
+                            }
                             onSuccess(userEntity)
                         }
                 } else {
