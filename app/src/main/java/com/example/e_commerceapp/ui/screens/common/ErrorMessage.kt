@@ -23,6 +23,14 @@ fun ErrorMessage(
     modifier: Modifier = Modifier,
     appState: EcommerceAppState = rememberEcommerceAppState(),
 ) {
+    if (message.isBlank() ||
+        message.contains("StandaloneCoroutine was cancelled", ignoreCase = true) ||
+        message.contains("Job was cancelled", ignoreCase = true) ||
+        message.contains("CancellationException", ignoreCase = true)
+    ) {
+        return
+    }
+
     if (!appState.isOnline) {
         OfflineDialog (onRetry = appState::refreshOnline)
     } else {

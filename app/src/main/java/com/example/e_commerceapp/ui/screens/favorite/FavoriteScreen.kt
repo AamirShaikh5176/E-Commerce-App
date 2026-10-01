@@ -59,6 +59,7 @@ fun FavoriteScreen(
     onBackClick: () -> Unit,
     onNotificationClick: () -> Unit,
     viewModel: FavoriteViewModel = hiltViewModel(),
+    onContinueShoppingClick: () -> Unit = onBackClick,
 ) {
     val context = LocalContext.current
     val favoriteState by viewModel.favoriteState.collectAsStateWithLifecycle()
@@ -140,7 +141,8 @@ fun FavoriteScreen(
                     onClickedDeleteFavorite = { favoriteProductEntity ->
                         viewModel.deleteFavoriteProduct(favoriteProductEntity)
                         deletedFavoriteProduct = favoriteProductEntity
-                    }
+                    },
+                    onContinueShoppingClick = onContinueShoppingClick,
                 )
             }
 
@@ -159,6 +161,7 @@ fun FavoriteScreenContent(
     onBackClick: () -> Unit,
     onNotificationClick: () -> Unit,
     onClickedDeleteFavorite: (FavoriteProductEntity) -> Unit,
+    onContinueShoppingClick: () -> Unit = onBackClick,
 ) {
     Box(
         modifier = Modifier
@@ -244,7 +247,7 @@ fun FavoriteScreenContent(
                     Spacer(modifier = Modifier.height(28.dp))
 
                     androidx.compose.material3.Button(
-                        onClick = onBackClick,
+                        onClick = onContinueShoppingClick,
                         shape = RoundedCornerShape(10.dp),
                         colors = androidx.compose.material3.ButtonDefaults.buttonColors(
                             containerColor = colorResource(R.color.main_color)

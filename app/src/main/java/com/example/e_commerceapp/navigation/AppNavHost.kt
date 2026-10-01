@@ -249,6 +249,12 @@ fun AppNavHost(
                     navController.navigate(SignUpScreen.route)
                 },
                 onBackClick = { navController.popBackStack() },
+                onStartShoppingClick = {
+                    navController.navigate(HomeScreen.route) {
+                        popUpTo(HomeScreen.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
                 onBadgeCountChange = {},
             )
         }
@@ -256,6 +262,12 @@ fun AppNavHost(
         composable(FavoriteScreen.route) {
             FavoriteScreen(
                 onBackClick = { navController.popBackStack() },
+                onContinueShoppingClick = {
+                    navController.navigate(HomeScreen.route) {
+                        popUpTo(HomeScreen.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
                 onNotificationClick = {
 //                    navController.navigate(NotificationScreen.route)
                 },

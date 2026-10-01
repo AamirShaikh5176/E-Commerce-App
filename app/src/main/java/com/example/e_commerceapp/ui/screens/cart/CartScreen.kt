@@ -92,6 +92,7 @@ fun CartScreen(
     onBadgeCountChange: (Int) -> Unit,
     onLoginClick: (String) -> Unit = {},
     onCreateAccountClick: (String) -> Unit = {},
+    onStartShoppingClick: () -> Unit = onBackClick,
 ) {
     val context = LocalContext.current
     var showGuestPrompt by remember { mutableStateOf(false) }
@@ -195,7 +196,7 @@ fun CartScreen(
 
             cartState.data?.let { listUserCartEntity ->
                 if (listUserCartEntity.isEmpty()) {
-                    EmptyCartView(onBackClick = onBackClick)
+                    EmptyCartView(onStartShoppingClick = onStartShoppingClick)
                 } else {
                     SuccessScreen(
                         listUserCartEntity = listUserCartEntity,
@@ -777,7 +778,7 @@ private fun PriceSummaryRow(
 }
 
 @Composable
-private fun EmptyCartView(onBackClick: () -> Unit) {
+private fun EmptyCartView(onStartShoppingClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -820,7 +821,7 @@ private fun EmptyCartView(onBackClick: () -> Unit) {
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
-            onClick = onBackClick,
+            onClick = onStartShoppingClick,
             shape = RoundedCornerShape(10.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = colorResource(R.color.dark_blue)

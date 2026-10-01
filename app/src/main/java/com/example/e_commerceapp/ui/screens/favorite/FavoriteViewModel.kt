@@ -46,6 +46,9 @@ class FavoriteViewModel @Inject constructor(
                             )
                         }
                     }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // Ignore coroutine cancellation, normal lifecycle event
+                throw e
             } catch (e: Exception) {
                 _favoriteState.update {
                     it.copy(

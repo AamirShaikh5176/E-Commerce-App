@@ -44,6 +44,9 @@ class CartViewModel @Inject constructor(
 
                     calculateTotalPrice()
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // Ignore coroutine cancellation, normal lifecycle event
+                throw e
             } catch (e: Exception) {
                 _userCartsState.update {
                     it.copy(isLoading = false, errorMessage = e.message, data = null)
