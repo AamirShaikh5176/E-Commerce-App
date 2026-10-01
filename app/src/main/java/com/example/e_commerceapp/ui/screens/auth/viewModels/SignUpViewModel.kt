@@ -34,6 +34,11 @@ class SignUpViewModel @Inject constructor(
             firebaseUserUseCase.signUpUser(
                 userInformationEntity,
                 onSuccess = { userInformationEntity ->
+                    // Mark pending welcome popup flag tied to this newly registered user's UID
+                    sharedPreferences.edit()
+                        .putBoolean("pending_supercoins_welcome_popup_${userInformationEntity.id}", true)
+                        .apply()
+
                     // Do NOT auto-authenticate or save user ID to SharedPreferences.
                     // User must explicitly log in from the Login screen.
                     _signUpState.update {

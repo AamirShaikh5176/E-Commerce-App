@@ -8,15 +8,22 @@ import com.example.e_commerceapp.domain.entity.product.ProductEntity
 import com.example.e_commerceapp.domain.entity.user.UserInformationEntity
 import com.example.e_commerceapp.domain.usecase.product.ProductsUseCase
 import com.example.e_commerceapp.domain.usecase.user.FirebaseUserUseCase
+import com.example.e_commerceapp.domain.repository.SuperCoinsRepository
 import com.example.e_commerceapp.utils.Constants.PREF_FIREBASE_USERID_KEY
 import com.example.e_commerceapp.utils.ScreenState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+data class SuperCoinsWelcomeRewardPopupState(
+    val show: Boolean = false,
+    val rewardAmount: Long = 500L,
+)
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -24,10 +31,14 @@ class HomeViewModel @Inject constructor(
     private val firebaseUserUseCase: FirebaseUserUseCase,
     private val sharedPreferences: SharedPreferences,
     private val catalogDataMigrator: com.example.e_commerceapp.data.data_source.remote.migrator.CatalogDataMigrator,
+    private val superCoinsRepository: SuperCoinsRepository,
 ) : ViewModel() {
 
     private val _userState = MutableStateFlow(ScreenState<UserInformationEntity>())
     val userState: StateFlow<ScreenState<UserInformationEntity>> = _userState
+
+    private val _superCoinsRewardPopupState = MutableStateFlow(SuperCoinsWelcomeRewardPopupState())
+    val superCoinsRewardPopupState: StateFlow<SuperCoinsWelcomeRewardPopupState> = _superCoinsRewardPopupState.asStateFlow()
 
     private val _productState = MutableStateFlow(ScreenState<List<ProductEntity>>())
     val productState: StateFlow<ScreenState<List<ProductEntity>>> = _productState
@@ -61,9 +72,48 @@ class HomeViewModel @Inject constructor(
 
         if (isAuthenticated && !savedUid.isNullOrBlank()) {
             getUserInformation(savedUid)
+            checkSuperCoinsWelcomeReward(savedUid)
         } else {
             _userState.update { it.copy(isLoading = false, errorMessage = null, data = null) }
         }
+    }
+
+    private fun checkSuperCoinsWelcomeReward(uid: String) {
+        val isPending = sharedPreferences.getBoolean("pending_supercoins_welcome_popup_$uid", false)
+        val alreadyShown = sharedPreferences.getBoolean("supercoins_welcome_popup_shown_$uid", false)
+
+        if (isPending && !alreadyShown) {
+            viewModelScope.launch {
+                try {
+                    val wallet = superCoinsRepository.getWallet(uid).getOrNull()
+                    val reward = if (wallet != null && wallet.balance > 0) wallet.balance else 500L
+                    _superCoinsRewardPopupState.value = SuperCoinsWelcomeRewardPopupState(
+                        show = true,
+                        rewardAmount = reward
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.e("HomeViewModel", "Error fetching welcome reward SuperCoins wallet", e)
+                }
+            }
+        }
+    }
+
+    fun dismissSuperCoinsRewardPopup() {
+        val currentUid = sharedPreferences.getString(PREF_FIREBASE_USERID_KEY, null)
+        if (!currentUid.isNullOrBlank()) {
+            sharedPreferences.edit()
+                .putBoolean("pending_supercoins_welcome_popup_$currentUid", false)
+                .putBoolean("supercoins_welcome_popup_shown_$currentUid", true)
+                .apply()
+            viewModelScope.launch {
+                try {
+                    com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                        .collection("users").document(currentUid)
+                        .update("superCoinsWelcomePopupShown", true)
+                } catch (_: Exception) {}
+            }
+        }
+        _superCoinsRewardPopupState.value = _superCoinsRewardPopupState.value.copy(show = false)
     }
 
     private fun loadAllProducts() {
