@@ -35,11 +35,13 @@ import androidx.compose.material.icons.filled.LocalAtm
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Security
+import android.app.Activity
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -102,117 +104,40 @@ fun PaymentMethodScreen(
     }
 
     var upiRefInput by remember { mutableStateOf("") }
-    var showOnlineSimModal by remember { mutableStateOf(false) }
-    var showPaymentFailedDialog by remember { mutableStateOf(false) }
-
-    // On Order Placed successfully
-    LaunchedEffect(orderState.data) {
-        orderState.data?.let { orderData ->
-            onPaymentCompleted(orderData.orderId, true)
-        }
-    }
-
-    // Online Gateway Payment Simulation Dialog (Test Mode)
-    if (showOnlineSimModal) {
-        val simOrderId = remember { "OD" + System.currentTimeMillis().toString().takeLast(9) }
+    // Error dialog for payment / order operations
+    orderState.errorMessage?.let { errorMsg ->
         AlertDialog(
-            onDismissRequest = {
-                showOnlineSimModal = false
-                showPaymentFailedDialog = true
-            },
+            onDismissRequest = { viewModel.clearOrderError() },
             title = {
                 Text(
-                    text = "Razorpay Payment Gateway (Test Mode)",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    color = Color(0xFF0F172A)
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "Amount Payable: ${CurrencyUtils.formatInr(effectivePayable)}",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        color = Color(0xFF16A34A)
-                    )
-                    Text(
-                        text = "Development Sandbox Mode (Secure architecture with zero server secrets in APK).",
-                        fontSize = 12.sp,
-                        color = Color.Gray
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Select test transaction outcome:",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF334155)
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showOnlineSimModal = false
-                        viewModel.completeOnlinePayment(
-                            orderId = simOrderId,
-                            gatewayPaymentId = "pay_sim_" + System.currentTimeMillis().toString().takeLast(8),
-                            totalAmount = parsedPrice
-                        )
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A))
-                ) {
-                    Text("Simulate Success", color = Color.White)
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showOnlineSimModal = false
-                        showPaymentFailedDialog = true
-                    }
-                ) {
-                    Text("Simulate Failure / Cancel", color = Color(0xFFDC2626))
-                }
-            }
-        )
-    }
-
-    // Payment Failed Dialog
-    if (showPaymentFailedDialog) {
-        AlertDialog(
-            onDismissRequest = { showPaymentFailedDialog = false },
-            title = {
-                Text(
-                    text = "Payment Failed or Cancelled",
+                    text = "Payment Notice",
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFFDC2626)
                 )
             },
             text = {
                 Text(
-                    text = "The transaction could not be completed. Your order has NOT been marked as paid. You may retry or select Cash on Delivery.",
+                    text = errorMsg,
                     fontSize = 13.sp,
                     color = Color(0xFF475569)
                 )
             },
             confirmButton = {
                 Button(
-                    onClick = { showPaymentFailedDialog = false },
+                    onClick = { viewModel.clearOrderError() },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
                 ) {
-                    Text("Retry Payment", color = Color.White)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showPaymentFailedDialog = false
-                    onBackClick()
-                }) {
-                    Text("Return to Cart", color = Color.Gray)
+                    Text("OK", color = Color.White)
                 }
             }
         )
+    }
+
+    // On Order Placed successfully
+    LaunchedEffect(orderState.data) {
+        orderState.data?.let { orderData ->
+            onPaymentCompleted(orderData.orderId, true)
+        }
     }
 
     Box(
@@ -771,13 +696,20 @@ fun PaymentMethodScreen(
                     }
                 } else {
                     Button(
+                        enabled = !orderState.isLoading,
                         onClick = {
                             when (selectedMethod) {
                                 PaymentMethod.COD -> {
                                     viewModel.placeCodOrder(parsedPrice)
                                 }
                                 PaymentMethod.ONLINE -> {
-                                    showOnlineSimModal = true
+                                    val activity = context as? Activity
+                                    if (activity != null) {
+                                        viewModel.initiateRazorpayPayment(
+                                            activity = activity,
+                                            totalAmount = parsedPrice
+                                        )
+                                    }
                                 }
                                 PaymentMethod.UPI_QR -> {
                                     viewModel.placeUpiQrOrder(parsedPrice, upiRefInput.trim())
@@ -798,18 +730,33 @@ fun PaymentMethodScreen(
                             }
                         )
                     ) {
-                        val actionLabel = when (selectedMethod) {
-                            PaymentMethod.COD -> "Place COD Order"
-                            PaymentMethod.ONLINE -> "Pay Online  ➔"
-                            PaymentMethod.UPI_QR -> "Place Order Directly"
-                            PaymentMethod.SUPERCOINS -> "Confirm with Coins"
+                        if (orderState.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (selectedMethod == PaymentMethod.ONLINE) "Connecting..." else "Placing...",
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                fontSize = 14.sp
+                            )
+                        } else {
+                            val actionLabel = when (selectedMethod) {
+                                PaymentMethod.COD -> "Place COD Order"
+                                PaymentMethod.ONLINE -> "Pay Online  ➔"
+                                PaymentMethod.UPI_QR -> "Place Order Directly"
+                                PaymentMethod.SUPERCOINS -> "Confirm with Coins"
+                            }
+                            Text(
+                                text = actionLabel,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                fontSize = 14.sp
+                            )
                         }
-                        Text(
-                            text = actionLabel,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            fontSize = 14.sp
-                        )
                     }
                 }
             }

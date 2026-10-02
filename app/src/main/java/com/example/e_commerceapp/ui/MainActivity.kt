@@ -48,12 +48,17 @@ import androidx.compose.runtime.collectAsState
 import com.example.e_commerceapp.ui.theme.ECommerceAppTheme
 import com.example.e_commerceapp.ui.theme.ThemeManager
 import com.example.e_commerceapp.ui.theme.ThemeMode
+import com.example.e_commerceapp.utils.RazorpayPaymentBridge
+import com.razorpay.Checkout
+import com.razorpay.PaymentData
+import com.razorpay.PaymentResultWithDataListener
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : ComponentActivity(), PaymentResultWithDataListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Checkout.preload(applicationContext)
         ThemeManager.init(this)
         enableEdgeToEdge()
 
@@ -68,6 +73,14 @@ class MainActivity : ComponentActivity() {
                 App()  // Start My App
             }
         }
+    }
+
+    override fun onPaymentSuccess(razorpayPaymentID: String?, paymentData: PaymentData?) {
+        RazorpayPaymentBridge.onPaymentSuccess(razorpayPaymentID, paymentData)
+    }
+
+    override fun onPaymentError(code: Int, response: String?, paymentData: PaymentData?) {
+        RazorpayPaymentBridge.onPaymentError(code, response, paymentData)
     }
 }
 

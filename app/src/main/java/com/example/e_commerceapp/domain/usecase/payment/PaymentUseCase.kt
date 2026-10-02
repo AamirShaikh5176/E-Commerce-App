@@ -32,4 +32,21 @@ class PaymentUseCase @Inject constructor(
     suspend fun clearUserCart() {
         paymentRepository.clearUserCart()
     }
+
+    suspend fun createRazorpayOrder(
+        orderId: String,
+        amount: Double,
+        currency: String = "INR",
+    ): Result<com.example.e_commerceapp.data.dto.payment.RazorpayOrderResponseDto> {
+        return paymentRepository.createRazorpayOrder(orderId, amount, currency)
+    }
+
+    suspend fun verifyRazorpaySignature(
+        orderId: String,
+        razorpayOrderId: String,
+        razorpayPaymentId: String,
+        razorpaySignature: String,
+    ): Result<Boolean> {
+        return paymentRepository.verifyRazorpaySignature(orderId, razorpayOrderId, razorpayPaymentId, razorpaySignature)
+    }
 }

@@ -10,12 +10,17 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import java.util.Locale
 import java.util.UUID
+import com.example.e_commerceapp.data.data_source.remote.api.RazorpayApiService
+import com.example.e_commerceapp.data.dto.payment.CreateRazorpayOrderRequest
+import com.example.e_commerceapp.data.dto.payment.RazorpayOrderResponseDto
+import com.example.e_commerceapp.data.dto.payment.VerifyRazorpaySignatureRequest
 import javax.inject.Inject
 
 class PaymentRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth,
     private val localRepository: LocalRepository,
+    private val razorpayApiService: RazorpayApiService,
 ) : PaymentRepository {
 
     override fun generateUpiIntentUri(
@@ -78,5 +83,43 @@ class PaymentRepositoryImpl @Inject constructor(
 
     override suspend fun clearUserCart() {
         localRepository.clearCart()
+    }
+
+    override suspend fun createRazorpayOrder(
+        orderId: String,
+        amount: Double,
+        currency: String,
+    ): Result<RazorpayOrderResponseDto> = runCatching {
+        val request = CreateRazorpayOrderRequest(orderId = orderId, amount = amount, currency = currency)
+        val response = razorpayApiService.createOrder(request)
+        if (response.isSuccessful && response.body()?.success == true) {
+            response.body()!!
+        } else {
+            val errorMsg = response.body()?.message
+                ?: response.errorBody()?.string()
+                ?: "Failed to create Razorpay order (${response.code()})"
+            throw Exception(errorMsg)
+        }
+    }
+
+    override suspend fun verifyRazorpaySignature(
+        orderId: String,
+        razorpayOrderId: String,
+        razorpayPaymentId: String,
+        razorpaySignature: String,
+    ): Result<Boolean> = runCatching {
+        val request = VerifyRazorpaySignatureRequest(
+            orderId = orderId,
+            razorpayOrderId = razorpayOrderId,
+            razorpayPaymentId = razorpayPaymentId,
+            razorpaySignature = razorpaySignature
+        )
+        val response = razorpayApiService.verifySignature(request)
+        if (response.isSuccessful && response.body()?.verified == true) {
+            true
+        } else {
+            val errorMsg = response.body()?.message ?: "Server-side signature verification failed"
+            throw Exception(errorMsg)
+        }
     }
 }

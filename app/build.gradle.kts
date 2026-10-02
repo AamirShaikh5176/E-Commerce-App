@@ -112,10 +112,8 @@ dependencies {
     // Coil
     implementation(libs.coil.compose)
 
-
-//    implementation(files("libs/Paymob-SDK-1.6.12.aar"))
-
-//    implementation("com.paymob.sdk:Paymob-SDK:1.6.10")
+    // Razorpay Standard Checkout SDK
+    implementation(libs.razorpay.checkout)
 }
 
 

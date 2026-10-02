@@ -15,4 +15,5 @@ object Constants {
     const val DEFAULT_UPI_MERCHANT_VPA = "ecommerce.orders@okaxis"
     const val DEFAULT_UPI_MERCHANT_NAME = "Festive Indian Store"
     const val RAZORPAY_CLIENT_KEY = "rzp_test_indian_ecommerce_pub"
+    const val BACKEND_BASE_URL = "http://127.0.0.1:5000/"
 }

@@ -16,6 +16,12 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.example.e_commerceapp.data.model.supercoins.SuperCoinsWallet
 import com.example.e_commerceapp.domain.repository.SuperCoinsRepository
+import android.app.Activity
+import com.example.e_commerceapp.utils.Constants
+import com.example.e_commerceapp.utils.RazorpayPaymentBridge
+import com.example.e_commerceapp.utils.RazorpayPaymentResult
+import com.razorpay.Checkout
+import org.json.JSONObject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -191,13 +197,162 @@ class PaymentViewModel @Inject constructor(
     }
 
     /**
-     * Online Payment:
-     * Starts with paymentStatus PENDING. Once gateway confirms payment success,
-     * updates to PAID and orderStatus to CONFIRMED.
+     * Razorpay Test Mode Payment:
+     * 1. Requests order creation on trusted backend.
+     * 2. Opens Razorpay Standard Checkout SDK.
+     * 3. On callback, sends signature to backend for cryptographic verification.
+     * 4. Only marks order PAID and awards SuperCoins after backend verification succeeds.
      */
-    fun completeOnlinePayment(orderId: String, gatewayPaymentId: String, totalAmount: Double, deliveryFee: Double = 0.0) {
+    fun initiateRazorpayPayment(
+        activity: Activity,
+        totalAmount: Double,
+        deliveryFee: Double = 0.0
+    ) {
+        val coinsUsed = _coinsToRedeem.value
+        val discountFromCoins = coinsUsed.toDouble()
+        val remainingPayable = (totalAmount - discountFromCoins).coerceAtLeast(0.0)
+        val finalAmount = remainingPayable + deliveryFee
+
+        if (finalAmount <= 0.0) {
+            placeSuperCoinsOnlyOrder(totalAmount, deliveryFee)
+            return
+        }
+
         viewModelScope.launch {
             _orderState.update { it.copy(isLoading = true, errorMessage = null, data = null) }
+            val orderId = "OD" + System.currentTimeMillis().toString().takeLast(9)
+
+            val orderResult = paymentUseCase.createRazorpayOrder(orderId, finalAmount)
+            if (orderResult.isFailure) {
+                val rawMsg = orderResult.exceptionOrNull()?.message.orEmpty()
+                val userMsg = if (rawMsg.contains("Failed to connect", ignoreCase = true) || rawMsg.contains("connect", ignoreCase = true)) {
+                    "Unable to reach payment server. Please ensure the payment backend is running."
+                } else {
+                    rawMsg.ifBlank { "Failed to create payment order" }
+                }
+                _orderState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = userMsg,
+                        data = null
+                    )
+                }
+                return@launch
+            }
+
+            val responseDto = orderResult.getOrThrow()
+            val razorpayOrderId = responseDto.razorpayOrderId.orEmpty()
+            val resolvedKeyId = responseDto.keyId?.ifBlank { Constants.RAZORPAY_CLIENT_KEY }
+                ?: Constants.RAZORPAY_CLIENT_KEY
+
+            RazorpayPaymentBridge.registerListener { paymentResult ->
+                RazorpayPaymentBridge.unregisterListener()
+                when (paymentResult) {
+                    is RazorpayPaymentResult.Success -> {
+                        verifyAndCompleteOnlinePayment(
+                            orderId = orderId,
+                            razorpayOrderId = paymentResult.data.orderId.ifBlank { razorpayOrderId },
+                            gatewayPaymentId = paymentResult.data.paymentId,
+                            signature = paymentResult.data.signature,
+                            totalAmount = totalAmount,
+                            deliveryFee = deliveryFee
+                        )
+                    }
+                    is RazorpayPaymentResult.Error -> {
+                        _orderState.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = paymentResult.message,
+                                data = null
+                            )
+                        }
+                    }
+                }
+            }
+
+            try {
+                val checkout = Checkout()
+                checkout.setKeyID(resolvedKeyId)
+
+                val currentUser = firebaseAuth.currentUser
+                val address = _selectedAddress.value
+
+                val options = JSONObject()
+                options.put("name", "Festive Indian Store")
+                options.put("description", "Order Payment #$orderId")
+                options.put("currency", "INR")
+                options.put("amount", Math.round(finalAmount * 100))
+                if (razorpayOrderId.isNotBlank()) {
+                    options.put("order_id", razorpayOrderId)
+                }
+
+                val prefill = JSONObject()
+                prefill.put("email", currentUser?.email.orEmpty().ifBlank { "customer@example.com" })
+                prefill.put("contact", address?.phoneNumber ?: currentUser?.phoneNumber.orEmpty().ifBlank { "9876543210" })
+                options.put("prefill", prefill)
+
+                val theme = JSONObject()
+                theme.put("color", "#0284C7")
+                options.put("theme", theme)
+
+                val retryObj = JSONObject()
+                retryObj.put("enabled", true)
+                retryObj.put("max_count", 4)
+                options.put("retry", retryObj)
+
+                checkout.open(activity, options)
+            } catch (e: Exception) {
+                RazorpayPaymentBridge.unregisterListener()
+                _orderState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "Failed to launch payment checkout: ${e.message}",
+                        data = null
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Server-side signature verification & order finalization.
+     */
+    fun verifyAndCompleteOnlinePayment(
+        orderId: String,
+        razorpayOrderId: String,
+        gatewayPaymentId: String,
+        signature: String,
+        totalAmount: Double,
+        deliveryFee: Double = 0.0
+    ) {
+        viewModelScope.launch {
+            _orderState.update { it.copy(isLoading = true, errorMessage = null, data = null) }
+
+            // 1. Mandatory server-side cryptographic signature verification
+            val verifyResult = paymentUseCase.verifyRazorpaySignature(
+                orderId = orderId,
+                razorpayOrderId = razorpayOrderId,
+                razorpayPaymentId = gatewayPaymentId,
+                razorpaySignature = signature
+            )
+
+            if (verifyResult.isFailure || verifyResult.getOrNull() != true) {
+                val errorReason = verifyResult.exceptionOrNull()?.message ?: "Payment signature verification failed"
+                _orderState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = if (errorReason.contains("connect", ignoreCase = true)) {
+                            "Unable to reach payment verification server. Please check your connection."
+                        } else {
+                            "Payment verification failed. If money was deducted, it will be refunded automatically."
+                        },
+                        data = null
+                    )
+                }
+                return@launch
+            }
+
+            // 2. Only after server verification succeeds, finalize the order
             val currentUser = firebaseAuth.currentUser
             val userId = currentUser?.uid.orEmpty()
             val address = _selectedAddress.value
@@ -417,5 +572,9 @@ class PaymentViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    fun clearOrderError() {
+        _orderState.update { it.copy(errorMessage = null) }
     }
 }

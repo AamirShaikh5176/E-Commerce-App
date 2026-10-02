@@ -38,4 +38,23 @@ interface PaymentRepository {
      * Clears user cart items after successful checkout.
      */
     suspend fun clearUserCart()
+
+    /**
+     * Requests the trusted backend to create a Razorpay order.
+     */
+    suspend fun createRazorpayOrder(
+        orderId: String,
+        amount: Double,
+        currency: String = "INR",
+    ): Result<com.example.e_commerceapp.data.dto.payment.RazorpayOrderResponseDto>
+
+    /**
+     * Requests the trusted backend to cryptographically verify the Razorpay signature.
+     */
+    suspend fun verifyRazorpaySignature(
+        orderId: String,
+        razorpayOrderId: String,
+        razorpayPaymentId: String,
+        razorpaySignature: String,
+    ): Result<Boolean>
 }

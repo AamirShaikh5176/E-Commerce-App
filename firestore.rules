@@ -99,8 +99,11 @@ service cloud.firestore {
     match /orders/{orderId} {
       allow read: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      // Status updates & reward idempotent tracking allowed for owner or Admin
-      allow update: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
+      // Status updates: Customers CANNOT arbitrarily mark ONLINE orders as PAID (only Admin or trusted server Admin SDK can)
+      allow update: if isAdmin() || (
+        isAuthenticated() && resource.data.userId == request.auth.uid &&
+        !(resource.data.paymentMethod == 'ONLINE' && request.resource.data.paymentStatus == 'PAID' && resource.data.paymentStatus != 'PAID')
+      );
       allow delete: if isAdmin();
     }
   }

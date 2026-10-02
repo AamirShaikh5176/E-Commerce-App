@@ -42,6 +42,17 @@ object NetworkModule {
     fun provideApiService(retrofit: Retrofit): ApiService {
         return retrofit.create(ApiService::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideRazorpayApiService(okHttpClient: OkHttpClient): com.example.e_commerceapp.data.data_source.remote.api.RazorpayApiService {
+        return Retrofit.Builder()
+            .baseUrl(com.example.e_commerceapp.utils.Constants.BACKEND_BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(com.example.e_commerceapp.data.data_source.remote.api.RazorpayApiService::class.java)
+    }
 }
 
 
