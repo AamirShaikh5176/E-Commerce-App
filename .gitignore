@@ -49,6 +49,8 @@ local.properties
 
 secrets.properties
 secrets.gradle
+*rzp*.csv
+serviceAccountKey.json
 
 # ================================
 # Signing / Keystores
