@@ -51,4 +51,10 @@ abstract class RepositoryModule {
     abstract fun bindSuperCoinsRepository(
         repository: com.example.e_commerceapp.data.repository.SuperCoinsRepositoryImpl,
     ): com.example.e_commerceapp.domain.repository.SuperCoinsRepository
+
+    @Binds
+    @ViewModelScoped
+    abstract fun bindWalletRepository(
+        repository: com.example.e_commerceapp.data.repository.WalletRepositoryImpl,
+    ): com.example.e_commerceapp.domain.repository.WalletRepository
 }
