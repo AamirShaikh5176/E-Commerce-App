@@ -807,6 +807,68 @@ fun AdminOrderItemCard(
                 )
             }
 
+            // Order Items List (Product, Category, Quantity, Price for every item)
+            if (order.items.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                HorizontalDivider(color = Color(0xFF334155), thickness = 0.5.dp)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "ORDER ITEMS (${order.items.size})",
+                    color = Color(0xFF94A3B8),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    order.items.forEach { item ->
+                        val productName = item.effectiveProductName
+                        val categoryName = item.effectiveCategoryName.ifBlank { "Uncategorized" }
+                        val itemQuantity = item.quantity
+                        val itemPrice = item.effectiveTotalPrice
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFF0F172A), RoundedCornerShape(8.dp))
+                                .padding(10.dp)
+                        ) {
+                            Text(
+                                text = "Product: $productName",
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Category: $categoryName",
+                                color = Color(0xFF38BDF8),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Quantity: $itemQuantity",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 12.sp
+                                )
+                                Text(
+                                    text = "Price: ${CurrencyUtils.formatInr(itemPrice)}",
+                                    color = Color(0xFFF1F5F9),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // Cancellation / Return Lifecycle Banner
             if (isCancelOrReturnActive) {
                 Spacer(modifier = Modifier.height(10.dp))

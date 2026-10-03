@@ -56,5 +56,7 @@ fun ProductDto.toDetailsProductEntity(): ProductDetailsEntity {
         brand = brand ?: "",
         deliveryDays = 2,
         isCodAvailable = true,
+        categoryId = category.lowercase().replace(" ", "-"),
+        categoryName = category.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() },
     )
 }

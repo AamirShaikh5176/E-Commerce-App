@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.e_commerceapp.data.dto.firestore.FirestoreOrderDto
 import com.example.e_commerceapp.data.dto.firestore.FirestoreOrderItemDto
+import com.example.e_commerceapp.data.dto.firestore.FirestoreProductDto
+import kotlinx.coroutines.tasks.await
 import com.example.e_commerceapp.domain.entity.address.AddressEntity
 import com.example.e_commerceapp.domain.entity.cart.UserCartEntity
 import com.example.e_commerceapp.domain.repository.AddressRepository
@@ -409,15 +411,7 @@ class PaymentViewModel @Inject constructor(
             superCoinsRepository.redeemSuperCoinsForOrder(userId, orderId, coinsUsed)
         }
 
-        val orderItems = _cartList.value.map {
-            FirestoreOrderItemDto(
-                productId = it.productId,
-                title = it.title,
-                price = it.price,
-                quantity = it.quantity,
-                imageUrl = it.image
-            )
-        }
+        val orderItems = buildOrderItems()
 
         val orderDto = FirestoreOrderDto(
             orderId = orderId,
@@ -669,15 +663,7 @@ class PaymentViewModel @Inject constructor(
                 }
             }
 
-            val orderItems = _cartList.value.map {
-                FirestoreOrderItemDto(
-                    productId = it.productId,
-                    title = it.title,
-                    price = it.price,
-                    quantity = it.quantity,
-                    imageUrl = it.image
-                )
-            }
+            val orderItems = buildOrderItems()
 
             val orderDto = FirestoreOrderDto(
                 orderId = orderId,
@@ -789,15 +775,7 @@ class PaymentViewModel @Inject constructor(
                 }
             }
 
-            val orderItems = _cartList.value.map {
-                FirestoreOrderItemDto(
-                    productId = it.productId,
-                    title = it.title,
-                    price = it.price,
-                    quantity = it.quantity,
-                    imageUrl = it.image
-                )
-            }
+            val orderItems = buildOrderItems()
 
             val orderDto = FirestoreOrderDto(
                 orderId = orderId,
@@ -858,6 +836,52 @@ class PaymentViewModel @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    private suspend fun buildOrderItems(): List<FirestoreOrderItemDto> {
+        return _cartList.value.map { item ->
+            var catId = item.categoryId
+            var catName = item.categoryName
+
+            // If category wasn't captured previously (e.g. legacy cart item), resolve from product catalog
+            if (catId.isBlank() || catName.isBlank()) {
+                try {
+                    val doc = firestore.collection("products").document(item.productId).get().await()
+                    if (doc.exists()) {
+                        val pDto = doc.toObject(FirestoreProductDto::class.java)
+                        if (pDto != null) {
+                            if (catId.isBlank()) catId = pDto.categoryId
+                            if (catName.isBlank()) catName = pDto.categoryName
+                        }
+                    }
+                } catch (_: Exception) {}
+
+                if (catName.isBlank()) {
+                    val demoItem = com.example.e_commerceapp.data.demo.DemoCatalogData.demoProducts.find { it.id == item.productId }
+                    if (demoItem != null) {
+                        if (catId.isBlank()) catId = demoItem.categoryId
+                        if (catName.isBlank()) catName = demoItem.categoryName
+                    }
+                }
+            }
+
+            val prodName = item.title.ifBlank { "Product" }
+            val unitPrice = item.price
+            val totalPrice = item.price * item.quantity
+
+            FirestoreOrderItemDto(
+                productId = item.productId,
+                productName = prodName,
+                categoryId = catId,
+                categoryName = catName,
+                quantity = item.quantity,
+                unitPrice = unitPrice,
+                totalPrice = totalPrice,
+                title = prodName,
+                price = unitPrice,
+                imageUrl = item.image
+            )
         }
     }
 

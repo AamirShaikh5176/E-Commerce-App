@@ -18,4 +18,6 @@ data class UserCartEntity(
     @ColumnInfo(name = "product_availableQuantity") val availableQuantity: Int = 0,
     @ColumnInfo(name = "product_quantity") val quantity: Int = 1,
     @ColumnInfo(name = "product_image") val image: String = "",
+    @ColumnInfo(name = "category_id") val categoryId: String = "",
+    @ColumnInfo(name = "category_name") val categoryName: String = "",
 )

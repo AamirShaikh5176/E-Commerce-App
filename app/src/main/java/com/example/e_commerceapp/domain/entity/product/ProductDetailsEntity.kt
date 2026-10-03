@@ -18,4 +18,6 @@ data class ProductDetailsEntity(
     val isCodAvailable: Boolean = true,
     val isFavorite: Boolean = false,
     val isAddedToCart: Boolean = false,
+    val categoryId: String = "",
+    val categoryName: String = "",
 )

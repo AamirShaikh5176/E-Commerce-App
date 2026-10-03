@@ -69,26 +69,27 @@ fun AdminDashboardScreen(
     onNavigateToCancelledOrders: () -> Unit,
     onNavigateToUsers: () -> Unit,
 ) {
-    // Intercept back button: In admin dashboard, screen should NOT change on back button until logout
+    var showLogoutDialog by remember { mutableStateOf(false) }
+
+    // Intercept back button: In admin dashboard, pressing back prompts to exit and log out
     BackHandler(enabled = true) {
-        // Do nothing to prevent backing out to guest ecommerce
+        showLogoutDialog = true
     }
 
     val metrics by viewModel.metrics.collectAsStateWithLifecycle()
     val orders by viewModel.orders.collectAsStateWithLifecycle()
     val opStatus by viewModel.opStatus.collectAsStateWithLifecycle()
-    var showLogoutDialog by remember { mutableStateOf(false) }
 
-    // Logout confirmation dialog
+    // Exit / Logout confirmation dialog
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
             title = {
-                Text("Logout Admin Session", color = Color.White, fontWeight = FontWeight.Bold)
+                Text("Exit Admin Console", color = Color.White, fontWeight = FontWeight.Bold)
             },
             text = {
                 Text(
-                    "This will sign you out from the admin panel and return to the customer store.",
+                    "Exiting will log out your admin session and return to the customer store.",
                     color = Color(0xFF94A3B8)
                 )
             },
@@ -100,7 +101,7 @@ fun AdminDashboardScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
                 ) {
-                    Text("Logout & Exit", color = Color.White)
+                    Text("Exit & Log Out", color = Color.White)
                 }
             },
             dismissButton = {
@@ -115,6 +116,15 @@ fun AdminDashboardScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                navigationIcon = {
+                    IconButton(onClick = { showLogoutDialog = true }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Exit Admin Console",
+                            tint = Color.White
+                        )
+                    }
+                },
                 title = {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {

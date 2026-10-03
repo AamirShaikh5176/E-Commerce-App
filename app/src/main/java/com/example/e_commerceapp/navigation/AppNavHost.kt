@@ -510,7 +510,7 @@ fun AppNavHost(
                 AdminDashboardScreen(
                     onLogout = {
                         AuthUtils.logout(context)
-                        navController.navigate(AdminLoginDestination.route) {
+                        navController.navigate(HomeScreen.route) {
                             popUpTo(0) { inclusive = true }
                         }
                     },
