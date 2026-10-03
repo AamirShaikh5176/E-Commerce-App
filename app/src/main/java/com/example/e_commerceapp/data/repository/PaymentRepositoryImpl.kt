@@ -95,7 +95,7 @@ class PaymentRepositoryImpl @Inject constructor(
         if (response.isSuccessful && response.body()?.success == true) {
             response.body()!!
         } else {
-            val errorMsg = response.body()?.message
+            val rawMsg = response.body()?.message
                 ?: try {
                     val raw = response.errorBody()?.string().orEmpty()
                     if (raw.contains("\"message\":")) {
@@ -106,7 +106,15 @@ class PaymentRepositoryImpl @Inject constructor(
                 } catch (e: Exception) {
                     "Online payment is temporarily unavailable. Please try again."
                 }
-            throw Exception(errorMsg)
+            val sanitizedMsg = if (rawMsg.contains("Authentication failed", ignoreCase = true) ||
+                rawMsg.contains("BAD_REQUEST_ERROR", ignoreCase = true) ||
+                rawMsg.trim().startsWith("{")
+            ) {
+                "Online payment is temporarily unavailable. Please try again."
+            } else {
+                rawMsg
+            }
+            throw Exception(sanitizedMsg)
         }
     }
 
@@ -126,8 +134,13 @@ class PaymentRepositoryImpl @Inject constructor(
         if (response.isSuccessful && response.body()?.verified == true) {
             true
         } else {
-            val errorMsg = response.body()?.message ?: "Server-side signature verification failed"
-            throw Exception(errorMsg)
+            val errorMsg = response.body()?.message ?: "Payment could not be verified. No amount was charged."
+            val sanitized = if (errorMsg.contains("signature", ignoreCase = true) || errorMsg.contains("mismatch", ignoreCase = true)) {
+                "Payment could not be verified. No amount was charged."
+            } else {
+                errorMsg
+            }
+            throw Exception(sanitized)
         }
     }
 }

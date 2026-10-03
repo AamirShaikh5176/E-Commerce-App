@@ -159,6 +159,21 @@ class WalletRepositoryImpl @Inject constructor(
         runCatching {
             if (userId.isBlank() || amount <= 0.0) return@runCatching 0.0
 
+            try {
+                val apiResp = walletApiService.deductForOrder(
+                    com.example.e_commerceapp.data.data_source.remote.api.WalletDeductOrderRequest(
+                        userId = userId,
+                        orderId = orderId,
+                        amount = amount
+                    )
+                )
+                if (apiResp.isSuccessful && apiResp.body()?.success == true) {
+                    return@runCatching apiResp.body()!!.deducted
+                }
+            } catch (e: Exception) {
+                // If network/offline, fallback to atomic Firestore transaction below
+            }
+
             val walletDocRef = getWalletDocRef(userId)
             val txnCollectionRef = getTransactionsCollectionRef(userId)
 

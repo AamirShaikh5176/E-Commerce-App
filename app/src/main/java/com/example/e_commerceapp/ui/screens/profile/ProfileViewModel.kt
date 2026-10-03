@@ -28,6 +28,7 @@ class ProfileViewModel @Inject constructor(
     private val firestoreCatalogDataSource: FirestoreCatalogDataSource,
     private val firebaseAuth: FirebaseAuth,
     private val superCoinsRepository: com.example.e_commerceapp.domain.repository.SuperCoinsRepository,
+    private val walletRepository: com.example.e_commerceapp.domain.repository.WalletRepository,
 ) : ViewModel() {
 
     private val _profileState = MutableStateFlow(ScreenState<UserInformationEntity>())
@@ -51,9 +52,13 @@ class ProfileViewModel @Inject constructor(
     private val _superCoinsBalance = MutableStateFlow(0L)
     val superCoinsBalance: StateFlow<Long> = _superCoinsBalance.asStateFlow()
 
+    private val _walletBalance = MutableStateFlow(0.0)
+    val walletBalance: StateFlow<Double> = _walletBalance.asStateFlow()
+
     private var ordersJob: Job? = null
     private var wishlistJob: Job? = null
     private var superCoinsJob: Job? = null
+    private var walletJob: Job? = null
 
     init {
         refreshProfileData()
@@ -70,12 +75,25 @@ class ProfileViewModel @Inject constructor(
             getUserInformation(userId)
             observeOrderCount(userId)
             observeSuperCoins(userId)
+            observeWallet(userId)
         } else {
             _orderCountState.update { 0 }
             _superCoinsBalance.update { 0L }
+            _walletBalance.update { 0.0 }
         }
         observeWishlistCount()
         checkAdminStatus()
+    }
+
+    private fun observeWallet(userId: String) {
+        walletJob?.cancel()
+        walletJob = viewModelScope.launch {
+            walletRepository.getBalanceFlow(userId)
+                .catch { _walletBalance.update { 0.0 } }
+                .collect { wallet ->
+                    _walletBalance.update { wallet.balance }
+                }
+        }
     }
 
     private fun observeSuperCoins(userId: String) {

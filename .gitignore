@@ -100,3 +100,9 @@ Thumbs.db
 # Node.js
 # ================================
 node_modules/
+
+# ================================
+# Executables / Binaries
+# ================================
+*.exe
+cloudflared.exe

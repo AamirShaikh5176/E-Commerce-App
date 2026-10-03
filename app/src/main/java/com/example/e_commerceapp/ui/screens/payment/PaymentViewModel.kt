@@ -22,6 +22,7 @@ import com.example.e_commerceapp.utils.RazorpayPaymentBridge
 import com.example.e_commerceapp.utils.RazorpayPaymentResult
 import com.razorpay.Checkout
 import org.json.JSONObject
+import com.example.e_commerceapp.domain.repository.WalletRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -47,6 +48,7 @@ class PaymentViewModel @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
     private val superCoinsRepository: SuperCoinsRepository,
+    private val walletRepository: WalletRepository,
 ) : ViewModel() {
 
     private val _cartList = MutableStateFlow<List<UserCartEntity>>(emptyList())
@@ -73,11 +75,26 @@ class PaymentViewModel @Inject constructor(
     private val _coinsToRedeem = MutableStateFlow(0L)
     val coinsToRedeem: StateFlow<Long> = _coinsToRedeem.asStateFlow()
 
+    private val _walletBalance = MutableStateFlow(0.0)
+    val walletBalance: StateFlow<Double> = _walletBalance.asStateFlow()
+
     init {
         loadCartItems()
         loadDefaultAddress()
         loadUpiQrConfig()
         loadSuperCoinsWallet()
+        loadWalletBalance()
+    }
+
+    private fun loadWalletBalance() {
+        val uid = firebaseAuth.currentUser?.uid.orEmpty()
+        if (uid.isNotBlank()) {
+            viewModelScope.launch {
+                walletRepository.getBalanceFlow(uid).collect { wallet ->
+                    _walletBalance.value = wallet.balance
+                }
+            }
+        }
     }
 
     private fun loadSuperCoinsWallet() {
@@ -184,16 +201,324 @@ class PaymentViewModel @Inject constructor(
 
     /**
      * Configurable Personal UPI QR:
+     * Marked as PENDING_VERIFICATION until manual admin verification.
+     * Never auto-confirms or auto-awards SuperCoins.
      */
     fun placeUpiQrOrder(totalAmount: Double, upiRef: String = "", deliveryFee: Double = 0.0) {
         placeOrderInternal(
             method = PaymentMethod.UPI_QR,
-            paymentStatus = "PAID",
-            orderStatus = "CONFIRMED",
+            paymentStatus = "PENDING_VERIFICATION",
+            orderStatus = "PENDING_VERIFICATION",
             totalAmount = totalAmount,
             deliveryFee = deliveryFee,
-            paymentReference = upiRef.ifBlank { "UPI_GPay_8265085176" }
+            paymentReference = upiRef.ifBlank { "UPI_MANUAL_VERIFICATION" }
         )
+    }
+
+    /**
+     * Wallet Payment:
+     * - Full Wallet: If balance >= amount, deducts atomically via server and completes order.
+     * - Partial Wallet + Razorpay: If 0 < balance < amount, deducts available wallet + launches Razorpay for remainder.
+     */
+    fun payWithWallet(
+        activity: Activity?,
+        totalAmount: Double,
+        deliveryFee: Double = 0.0
+    ) {
+        val coinsUsed = _coinsToRedeem.value
+        val discountFromCoins = coinsUsed.toDouble()
+        val remainingPayable = (totalAmount - discountFromCoins).coerceAtLeast(0.0)
+        val finalAmount = remainingPayable + deliveryFee
+
+        if (finalAmount <= 0.0) {
+            placeSuperCoinsOnlyOrder(totalAmount, deliveryFee)
+            return
+        }
+
+        val currentUser = firebaseAuth.currentUser
+        val userId = currentUser?.uid.orEmpty()
+        if (userId.isBlank()) {
+            _orderState.update { it.copy(errorMessage = "Please login to complete wallet payment") }
+            return
+        }
+
+        val available = _walletBalance.value
+        if (available <= 0.0) {
+            _orderState.update {
+                it.copy(errorMessage = "Your wallet balance is ₹0.00. Please add money in Profile or choose another payment method.")
+            }
+            return
+        }
+
+        if (available >= finalAmount) {
+            // Full Wallet Payment
+            viewModelScope.launch {
+                _orderState.update { it.copy(isLoading = true, errorMessage = null, data = null) }
+                val orderId = "OD" + System.currentTimeMillis().toString().takeLast(9)
+
+                val deductResult = walletRepository.deductForOrder(userId, orderId, finalAmount)
+                if (deductResult.isFailure) {
+                    _orderState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = deductResult.exceptionOrNull()?.message ?: "Wallet payment could not be processed",
+                            data = null
+                        )
+                    }
+                    return@launch
+                }
+
+                finalizeWalletOrder(
+                    orderId = orderId,
+                    userId = userId,
+                    method = PaymentMethod.WALLET,
+                    totalAmount = totalAmount,
+                    coinsUsed = coinsUsed,
+                    discountFromCoins = discountFromCoins,
+                    deliveryFee = deliveryFee,
+                    finalAmount = finalAmount,
+                    gateway = "Wallet",
+                    paymentRef = "WALLET_INR"
+                )
+            }
+        } else {
+            // Partial Wallet + Razorpay Split
+            if (activity == null) {
+                _orderState.update { it.copy(errorMessage = "Unable to launch checkout. Please try again.") }
+                return
+            }
+            val walletPart = available
+            val razorpayPart = finalAmount - walletPart
+
+            viewModelScope.launch {
+                _orderState.update { it.copy(isLoading = true, errorMessage = null, data = null) }
+                val orderId = "OD" + System.currentTimeMillis().toString().takeLast(9)
+
+                val orderResult = paymentUseCase.createRazorpayOrder(orderId, razorpayPart)
+                if (orderResult.isFailure) {
+                    _orderState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = "Online payment is temporarily unavailable. Please try again.",
+                            data = null
+                        )
+                    }
+                    return@launch
+                }
+
+                val responseDto = orderResult.getOrThrow()
+                val razorpayOrderId = responseDto.razorpayOrderId.orEmpty()
+                val resolvedKeyId = responseDto.keyId?.ifBlank { Constants.RAZORPAY_CLIENT_KEY }
+                    ?: Constants.RAZORPAY_CLIENT_KEY
+
+                RazorpayPaymentBridge.registerListener { paymentResult ->
+                    RazorpayPaymentBridge.unregisterListener()
+                    when (paymentResult) {
+                        is RazorpayPaymentResult.Success -> {
+                            verifyAndCompleteSplitPayment(
+                                orderId = orderId,
+                                razorpayOrderId = paymentResult.data.orderId.ifBlank { razorpayOrderId },
+                                gatewayPaymentId = paymentResult.data.paymentId,
+                                signature = paymentResult.data.signature,
+                                totalAmount = totalAmount,
+                                deliveryFee = deliveryFee,
+                                walletAmountToDeduct = walletPart,
+                                razorpayPaidAmount = razorpayPart
+                            )
+                        }
+                        is RazorpayPaymentResult.Error -> {
+                            _orderState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    errorMessage = paymentResult.message,
+                                    data = null
+                                )
+                            }
+                        }
+                    }
+                }
+
+                try {
+                    val checkout = Checkout()
+                    checkout.setKeyID(resolvedKeyId)
+                    val address = _selectedAddress.value
+
+                    val options = JSONObject()
+                    options.put("name", "BazaarGo")
+                    options.put("description", "Wallet + Razorpay Order #$orderId")
+                    options.put("currency", "INR")
+                    options.put("amount", Math.round(razorpayPart * 100))
+                    if (razorpayOrderId.isNotBlank()) {
+                        options.put("order_id", razorpayOrderId)
+                    }
+
+                    val prefill = JSONObject()
+                    prefill.put("email", currentUser?.email.orEmpty().ifBlank { "customer@example.com" })
+                    prefill.put("contact", address?.phoneNumber ?: currentUser?.phoneNumber.orEmpty().ifBlank { "9876543210" })
+                    options.put("prefill", prefill)
+
+                    val theme = JSONObject()
+                    theme.put("color", "#0284C7")
+                    options.put("theme", theme)
+
+                    checkout.open(activity, options)
+                } catch (e: Exception) {
+                    RazorpayPaymentBridge.unregisterListener()
+                    _orderState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = "Failed to launch payment checkout: ${e.message}",
+                            data = null
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun verifyAndCompleteSplitPayment(
+        orderId: String,
+        razorpayOrderId: String,
+        gatewayPaymentId: String,
+        signature: String,
+        totalAmount: Double,
+        deliveryFee: Double,
+        walletAmountToDeduct: Double,
+        razorpayPaidAmount: Double
+    ) {
+        viewModelScope.launch {
+            _orderState.update { it.copy(isLoading = true, errorMessage = null, data = null) }
+
+            val verifyResult = paymentUseCase.verifyRazorpaySignature(
+                orderId = orderId,
+                razorpayOrderId = razorpayOrderId,
+                razorpayPaymentId = gatewayPaymentId,
+                razorpaySignature = signature
+            )
+
+            if (verifyResult.isFailure || verifyResult.getOrNull() != true) {
+                _orderState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "Payment verification failed. No amount was charged.",
+                        data = null
+                    )
+                }
+                return@launch
+            }
+
+            val currentUser = firebaseAuth.currentUser
+            val userId = currentUser?.uid.orEmpty()
+            if (walletAmountToDeduct > 0.0 && userId.isNotBlank()) {
+                walletRepository.deductForOrder(userId, orderId, walletAmountToDeduct)
+            }
+
+            val coinsUsed = _coinsToRedeem.value
+            val discountFromCoins = coinsUsed.toDouble()
+            finalizeWalletOrder(
+                orderId = orderId,
+                userId = userId,
+                method = PaymentMethod.WALLET,
+                totalAmount = totalAmount,
+                coinsUsed = coinsUsed,
+                discountFromCoins = discountFromCoins,
+                deliveryFee = deliveryFee,
+                finalAmount = walletAmountToDeduct + razorpayPaidAmount,
+                gateway = "Wallet + Razorpay",
+                paymentRef = "RZP: $gatewayPaymentId, WLT: ₹$walletAmountToDeduct"
+            )
+        }
+    }
+
+    private suspend fun finalizeWalletOrder(
+        orderId: String,
+        userId: String,
+        method: PaymentMethod,
+        totalAmount: Double,
+        coinsUsed: Long,
+        discountFromCoins: Double,
+        deliveryFee: Double,
+        finalAmount: Double,
+        gateway: String,
+        paymentRef: String
+    ) {
+        val currentUser = firebaseAuth.currentUser
+        val address = _selectedAddress.value
+        val addressSummary = if (address != null) {
+            "${address.houseFlatNumber}, ${address.streetArea}, ${address.city} - ${address.pinCode}"
+        } else {
+            "Standard Delivery Address"
+        }
+
+        if (coinsUsed > 0 && userId.isNotBlank()) {
+            superCoinsRepository.redeemSuperCoinsForOrder(userId, orderId, coinsUsed)
+        }
+
+        val orderItems = _cartList.value.map {
+            FirestoreOrderItemDto(
+                productId = it.productId,
+                title = it.title,
+                price = it.price,
+                quantity = it.quantity,
+                imageUrl = it.image
+            )
+        }
+
+        val orderDto = FirestoreOrderDto(
+            orderId = orderId,
+            userId = userId,
+            customerName = address?.fullName ?: currentUser?.displayName ?: "Customer",
+            customerPhone = address?.phoneNumber ?: currentUser?.phoneNumber ?: "",
+            customerEmail = currentUser?.email.orEmpty(),
+            shippingAddress = addressSummary,
+            items = orderItems,
+            itemsTotal = totalAmount,
+            discountTotal = discountFromCoins,
+            deliveryFee = deliveryFee,
+            finalTotal = finalAmount,
+            currency = "INR",
+            paymentMethod = method.name,
+            paymentStatus = "PAID",
+            orderStatus = "CONFIRMED",
+            gateway = gateway,
+            gatewayPaymentId = paymentRef,
+            paymentReference = paymentRef,
+            itemsCount = orderItems.sumOf { it.quantity }.coerceAtLeast(1),
+            createdAt = System.currentTimeMillis(),
+            updatedAt = System.currentTimeMillis(),
+            courierPartner = "BlueDart Express",
+            superCoinsRedeemed = coinsUsed,
+        )
+
+        val result = paymentUseCase.placeOrder(orderDto)
+        if (result.isSuccess) {
+            if (userId.isNotBlank()) {
+                superCoinsRepository.awardOrderRewardIfEligible(orderId, userId)
+            }
+            paymentUseCase.clearUserCart()
+            _orderState.update {
+                it.copy(
+                    isLoading = false,
+                    errorMessage = null,
+                    data = OrderSuccessData(
+                        orderId = orderId,
+                        totalAmount = finalAmount,
+                        paymentMethod = method,
+                        paymentStatus = "PAID",
+                        customerName = orderDto.customerName,
+                        addressSummary = addressSummary
+                    )
+                )
+            }
+        } else {
+            _orderState.update {
+                it.copy(
+                    isLoading = false,
+                    errorMessage = result.exceptionOrNull()?.message ?: "Failed to save order",
+                    data = null
+                )
+            }
+        }
     }
 
     /**

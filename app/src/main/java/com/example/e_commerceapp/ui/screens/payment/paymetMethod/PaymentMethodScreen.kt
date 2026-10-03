@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.LocalAtm
@@ -98,6 +99,7 @@ fun PaymentMethodScreen(
     val orderState by viewModel.orderState.collectAsStateWithLifecycle()
     val upiQrConfig by viewModel.upiQrConfig.collectAsStateWithLifecycle()
     val superCoinsWallet by viewModel.superCoinsWallet.collectAsStateWithLifecycle()
+    val walletBalance by viewModel.walletBalance.collectAsStateWithLifecycle()
     val useSuperCoins by viewModel.useSuperCoins.collectAsStateWithLifecycle()
     val coinsToRedeem by viewModel.coinsToRedeem.collectAsStateWithLifecycle()
 
@@ -354,6 +356,52 @@ fun PaymentMethodScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                // 0. BazaarGo Wallet
+                IndianPaymentOptionCard(
+                    title = "BazaarGo Wallet",
+                    subtitle = "Available: ₹${String.format(java.util.Locale.US, "%.2f", walletBalance)}",
+                    icon = Icons.Default.AccountBalanceWallet,
+                    isSelected = selectedMethod == PaymentMethod.WALLET,
+                    onClick = { viewModel.selectPaymentMethod(PaymentMethod.WALLET) }
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (walletBalance >= effectivePayable) Color(0xFFF0FDF4) else Color(0xFFEFF6FF),
+                        border = BorderStroke(1.dp, if (walletBalance >= effectivePayable) Color(0xFFDCFCE7) else Color(0xFFDBEAFE)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            if (walletBalance >= effectivePayable) {
+                                Text(
+                                    text = "✅ Full Payment: ₹${CurrencyUtils.formatInr(effectivePayable).replace("₹", "")} will be deducted from your wallet balance.",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF15803D)
+                                )
+                            } else if (walletBalance > 0.0) {
+                                val remaining = effectivePayable - walletBalance
+                                Text(
+                                    text = "💡 Split Payment: ₹${String.format(java.util.Locale.US, "%.2f", walletBalance)} from Wallet + ₹${String.format(java.util.Locale.US, "%.2f", remaining)} via Razorpay online payment.",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF1D4ED8)
+                                )
+                            } else {
+                                Text(
+                                    text = "⚠️ Wallet balance is ₹0.00. You can top up your wallet in Profile or choose Razorpay / COD below.",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFFDC2626)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
                 // 1. Cash on Delivery (COD)
                 IndianPaymentOptionCard(
                     title = "Cash on Delivery (COD)",
@@ -571,22 +619,6 @@ fun PaymentMethodScreen(
                             Text("Pay via Google Pay / Any UPI App", fontWeight = FontWeight.Bold, color = Color(0xFF0284C7))
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // Direct Place Order button inside QR section
-                        Button(
-                            onClick = {
-                                viewModel.placeUpiQrOrder(parsedPrice, upiRefInput.trim())
-                            },
-                            modifier = Modifier.fillMaxWidth().height(46.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A))
-                        ) {
-                            Text("I've Paid — Place Order Directly 🎉", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 14.sp)
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
                         // Optional UTR Reference Field
                         OutlinedTextField(
                             value = upiRefInput,
@@ -610,7 +642,7 @@ fun PaymentMethodScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "✅ Complete payment on Google Pay or any UPI app, then tap 'Place Order' to directly place your order.",
+                                text = "💡 Scan the QR above with any UPI app and complete payment. Enter your UPI Reference / UTR Number above, then tap 'Submit Payment for Verification' below. Your order will be confirmed upon admin verification.",
                                 fontSize = 11.sp,
                                 color = Color(0xFF166534),
                                 modifier = Modifier.padding(8.dp)
@@ -708,6 +740,10 @@ fun PaymentMethodScreen(
                                 PaymentMethod.COD -> {
                                     viewModel.placeCodOrder(parsedPrice)
                                 }
+                                PaymentMethod.WALLET -> {
+                                    val activity = context as? Activity
+                                    viewModel.payWithWallet(activity, parsedPrice)
+                                }
                                 PaymentMethod.ONLINE -> {
                                     val activity = context as? Activity
                                     if (activity != null) {
@@ -730,6 +766,7 @@ fun PaymentMethodScreen(
                         colors = ButtonDefaults.buttonColors(
                             containerColor = when (selectedMethod) {
                                 PaymentMethod.COD -> Color(0xFF16A34A)
+                                PaymentMethod.WALLET -> Color(0xFF0D9488)
                                 PaymentMethod.ONLINE -> Color(0xFF0284C7)
                                 PaymentMethod.UPI_QR -> Color(0xFF7C3AED)
                                 PaymentMethod.SUPERCOINS -> Color(0xFFD97706)
@@ -744,7 +781,7 @@ fun PaymentMethodScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = if (selectedMethod == PaymentMethod.ONLINE) "Connecting..." else "Placing...",
+                                text = if (selectedMethod == PaymentMethod.ONLINE || selectedMethod == PaymentMethod.WALLET) "Connecting..." else "Placing...",
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
                                 fontSize = 14.sp
@@ -752,8 +789,9 @@ fun PaymentMethodScreen(
                         } else {
                             val actionLabel = when (selectedMethod) {
                                 PaymentMethod.COD -> "Place COD Order"
+                                PaymentMethod.WALLET -> if (walletBalance >= effectivePayable) "Pay with Wallet  ➔" else "Pay with Wallet + Razorpay  ➔"
                                 PaymentMethod.ONLINE -> "Pay Online  ➔"
-                                PaymentMethod.UPI_QR -> "Place Order Directly"
+                                PaymentMethod.UPI_QR -> "Submit Payment for Verification"
                                 PaymentMethod.SUPERCOINS -> "Confirm with Coins"
                             }
                             Text(

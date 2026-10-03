@@ -185,19 +185,28 @@ fun AddressSelectionScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
-                    Text(
-                        text = if (isCheckoutMode) "Select Delivery Address" else "Delivery Addresses",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp,
-                        color = Color(0xFF1E293B)
-                    )
-                    Spacer(modifier = Modifier.height(3.dp))
-                    Text(
-                        text = if (isCheckoutMode) "Step 1 of 2 • Checkout" else "Manage your saved addresses",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF64748B)
-                    )
+                    if (isCheckoutMode) {
+                        Text(
+                            text = "Select Delivery Address",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp,
+                            color = Color(0xFF1E293B)
+                        )
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(
+                            text = "Step 1 of 2 • Checkout",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF64748B)
+                        )
+                    } else {
+                        Text(
+                            text = "Manage your saved addresses",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF64748B)
+                        )
+                    }
                 }
 
                 if (state.isLoading) {

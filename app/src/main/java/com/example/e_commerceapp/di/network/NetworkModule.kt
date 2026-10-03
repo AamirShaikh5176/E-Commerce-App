@@ -49,19 +49,24 @@ object NetworkModule {
                 val request = chain.request()
                 val originalUrl = request.url
 
-                val candidateUrls = mutableListOf(originalUrl)
-                if (originalUrl.host != "10.111.231.179") {
-                    candidateUrls.add(originalUrl.newBuilder().scheme("http").host("10.111.231.179").port(5000).build())
+                // Always try the configured live HTTPS endpoint first
+                try {
+                    val response = chain.proceed(request)
+                    if (response.code != 404 && response.code != 502) {
+                        return@addInterceptor response
+                    }
+                } catch (e: java.io.IOException) {
+                    // If unreachable, try local dev fallbacks only if not on HTTPS
                 }
-                if (originalUrl.host != "10.0.2.2") {
-                    candidateUrls.add(originalUrl.newBuilder().scheme("http").host("10.0.2.2").port(5000).build())
-                }
-                if (originalUrl.host != "127.0.0.1") {
-                    candidateUrls.add(originalUrl.newBuilder().scheme("http").host("127.0.0.1").port(5000).build())
+
+                val fallbackCandidates = mutableListOf<okhttp3.HttpUrl>()
+                if (originalUrl.scheme != "https") {
+                    fallbackCandidates.add(originalUrl.newBuilder().scheme("http").host("10.0.2.2").port(5000).build())
+                    fallbackCandidates.add(originalUrl.newBuilder().scheme("http").host("127.0.0.1").port(5000).build())
                 }
 
                 var lastException: java.io.IOException? = null
-                for (targetUrl in candidateUrls) {
+                for (targetUrl in fallbackCandidates) {
                     val newRequest = request.newBuilder().url(targetUrl).build()
                     try {
                         val response = chain.proceed(newRequest)
@@ -74,8 +79,8 @@ object NetworkModule {
                 }
                 throw lastException ?: java.io.IOException("Unable to reach payment server")
             }
-            .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
             .build()
     }
 

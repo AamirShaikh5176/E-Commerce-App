@@ -37,6 +37,7 @@ import com.example.e_commerceapp.ui.screens.orders.OrderDetailsScreen
 import com.example.e_commerceapp.ui.screens.settings.SettingsScreen
 import com.example.e_commerceapp.ui.screens.support.HelpSupportScreen
 import com.example.e_commerceapp.ui.screens.supercoins.SuperCoinsScreen
+import com.example.e_commerceapp.ui.screens.wallet.WalletScreen
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -329,6 +330,13 @@ fun AppNavHost(
                 },
                 onNavigateToSuperCoins = {
                     navController.navigate(SuperCoinsDestination.route)
+                },
+                onNavigateToWallet = {
+                    if (!AuthUtils.isAuthenticated(context)) {
+                        navController.navigate(SignInScreen.route)
+                    } else {
+                        navController.navigate(WalletDestination.route)
+                    }
                 }
             )
         }
@@ -593,6 +601,12 @@ fun AppNavHost(
 
         composable(SuperCoinsDestination.route) {
             SuperCoinsScreen(
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(WalletDestination.route) {
+            WalletScreen(
                 onBackClick = { navController.popBackStack() }
             )
         }

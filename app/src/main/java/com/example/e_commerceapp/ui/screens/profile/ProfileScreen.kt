@@ -95,6 +95,7 @@ fun ProfileScreen(
     onNavigateToAdminLogin: () -> Unit = {},
     onNavigateToLogin: () -> Unit = {},
     onNavigateToSuperCoins: () -> Unit = {},
+    onNavigateToWallet: () -> Unit = {},
     logout: () -> Unit,
 ) {
     val profileState by viewModel.profileState.collectAsStateWithLifecycle()
@@ -103,6 +104,7 @@ fun ProfileScreen(
     val wishlistCount by viewModel.wishlistCountState.collectAsStateWithLifecycle()
     val couponCount by viewModel.couponCountState.collectAsStateWithLifecycle()
     val superCoinsBalance by viewModel.superCoinsBalance.collectAsStateWithLifecycle()
+    val walletBalance by viewModel.walletBalance.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val currentFirebaseUser = FirebaseAuth.getInstance().currentUser
     val isGuest = !com.example.e_commerceapp.utils.AuthUtils.isAuthenticated(context)
@@ -197,6 +199,7 @@ fun ProfileScreen(
             wishlistCount = wishlistCount,
             couponCount = couponCount,
             superCoinsBalance = superCoinsBalance,
+            walletBalance = walletBalance,
             onBackClick = onBackClick,
             onSettings = onSettings,
             onOpenThemeDialog = { showThemeDialog = true },
@@ -207,6 +210,7 @@ fun ProfileScreen(
             onNavigateToHelpSupport = onNavigateToHelpSupport,
             onCouponsClick = { showCouponDialog = true },
             onNavigateToSuperCoins = onNavigateToSuperCoins,
+            onNavigateToWallet = onNavigateToWallet,
             onNavigateToAdmin = onNavigateToAdmin,
             onLogout = {
                 logout()
@@ -367,6 +371,7 @@ fun ProfileScreenContent(
     wishlistCount: Int = 0,
     couponCount: Int = 0,
     superCoinsBalance: Long = 0L,
+    walletBalance: Double = 0.0,
     onBackClick: () -> Unit,
     onSettings: () -> Unit,
     onOpenThemeDialog: () -> Unit,
@@ -377,6 +382,7 @@ fun ProfileScreenContent(
     onNavigateToHelpSupport: () -> Unit = {},
     onCouponsClick: () -> Unit = {},
     onNavigateToSuperCoins: () -> Unit = {},
+    onNavigateToWallet: () -> Unit = {},
     onNavigateToAdmin: () -> Unit = {},
     onLogout: () -> Unit,
 ) {
@@ -452,7 +458,15 @@ fun ProfileScreenContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // SuperCoins Card displaying authoritative Firebase balance
+        // 1. BazaarGo Wallet Card (Real INR)
+        ProfileWalletCard(
+            balance = walletBalance,
+            onClick = onNavigateToWallet
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 2. SuperCoins Card displaying authoritative Firebase balance
         ProfileSuperCoinsCard(
             balance = superCoinsBalance,
             onClick = onNavigateToSuperCoins
@@ -920,6 +934,88 @@ fun CouponInfoDialog(
             }
         }
     )
+}
+
+@Composable
+fun ProfileWalletCard(
+    balance: Double,
+    onClick: () -> Unit,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable { onClick() },
+        shape = RoundedCornerShape(14.dp),
+        elevation = CardDefaults.cardElevation(2.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, Color(0xFFDDD6FE))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(
+                            Color(0xFFEDE9FE).copy(alpha = 0.7f),
+                            Color(0xFFF5F3FF).copy(alpha = 0.4f)
+                        )
+                    )
+                )
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .background(Color(0xFFEDE9FE), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "💳", fontSize = 24.sp)
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column {
+                        Text(
+                            text = "BazaarGo Wallet",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1E293B)
+                        )
+                        Text(
+                            text = "Add Money • Instant Checkout",
+                            fontSize = 12.sp,
+                            color = Color(0xFF6D28D9)
+                        )
+                    }
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "₹${"%.2f".format(balance)}",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF6D28D9)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "➔",
+                        fontSize = 14.sp,
+                        color = Color(0xFF6D28D9)
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable

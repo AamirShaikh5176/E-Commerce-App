@@ -21,6 +21,11 @@ interface WalletApiService {
     suspend fun verifyAndCreditWallet(
         @Body request: WalletVerifyCreditRequest
     ): Response<VerifySignatureResponseDto>
+
+    @POST("api/wallet/deduct-for-order")
+    suspend fun deductForOrder(
+        @Body request: WalletDeductOrderRequest
+    ): Response<WalletDeductOrderResponse>
 }
 
 data class WalletAddMoneyRequest(
@@ -35,4 +40,17 @@ data class WalletVerifyCreditRequest(
     val razorpayPaymentId: String,
     val razorpaySignature: String,
     val amount: Double,
+)
+
+data class WalletDeductOrderRequest(
+    val userId: String,
+    val orderId: String,
+    val amount: Double,
+)
+
+data class WalletDeductOrderResponse(
+    val success: Boolean,
+    val deducted: Double = 0.0,
+    val remainingBalance: Double = 0.0,
+    val message: String = "",
 )

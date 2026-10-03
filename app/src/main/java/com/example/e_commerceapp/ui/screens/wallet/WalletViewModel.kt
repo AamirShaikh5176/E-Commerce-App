@@ -85,10 +85,17 @@ class WalletViewModel @Inject constructor(
             val orderResult = walletRepository.createAddMoneyOrder(uid, amount)
             if (orderResult.isFailure) {
                 val rawMsg = orderResult.exceptionOrNull()?.message.orEmpty()
-                val userMsg = if (rawMsg.contains("connect", ignoreCase = true)) {
-                    "Unable to reach payment server. Please ensure the backend is running."
+                val userMsg = if (rawMsg.contains("connect", ignoreCase = true) || rawMsg.contains("Failed to connect", ignoreCase = true)) {
+                    "Unable to reach payment server. Please try again."
+                } else if (rawMsg.contains("Authentication failed", ignoreCase = true) ||
+                    rawMsg.contains("BAD_REQUEST_ERROR", ignoreCase = true) ||
+                    rawMsg.trim().startsWith("{") ||
+                    rawMsg.contains("401") ||
+                    rawMsg.contains("503")
+                ) {
+                    "Wallet top-up is temporarily unavailable. Please try again."
                 } else {
-                    rawMsg.ifBlank { "Failed to create wallet top-up order" }
+                    rawMsg.ifBlank { "Wallet top-up could not be completed. Please try again." }
                 }
                 _uiState.update { it.copy(isLoading = false, errorMessage = userMsg) }
                 return@launch
