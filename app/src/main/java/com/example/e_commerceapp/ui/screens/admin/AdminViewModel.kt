@@ -34,6 +34,11 @@ data class AdminMetrics(
     val lowStockCount: Int = 0,
     val totalProducts: Int = 0,
     val totalCustomers: Int = 0,
+    val cancellationRequests: Int = 0,
+    val returnRequests: Int = 0,
+    val refundPending: Int = 0,
+    val refundProcessing: Int = 0,
+    val refundCompleted: Int = 0,
 )
 
 sealed interface AdminOpStatus {
@@ -134,9 +139,37 @@ class AdminViewModel @Inject constructor(
         val isDeliveredCod = { o: FirestoreOrderDto ->
             o.orderStatus.equals("DELIVERED", ignoreCase = true) && o.paymentMethod.equals("COD", ignoreCase = true)
         }
-        val revenue = orderList.filter {
-            it.orderStatus != "CANCELLED" && (it.paymentStatus == "PAID" || it.paymentStatus == "COMPLETED" || isDeliveredCod(it))
+
+        // Gross collected revenue: orders where payment was actually captured (online/wallet) or delivered (COD)
+        val grossRevenue = orderList.filter { o ->
+            o.paymentStatus.equals("PAID", ignoreCase = true) ||
+            o.paymentStatus.equals("COMPLETED", ignoreCase = true) ||
+            o.paymentStatus.equals("REFUNDED", ignoreCase = true) ||
+            isDeliveredCod(o)
         }.sumOf { it.finalTotal }
+
+        // Authoritative completed refunds deduction:
+        // ONLY deduct when refundStatus is REFUND_COMPLETED / REFUNDED_TO_WALLET or paymentStatus is REFUNDED.
+        // DO NOT deduct when cancellation requested, rejected, approved, or refund initiated/processing!
+        // Prevents double deductions by processing each order in orderList exactly once.
+        val completedRefunds = orderList.filter { o ->
+            val isRefundDone = o.refundStatus.equals("REFUND_COMPLETED", ignoreCase = true) ||
+                    o.refundStatus.equals("REFUNDED_TO_WALLET", ignoreCase = true) ||
+                    (o.paymentStatus.equals("REFUNDED", ignoreCase = true) && !o.refundStatus.equals("REFUND_FAILED", ignoreCase = true))
+
+            val wasPaid = o.paymentStatus.equals("PAID", ignoreCase = true) ||
+                    o.paymentStatus.equals("COMPLETED", ignoreCase = true) ||
+                    o.paymentStatus.equals("REFUNDED", ignoreCase = true) ||
+                    isDeliveredCod(o)
+
+            isRefundDone && wasPaid
+        }.sumOf { o ->
+            val amount = if (o.refundAmount > 0.0) o.refundAmount else o.finalTotal
+            minOf(amount, o.finalTotal)
+        }
+
+        val netRetainedRevenue = (grossRevenue - completedRefunds).coerceAtLeast(0.0)
+
         val placed = orderList.count { it.orderStatus == "PLACED" }
         val confirmed = orderList.count { it.orderStatus == "CONFIRMED" }
         val processing = orderList.count { it.orderStatus == "PROCESSING" }
@@ -151,8 +184,16 @@ class AdminViewModel @Inject constructor(
         }
         val lowStock = prodList.count { it.stockQuantity <= 5 || !it.inStock }
 
+        val cancellationReq = orderList.count { it.cancellationRequested && it.cancellationStatus != "REJECTED" && it.orderStatus != "CANCELLED" }
+        val returnReq = orderList.count { it.returnRequested && it.orderStatus != "RETURNED" }
+        val refPending = orderList.count { it.refundStatus in listOf("REFUND_PENDING", "REFUND_INITIATED") }
+        val refProcessing = orderList.count { it.refundStatus == "REFUND_PROCESSING" }
+        val refCompleted = orderList.count {
+            it.refundStatus in listOf("REFUND_COMPLETED", "REFUNDED_TO_WALLET") || it.paymentStatus == "REFUNDED"
+        }
+
         AdminMetrics(
-            totalRevenue = revenue,
+            totalRevenue = netRetainedRevenue,
             totalOrders = orderList.size,
             pendingOrders = placed + confirmed,
             processingOrders = processing,
@@ -164,6 +205,11 @@ class AdminViewModel @Inject constructor(
             lowStockCount = lowStock,
             totalProducts = prodList.size,
             totalCustomers = userList.size,
+            cancellationRequests = cancellationReq,
+            returnRequests = returnReq,
+            refundPending = refPending,
+            refundProcessing = refProcessing,
+            refundCompleted = refCompleted,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AdminMetrics())
 
@@ -302,10 +348,14 @@ class AdminViewModel @Inject constructor(
                 val newStatus = if (isCod) "CANCELLED" else "CANCELLATION_APPROVED"
                 val refundStatus = if (isCod) "NOT_APPLICABLE" else "REFUND_PENDING"
                 val now = System.currentTimeMillis()
+                val adminUid = firebaseAuth.currentUser?.uid.orEmpty().ifBlank { "admin" }
 
                 val updates = mutableMapOf<String, Any>(
                     "orderStatus" to newStatus,
                     "cancellationRequested" to true,
+                    "cancellationStatus" to "APPROVED",
+                    "cancellationApprovedAt" to now,
+                    "cancellationApprovedBy" to adminUid,
                     "refundStatus" to refundStatus,
                     "adminNotes" to notes,
                     "updatedAt" to now
@@ -333,14 +383,33 @@ class AdminViewModel @Inject constructor(
                 _opStatus.update { AdminOpStatus.Loading }
                 val targetOrder = orders.value.firstOrNull { it.orderId == orderId }
                     ?: throw IllegalStateException("Order not found")
-                val newStatus = "CANCELLATION_REJECTED"
+                val adminUid = firebaseAuth.currentUser?.uid.orEmpty().ifBlank { "admin" }
+                val now = System.currentTimeMillis()
+                // A rejected cancellation must NOT:
+                // - cancel the order
+                // - reduce revenue
+                // - initiate refund
+                // - change payment status
+                // - create a wallet refund
+                // The order continues normally after rejection.
+                val restoredStatus = if (targetOrder.orderStatus in listOf("CANCELLATION_REQUESTED", "CANCELLATION_REJECTED")) {
+                    "CONFIRMED"
+                } else {
+                    targetOrder.orderStatus
+                }
                 val updates = mapOf<String, Any>(
-                    "orderStatus" to newStatus,
+                    "orderStatus" to restoredStatus,
                     "cancellationRequested" to false,
+                    "cancellationStatus" to "REJECTED",
+                    "cancellationRejectionReason" to notes,
+                    "cancellationRejectedAt" to now,
+                    "cancellationRejectedBy" to adminUid,
+                    "rejectedAt" to now,
+                    "rejectedBy" to adminUid,
                     "adminNotes" to notes,
-                    "updatedAt" to System.currentTimeMillis()
+                    "updatedAt" to now
                 )
-                val audit = createAuditEntry("CANCELLATION_REJECTED", targetOrder.orderStatus, newStatus, notes)
+                val audit = createAuditEntry("CANCELLATION_REJECTED", targetOrder.orderStatus, restoredStatus, notes)
                 firestoreCatalogDataSource.updateOrderAdminAction(orderId, updates, audit)
                 _opStatus.update { AdminOpStatus.Success("Cancellation rejected for Order #${orderId.takeLast(6).uppercase()}") }
             } catch (e: Exception) {
@@ -469,6 +538,53 @@ class AdminViewModel @Inject constructor(
         }
     }
 
+    fun initiateRefund(orderId: String, notes: String = "") {
+        viewModelScope.launch {
+            try {
+                _opStatus.update { AdminOpStatus.Loading }
+                val targetOrder = orders.value.firstOrNull { it.orderId == orderId }
+                    ?: throw IllegalStateException("Order not found")
+                val now = System.currentTimeMillis()
+                val updates = mapOf<String, Any>(
+                    "refundStatus" to "REFUND_INITIATED",
+                    "refundInitiatedAt" to now,
+                    "adminNotes" to notes,
+                    "updatedAt" to now
+                )
+                val audit = createAuditEntry("REFUND_INITIATED", targetOrder.orderStatus, targetOrder.orderStatus, notes)
+                firestoreCatalogDataSource.updateOrderAdminAction(orderId, updates, audit)
+                _opStatus.update { AdminOpStatus.Success("Refund initiated for Order #${orderId.takeLast(6).uppercase()}") }
+            } catch (e: Exception) {
+                _opStatus.update { AdminOpStatus.Error("Failed to initiate refund: ${e.message}") }
+            }
+        }
+    }
+
+    fun markRefundProcessing(orderId: String, notes: String = "") {
+        viewModelScope.launch {
+            try {
+                _opStatus.update { AdminOpStatus.Loading }
+                val targetOrder = orders.value.firstOrNull { it.orderId == orderId }
+                    ?: throw IllegalStateException("Order not found")
+                val now = System.currentTimeMillis()
+                val updates = mapOf<String, Any>(
+                    "refundStatus" to "REFUND_PROCESSING",
+                    "adminNotes" to notes,
+                    "updatedAt" to now
+                )
+                val audit = createAuditEntry("REFUND_PROCESSING", targetOrder.orderStatus, targetOrder.orderStatus, notes)
+                firestoreCatalogDataSource.updateOrderAdminAction(orderId, updates, audit)
+                _opStatus.update { AdminOpStatus.Success("Refund marked as processing") }
+            } catch (e: Exception) {
+                _opStatus.update { AdminOpStatus.Error("Failed to update refund status: ${e.message}") }
+            }
+        }
+    }
+
+    fun completeRefund(orderId: String, notes: String = "") {
+        processRefund(orderId, notes)
+    }
+
     fun processRefund(orderId: String, notes: String = "") {
         viewModelScope.launch {
             try {
@@ -476,7 +592,7 @@ class AdminViewModel @Inject constructor(
                 val targetOrder = orders.value.firstOrNull { it.orderId == orderId }
                     ?: throw IllegalStateException("Order not found")
 
-                if (targetOrder.refundStatus == "REFUND_COMPLETED" || targetOrder.refundStatus == "REFUNDED") {
+                if (targetOrder.refundStatus == "REFUND_COMPLETED" || targetOrder.refundStatus == "REFUNDED_TO_WALLET" || targetOrder.revenueRefundApplied) {
                     _opStatus.update { AdminOpStatus.Error("Refund already completed for this order") }
                     return@launch
                 }
@@ -513,11 +629,14 @@ class AdminViewModel @Inject constructor(
                         walletRepository.refundForOrder(targetOrder.userId, orderId, refundAmt)
                         val updates = mapOf<String, Any>(
                             "orderStatus" to finalOrderStatus,
+                            "paymentStatus" to "REFUNDED",
                             "refundStatus" to "REFUND_COMPLETED",
                             "refundId" to "WLT_REF_$now",
                             "refundAmount" to refundAmt,
-                            "refundInitiatedAt" to now,
+                            "refundInitiatedAt" to (if (targetOrder.refundInitiatedAt > 0) targetOrder.refundInitiatedAt else now),
                             "refundCompletedAt" to now,
+                            "revenueRefundApplied" to true,
+                            "revenueRefundAppliedAt" to now,
                             "updatedAt" to now
                         )
                         val audit = createAuditEntry("REFUND_COMPLETED", targetOrder.orderStatus, finalOrderStatus, "Refunded to BazaarGo Wallet ₹$refundAmt")
@@ -525,11 +644,14 @@ class AdminViewModel @Inject constructor(
                     } else if (method == "ONLINE" || targetOrder.onlineAmountPaid > 0) {
                         val updates = mapOf<String, Any>(
                             "orderStatus" to finalOrderStatus,
+                            "paymentStatus" to "REFUNDED",
                             "refundStatus" to "REFUND_COMPLETED",
                             "refundId" to (targetOrder.gatewayPaymentId.ifBlank { "REF_$now" }),
                             "refundAmount" to refundAmt,
-                            "refundInitiatedAt" to now,
+                            "refundInitiatedAt" to (if (targetOrder.refundInitiatedAt > 0) targetOrder.refundInitiatedAt else now),
                             "refundCompletedAt" to now,
+                            "revenueRefundApplied" to true,
+                            "revenueRefundAppliedAt" to now,
                             "updatedAt" to now
                         )
                         val audit = createAuditEntry("REFUND_COMPLETED", targetOrder.orderStatus, finalOrderStatus, "Razorpay Online Refund completed ₹$refundAmt")
@@ -538,9 +660,12 @@ class AdminViewModel @Inject constructor(
                         // COD
                         val updates = mapOf<String, Any>(
                             "orderStatus" to finalOrderStatus,
+                            "paymentStatus" to "REFUNDED",
                             "refundStatus" to "REFUND_COMPLETED",
                             "refundAmount" to refundAmt,
                             "refundCompletedAt" to now,
+                            "revenueRefundApplied" to true,
+                            "revenueRefundAppliedAt" to now,
                             "updatedAt" to now
                         )
                         val audit = createAuditEntry("REFUND_COMPLETED", targetOrder.orderStatus, finalOrderStatus, "COD return refund recorded ₹$refundAmt")

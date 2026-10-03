@@ -76,7 +76,6 @@ fun AdminOrderListScreen(
 
     val statusTabs = listOf(
         "All",
-        "CANCELLATIONS & RETURNS",
         "PLACED",
         "CONFIRMED",
         "PROCESSING",
@@ -87,19 +86,6 @@ fun AdminOrderListScreen(
         "RETURNED"
     )
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-
-    val cancelReturnFilters = listOf(
-        "All Requests",
-        "Cancellation Requests",
-        "Return Requests",
-        "Approved",
-        "Pickup Scheduled",
-        "Product Picked Up",
-        "Product Received",
-        "Refund Processing",
-        "Completed"
-    )
-    var selectedCancelReturnFilter by remember { mutableStateOf("All Requests") }
 
     val paymentFilters = listOf("All Payments", "PAID", "PENDING", "REFUNDED")
     var selectedPaymentFilter by remember { mutableStateOf("All Payments") }
@@ -128,24 +114,6 @@ fun AdminOrderListScreen(
         val selectedStatus = statusTabs[selectedTabIndex]
         val statusMatches = when (selectedStatus) {
             "All" -> true
-            "CANCELLATIONS & RETURNS" -> {
-                val isCancelOrReturn = order.cancellationRequested || order.returnRequested ||
-                    order.orderStatus.startsWith("CANCELLATION") || order.orderStatus.startsWith("RETURN") ||
-                    order.orderStatus.startsWith("REFUND") ||
-                    order.orderStatus in listOf("PICKUP_SCHEDULED", "PICKED_UP", "PRODUCT_RECEIVED", "CANCELLED", "RETURNED")
-                if (!isCancelOrReturn) return@filter false
-                when (selectedCancelReturnFilter) {
-                    "Cancellation Requests" -> order.orderStatus == "CANCELLATION_REQUESTED"
-                    "Return Requests" -> order.orderStatus == "RETURN_REQUESTED"
-                    "Approved" -> order.orderStatus in listOf("CANCELLATION_APPROVED", "RETURN_APPROVED")
-                    "Pickup Scheduled" -> order.orderStatus == "PICKUP_SCHEDULED" || order.pickupStatus == "SCHEDULED"
-                    "Product Picked Up" -> order.orderStatus == "PICKED_UP" || order.pickupStatus == "PICKED_UP"
-                    "Product Received" -> order.orderStatus == "PRODUCT_RECEIVED" || order.pickupStatus == "RECEIVED"
-                    "Refund Processing" -> order.orderStatus.startsWith("REFUND") || order.refundStatus in listOf("REFUND_INITIATED", "REFUND_PROCESSING", "REFUND_PENDING")
-                    "Completed" -> order.orderStatus in listOf("CANCELLED", "RETURNED") || order.refundStatus == "REFUND_COMPLETED"
-                    else -> true
-                }
-            }
             else -> order.orderStatus.equals(selectedStatus, ignoreCase = true)
         }
 
@@ -590,34 +558,6 @@ fun AdminOrderListScreen(
                 }
             }
 
-            // Sub-filter chips for CANCELLATIONS & RETURNS
-            if (statusTabs[selectedTabIndex] == "CANCELLATIONS & RETURNS") {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    items(cancelReturnFilters) { subFilter ->
-                        val isSelected = selectedCancelReturnFilter == subFilter
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { selectedCancelReturnFilter = subFilter },
-                            label = {
-                                Text(
-                                    text = subFilter,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFF0284C7),
-                                selectedLabelColor = Color.White,
-                                containerColor = Color(0xFF1E293B),
-                                labelColor = Color(0xFF94A3B8)
-                            )
-                        )
-                    }
-                }
-            }
 
             // Payment Filter Chips
             LazyRow(

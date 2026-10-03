@@ -116,6 +116,10 @@ object AdminOrderListDestination : AppDestinations {
     override val route = "admin_orders"
 }
 
+object AdminCancelledOrdersDestination : AppDestinations {
+    override val route = "admin_cancelled_orders"
+}
+
 object AdminUserListDestination : AppDestinations {
     override val route = "admin_users"
 }

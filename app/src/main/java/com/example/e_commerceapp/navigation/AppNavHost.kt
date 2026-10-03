@@ -27,6 +27,7 @@ import com.example.e_commerceapp.ui.screens.address.AddEditAddressScreen
 import com.example.e_commerceapp.ui.screens.address.AddressSelectionScreen
 import com.example.e_commerceapp.ui.screens.admin.AddEditProductScreen
 import com.example.e_commerceapp.ui.screens.admin.AdminCategoryScreen
+import com.example.e_commerceapp.ui.screens.admin.AdminCancelledOrdersScreen
 import com.example.e_commerceapp.ui.screens.admin.AdminDashboardScreen
 import com.example.e_commerceapp.ui.screens.admin.AdminLoginScreen
 import com.example.e_commerceapp.ui.screens.admin.AdminOrderListScreen
@@ -516,6 +517,7 @@ fun AppNavHost(
                     onNavigateToProducts = { navController.navigate(AdminProductListDestination.route) },
                     onNavigateToCategories = { navController.navigate(AdminCategoryDestination.route) },
                     onNavigateToOrders = { navController.navigate(AdminOrderListDestination.route) },
+                    onNavigateToCancelledOrders = { navController.navigate(AdminCancelledOrdersDestination.route) },
                     onNavigateToUsers = { navController.navigate(AdminUserListDestination.route) },
                 )
             }
@@ -566,6 +568,14 @@ fun AppNavHost(
         composable(AdminOrderListDestination.route) {
             AdminAuthGuard(onUnauthorized = { navController.popBackStack() }) {
                 AdminOrderListScreen(
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+        }
+
+        composable(AdminCancelledOrdersDestination.route) {
+            AdminAuthGuard(onUnauthorized = { navController.popBackStack() }) {
+                AdminCancelledOrdersScreen(
                     onBackClick = { navController.popBackStack() }
                 )
             }

@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -65,6 +66,7 @@ fun AdminDashboardScreen(
     onNavigateToProducts: () -> Unit,
     onNavigateToCategories: () -> Unit,
     onNavigateToOrders: () -> Unit,
+    onNavigateToCancelledOrders: () -> Unit,
     onNavigateToUsers: () -> Unit,
 ) {
     // Intercept back button: In admin dashboard, screen should NOT change on back button until logout
@@ -284,6 +286,13 @@ fun AdminDashboardScreen(
                         description = "Process pending orders, update status, and attach courier tracking",
                         accentColor = Color(0xFF10B981),
                         onClick = onNavigateToOrders
+                    )
+                    AdminNavActionCard(
+                        icon = Icons.Default.Undo,
+                        title = "Cancelled Orders & Returns",
+                        description = "Manage cancellation requests, returns, pickups and refunds",
+                        accentColor = Color(0xFFEF4444),
+                        onClick = onNavigateToCancelledOrders
                     )
                     AdminNavActionCard(
                         icon = Icons.Default.People,

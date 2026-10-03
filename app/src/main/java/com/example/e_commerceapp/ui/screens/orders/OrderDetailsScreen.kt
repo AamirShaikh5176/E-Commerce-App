@@ -321,16 +321,19 @@ fun OrderDetailsScreen(
                 "Recent"
             }
 
-            val isCancellationLifecycle = ord.cancellationRequested || ord.orderStatus in listOf(
-                "CANCELLATION_REQUESTED", "CANCELLATION_APPROVED", "CANCELLATION_REJECTED", "CANCELLED"
-            )
+            val isCancellationRejected = ord.cancellationStatus.equals("REJECTED", ignoreCase = true) ||
+                ord.orderStatus.equals("CANCELLATION_REJECTED", ignoreCase = true)
+
+            val isCancellationLifecycle = !isCancellationRejected && (ord.cancellationRequested || ord.orderStatus in listOf(
+                "CANCELLATION_REQUESTED", "CANCELLATION_APPROVED", "CANCELLED"
+            ))
 
             val isReturnLifecycle = ord.returnRequested || ord.orderStatus in listOf(
                 "RETURN_REQUESTED", "RETURN_APPROVED", "RETURN_REJECTED", "PICKUP_SCHEDULED",
                 "PICKED_UP", "PRODUCT_RECEIVED", "REFUND_INITIATED", "REFUND_PROCESSING", "REFUND_COMPLETED", "RETURNED"
             )
 
-            val canRequestCancellation = !isCancellationLifecycle && !isReturnLifecycle &&
+            val canRequestCancellation = !isCancellationLifecycle && !isReturnLifecycle && !isCancellationRejected &&
                 ord.orderStatus in listOf("PLACED", "CONFIRMED", "PROCESSING")
 
             val canRequestReturn = !isReturnLifecycle && ord.orderStatus == "DELIVERED"
@@ -361,9 +364,15 @@ fun OrderDetailsScreen(
                                 fontSize = 15.sp,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
+                            // When cancellation is rejected, do NOT show a duplicate "CANCELLATION REJECTED" badge beside Order ID.
+                            // Show the authoritative active order fulfillment status instead.
+                            val displayStatus = when {
+                                isCancellationRejected -> if (ord.orderStatus == "CANCELLATION_REJECTED") "CONFIRMED" else ord.orderStatus
+                                else -> ord.orderStatus
+                            }
                             val (badgeBg, badgeFg) = when {
-                                ord.orderStatus in listOf("DELIVERED", "RETURNED") -> Color(0xFFDCFCE7) to Color(0xFF15803D)
-                                ord.orderStatus in listOf("CANCELLED", "CANCELLATION_REJECTED", "RETURN_REJECTED") -> Color(0xFFFEE2E2) to Color(0xFFB91C1C)
+                                displayStatus in listOf("DELIVERED", "RETURNED") -> Color(0xFFDCFCE7) to Color(0xFF15803D)
+                                displayStatus in listOf("CANCELLED", "RETURN_REJECTED") -> Color(0xFFFEE2E2) to Color(0xFFB91C1C)
                                 isReturnLifecycle -> Color(0xFFE0F2FE) to Color(0xFF0369A1)
                                 isCancellationLifecycle -> Color(0xFFFEF3C7) to Color(0xFFB45309)
                                 else -> Color(0xFFEDE9FE) to Color(0xFF6D28D9)
@@ -374,7 +383,7 @@ fun OrderDetailsScreen(
                                     .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Text(
-                                    text = ord.orderStatus.replace('_', ' '),
+                                    text = displayStatus.replace('_', ' '),
                                     color = badgeFg,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
@@ -422,31 +431,14 @@ fun OrderDetailsScreen(
                                 "CANCELLATION_APPROVED" -> 2
                                 "REFUND_INITIATED", "REFUND_PROCESSING" -> 3
                                 "CANCELLED" -> 4
-                                "CANCELLATION_REJECTED" -> 1
                                 else -> 1
                             }
 
                             OrderStatusTimelineView(
                                 steps = cancelSteps,
                                 currentIndex = cancelIndex,
-                                activeColor = if (ord.orderStatus == "CANCELLATION_REJECTED") Color(0xFFEF4444) else Color(0xFFD97706)
+                                activeColor = Color(0xFFD97706)
                             )
-
-                            if (ord.orderStatus == "CANCELLATION_REJECTED") {
-                                Spacer(modifier = Modifier.height(10.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(Color(0xFFFEE2E2), RoundedCornerShape(8.dp))
-                                        .padding(10.dp)
-                                ) {
-                                    Text(
-                                        text = "Cancellation rejected: ${ord.adminNotes.ifBlank { "Request not approved by Admin." }}",
-                                        color = Color(0xFF991B1B),
-                                        fontSize = 12.sp
-                                    )
-                                }
-                            }
                         } else if (isReturnLifecycle) {
                             // RETURN & REFUND TIMELINE
                             val returnSteps = listOf(
@@ -551,8 +543,8 @@ fun OrderDetailsScreen(
                             )
                         }
 
-                        // Refund details banner if applicable
-                        if (ord.refundAmount > 0 || ord.refundStatus.isNotBlank()) {
+                        // Refund details banner if applicable (never displayed on rejected cancellation to prevent contradictory states)
+                        if (!isCancellationRejected && (ord.refundAmount > 0 || (ord.refundStatus.isNotBlank() && ord.refundStatus != "NOT_APPLICABLE"))) {
                             Spacer(modifier = Modifier.height(12.dp))
                             HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                             Spacer(modifier = Modifier.height(12.dp))
@@ -581,6 +573,75 @@ fun OrderDetailsScreen(
                                     text = "Refund ID: ${ord.refundId}",
                                     fontSize = 11.sp,
                                     color = Color.Gray
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // ONE Single Authoritative Cancellation Rejected Card
+                if (isCancellationRejected) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF2F2)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFECACA)),
+                        elevation = CardDefaults.cardElevation(2.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .background(Color(0xFFFEE2E2), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Cancellation Rejected",
+                                        tint = Color(0xFFDC2626),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = "Cancellation Rejected",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp,
+                                        color = Color(0xFF991B1B)
+                                    )
+                                    Text(
+                                        text = "Your cancellation request was rejected.",
+                                        fontSize = 12.sp,
+                                        color = Color(0xFFB91C1C)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+                            HorizontalDivider(color = Color(0xFFFCA5A5).copy(alpha = 0.4f))
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            val rejectionReason = when {
+                                ord.cancellationRejectionReason.isNotBlank() -> ord.cancellationRejectionReason.trim()
+                                ord.adminNotes.isNotBlank() -> ord.adminNotes.trim()
+                                else -> ""
+                            }
+
+                            if (rejectionReason.isNotBlank()) {
+                                Text(
+                                    text = "Reason: $rejectionReason",
+                                    fontSize = 13.sp,
+                                    color = Color(0xFF7F1D1D),
+                                    lineHeight = 18.sp
+                                )
+                            } else {
+                                Text(
+                                    text = "Your cancellation request was rejected by the admin.",
+                                    fontSize = 13.sp,
+                                    color = Color(0xFF7F1D1D),
+                                    lineHeight = 18.sp
                                 )
                             }
                         }
