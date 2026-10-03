@@ -73,11 +73,12 @@ import com.example.e_commerceapp.ui.screens.common.Loading
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddressSelectionScreen(
-    totalPrice: String,
+    totalPrice: String = "0.0",
+    isCheckoutMode: Boolean = totalPrice.isNotBlank() && totalPrice != "0.0" && totalPrice != "0",
     onBackClick: () -> Unit,
     onAddNewAddress: () -> Unit,
     onEditAddress: (String) -> Unit,
-    onDeliverHere: (AddressEntity) -> Unit,
+    onDeliverHere: (AddressEntity) -> Unit = {},
     onLoginClick: () -> Unit = {},
     viewModel: AddressViewModel = hiltViewModel(),
 ) {
@@ -148,7 +149,7 @@ fun AddressSelectionScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "Checkout",
+                        text = if (isCheckoutMode) "Checkout" else "Delivery Addresses",
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
                         color = Color(0xFF1E293B)
@@ -176,7 +177,7 @@ fun AddressSelectionScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(bottom = 76.dp)
+                    .padding(bottom = if (isCheckoutMode) 76.dp else 16.dp)
             ) {
                 // Header section with proper vertical spacing below TopAppBar
                 Column(
@@ -185,14 +186,14 @@ fun AddressSelectionScreen(
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     Text(
-                        text = "Select Delivery Address",
+                        text = if (isCheckoutMode) "Select Delivery Address" else "Delivery Addresses",
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp,
                         color = Color(0xFF1E293B)
                     )
                     Spacer(modifier = Modifier.height(3.dp))
                     Text(
-                        text = "Step 1 of 2 • Checkout",
+                        text = if (isCheckoutMode) "Step 1 of 2 • Checkout" else "Manage your saved addresses",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color(0xFF64748B)
@@ -258,9 +259,14 @@ fun AddressSelectionScreen(
                                 AddressCard(
                                     address = address,
                                     isSelected = isSelected,
+                                    isCheckoutMode = isCheckoutMode,
                                     onSelect = { viewModel.selectAddress(address.id) },
                                     onEdit = { onEditAddress(address.id) },
-                                    onDelete = { addressToDelete = address }
+                                    onDelete = { addressToDelete = address },
+                                    onSetDefault = {
+                                        viewModel.setDefault(address.id)
+                                        Toast.makeText(context, "Default address updated", Toast.LENGTH_SHORT).show()
+                                    }
                                 )
                             }
                         }
@@ -268,73 +274,75 @@ fun AddressSelectionScreen(
                 }
             }
 
-            // Sticky Bottom Delivery Action Bar
-            state.data?.let { addresses ->
-                val chosenAddress = addresses.firstOrNull { it.id == selectedAddressId } ?: addresses.firstOrNull()
+            // Sticky Bottom Delivery Action Bar: ONLY in checkout mode
+            if (isCheckoutMode) {
+                state.data?.let { addresses ->
+                    val chosenAddress = addresses.firstOrNull { it.id == selectedAddressId } ?: addresses.firstOrNull()
 
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .navigationBarsPadding(),
-                    shadowElevation = 12.dp,
-                    color = Color.White
-                ) {
-                    Row(
+                    Surface(
                         modifier = Modifier
+                            .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .navigationBarsPadding(),
+                        shadowElevation = 12.dp,
+                        color = Color.White
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Deliver to:",
-                                fontSize = 11.sp,
-                                color = Color.Gray
-                            )
-                            Text(
-                                text = chosenAddress?.fullName ?: "Select Address",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1E293B),
-                                maxLines = 1
-                            )
-                            val addressDetails = if (chosenAddress != null) {
-                                listOfNotNull(
-                                    chosenAddress.city.takeIf { it.isNotBlank() },
-                                    chosenAddress.pinCode.takeIf { it.isNotBlank() }
-                                ).joinToString(", ")
-                            } else ""
-                            if (addressDetails.isNotBlank()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = addressDetails,
-                                    fontSize = 12.sp,
-                                    color = Color(0xFF64748B),
+                                    text = "Deliver to:",
+                                    fontSize = 11.sp,
+                                    color = Color.Gray
+                                )
+                                Text(
+                                    text = chosenAddress?.fullName ?: "Select Address",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1E293B),
                                     maxLines = 1
                                 )
-                            }
-                        }
-
-                        Button(
-                            onClick = {
-                                if (chosenAddress != null) {
-                                    onDeliverHere(chosenAddress)
+                                val addressDetails = if (chosenAddress != null) {
+                                    listOfNotNull(
+                                        chosenAddress.city.takeIf { it.isNotBlank() },
+                                        chosenAddress.pinCode.takeIf { it.isNotBlank() }
+                                    ).joinToString(", ")
+                                } else ""
+                                if (addressDetails.isNotBlank()) {
+                                    Text(
+                                        text = addressDetails,
+                                        fontSize = 12.sp,
+                                        color = Color(0xFF64748B),
+                                        maxLines = 1
+                                    )
                                 }
-                            },
-                            enabled = chosenAddress != null,
-                            modifier = Modifier.height(48.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFFF9800)
-                            )
-                        ) {
-                            Text(
-                                text = "Deliver Here  ➔",
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White,
-                                fontSize = 14.sp
-                            )
+                            }
+
+                            Button(
+                                onClick = {
+                                    if (chosenAddress != null) {
+                                        onDeliverHere(chosenAddress)
+                                    }
+                                },
+                                enabled = chosenAddress != null,
+                                modifier = Modifier.height(48.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFFFF9800)
+                                )
+                            ) {
+                                Text(
+                                    text = "Deliver Here  ➔",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    fontSize = 14.sp
+                                )
+                            }
                         }
                     }
                 }
@@ -347,9 +355,11 @@ fun AddressSelectionScreen(
 private fun AddressCard(
     address: AddressEntity,
     isSelected: Boolean,
+    isCheckoutMode: Boolean,
     onSelect: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onSetDefault: () -> Unit = {},
 ) {
     Card(
         modifier = Modifier
@@ -358,28 +368,37 @@ private fun AddressCard(
             .clickable { onSelect() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) Color(0xFFF0FDF4) else Color.White
+            containerColor = if (isCheckoutMode && isSelected) Color(0xFFF0FDF4) else Color.White
         ),
         border = BorderStroke(
-            width = if (isSelected) 2.dp else 1.dp,
-            color = if (isSelected) Color(0xFF22C55E) else Color(0xFFE2E8F0)
+            width = if (isCheckoutMode && isSelected) 2.dp else 1.dp,
+            color = if (isCheckoutMode && isSelected) Color(0xFF22C55E) else Color(0xFFE2E8F0)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 3.dp else 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isCheckoutMode && isSelected) 3.dp else 1.dp)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                RadioButton(
-                    selected = isSelected,
-                    onClick = onSelect,
-                    colors = RadioButtonDefaults.colors(
-                        selectedColor = Color(0xFF22C55E)
+                if (isCheckoutMode) {
+                    RadioButton(
+                        selected = isSelected,
+                        onClick = onSelect,
+                        colors = RadioButtonDefaults.colors(
+                            selectedColor = Color(0xFF22C55E)
+                        )
                     )
-                )
-
-                Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = null,
+                        tint = colorResource(R.color.dark_blue),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
 
                 Text(
                     text = address.fullName,
@@ -437,7 +456,7 @@ private fun AddressCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            Column(modifier = Modifier.padding(start = 44.dp)) {
+            Column(modifier = Modifier.padding(start = if (isCheckoutMode) 44.dp else 28.dp)) {
                 Text(
                     text = "${address.houseFlatNumber}, ${address.streetArea}",
                     fontSize = 13.sp,
@@ -472,12 +491,33 @@ private fun AddressCard(
                 HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Actions: Edit and Delete
+                // Actions: Set as Default (if not default and managing), Edit, Delete
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    if (!isCheckoutMode && !address.isDefault) {
+                        OutlinedButton(
+                            onClick = onSetDefault,
+                            shape = RoundedCornerShape(6.dp),
+                            modifier = Modifier.height(32.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = colorResource(R.color.dark_blue)
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "Set Default",
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Set as Default", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+
                     OutlinedButton(
                         onClick = onEdit,
                         shape = RoundedCornerShape(6.dp),

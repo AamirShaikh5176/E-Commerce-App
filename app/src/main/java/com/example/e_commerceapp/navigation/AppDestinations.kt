@@ -58,6 +58,10 @@ object AddressSelectionDestination : AppDestinations {
     override val route = "address_selection"
 }
 
+object ManageAddressesDestination : AppDestinations {
+    override val route = "manage_addresses"
+}
+
 object AddEditAddressDestination : AppDestinations {
     override val route = "add_edit_address"
 }

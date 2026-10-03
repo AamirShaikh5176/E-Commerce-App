@@ -124,8 +124,30 @@ class AddressRepositoryImpl @Inject constructor(
                 }
 
                 if (remoteList.isNotEmpty()) {
-                    saveLocalAddresses(uid, remoteList)
-                    trySend(remoteList)
+                    // Data Cleanup: Enforce strictly ONE default address per Firebase UID
+                    val defaultAddresses = remoteList.filter { it.isDefault }
+                    val cleanedList = if (defaultAddresses.size > 1) {
+                        // Deterministically pick the first default address
+                        val chosenDefaultId = defaultAddresses.first().id
+                        try {
+                            val batch = firestore.batch()
+                            for (doc in snapshot.documents) {
+                                val shouldBeDefault = doc.id == chosenDefaultId
+                                if (doc.getBoolean("isDefault") != shouldBeDefault) {
+                                    batch.update(doc.reference, "isDefault", shouldBeDefault)
+                                }
+                            }
+                            batch.commit()
+                        } catch (e: Exception) {
+                            Log.w("AddressRepo", "Failed to cleanup multiple defaults in Firestore: ${e.message}")
+                        }
+                        remoteList.map { it.copy(isDefault = it.id == chosenDefaultId) }
+                    } else {
+                        remoteList
+                    }
+
+                    saveLocalAddresses(uid, cleanedList)
+                    trySend(cleanedList)
                 } else {
                     trySend(loadLocalAddresses(uid))
                 }
@@ -148,7 +170,7 @@ class AddressRepositoryImpl @Inject constructor(
             currentList.add(toSave)
         }
 
-        // If this address is set as default, unset others
+        // If this address is set as default, unset others locally
         if (toSave.isDefault) {
             currentList.indices.forEach { i ->
                 if (currentList[i].id != addressId) {
@@ -158,8 +180,12 @@ class AddressRepositoryImpl @Inject constructor(
         }
         saveLocalAddresses(uid, currentList)
 
-        // 2. Sync to Firestore with non-blocking timeout
+        // 2. Sync to Firestore with atomic batch
         if (!uid.isNullOrBlank()) {
+            val addressesCol = firestore.collection("users")
+                .document(uid)
+                .collection("addresses")
+            val batch = firestore.batch()
             val map = hashMapOf(
                 "id" to addressId,
                 "fullName" to toSave.fullName,
@@ -173,18 +199,25 @@ class AddressRepositoryImpl @Inject constructor(
                 "addressType" to toSave.addressType,
                 "isDefault" to toSave.isDefault
             )
+            batch.set(addressesCol.document(addressId), map)
+
+            if (toSave.isDefault) {
+                try {
+                    val snapshot = addressesCol.get().await()
+                    for (doc in snapshot.documents) {
+                        if (doc.id != addressId && doc.getBoolean("isDefault") == true) {
+                            batch.update(doc.reference, "isDefault", false)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w("AddressRepo", "Failed to query existing addresses for default unset: ${e.message}")
+                }
+            }
 
             try {
-                withTimeoutOrNull(1500L) {
-                    firestore.collection("users")
-                        .document(uid)
-                        .collection("addresses")
-                        .document(addressId)
-                        .set(map)
-                        .await()
-                }
+                batch.commit().await()
             } catch (e: Exception) {
-                Log.w("AddressRepo", "Firestore save address offline or failed: ${e.message}")
+                Log.w("AddressRepo", "Firestore save address batch failed: ${e.message}")
             }
         }
     }
@@ -197,14 +230,12 @@ class AddressRepositoryImpl @Inject constructor(
 
         if (!uid.isNullOrBlank()) {
             try {
-                withTimeoutOrNull(1500L) {
-                    firestore.collection("users")
-                        .document(uid)
-                        .collection("addresses")
-                        .document(addressId)
-                        .delete()
-                        .await()
-                }
+                firestore.collection("users")
+                    .document(uid)
+                    .collection("addresses")
+                    .document(addressId)
+                    .delete()
+                    .await()
             } catch (e: Exception) {
                 Log.w("AddressRepo", "Firestore delete address offline: ${e.message}")
             }
@@ -221,19 +252,18 @@ class AddressRepositoryImpl @Inject constructor(
 
         if (!uid.isNullOrBlank()) {
             try {
-                withTimeoutOrNull(1500L) {
-                    val otherDocs = firestore.collection("users")
-                        .document(uid)
-                        .collection("addresses")
-                        .get()
-                        .await()
-
-                    for (doc in otherDocs.documents) {
-                        doc.reference.update("isDefault", doc.id == addressId).await()
-                    }
+                val addressesCol = firestore.collection("users")
+                    .document(uid)
+                    .collection("addresses")
+                val snapshot = addressesCol.get().await()
+                val batch = firestore.batch()
+                for (doc in snapshot.documents) {
+                    val isTarget = doc.id == addressId
+                    batch.update(doc.reference, "isDefault", isTarget)
                 }
+                batch.commit().await()
             } catch (e: Exception) {
-                Log.w("AddressRepo", "Firestore setDefault offline: ${e.message}")
+                Log.w("AddressRepo", "Firestore setDefault batch failed: ${e.message}")
             }
         }
     }

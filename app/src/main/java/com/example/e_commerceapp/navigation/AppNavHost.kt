@@ -43,6 +43,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
 import com.example.e_commerceapp.utils.AuthUtils
+import kotlinx.coroutines.tasks.await
 import com.google.firebase.auth.FirebaseAuth
 
 
@@ -107,6 +108,11 @@ fun AppNavHost(
             SignInScreen(
                 navigateToSignUpScreen = {
                     navController.navigate(SignUpScreen.route)
+                },
+                navigateToAdminLogin = {
+                    navController.navigate(AdminLoginDestination.route) {
+                        popUpTo(SignInScreen.route) { inclusive = true }
+                    }
                 },
                 navigateToHomeScreen = {
                     val pendingPrice = pendingCheckoutTotalPrice
@@ -296,7 +302,7 @@ fun AppNavHost(
                     if (!AuthUtils.isAuthenticated(context)) {
                         navController.navigate(SignInScreen.route)
                     } else {
-                        navController.navigate("${AddressSelectionDestination.route}/0.0")
+                        navController.navigate(ManageAddressesDestination.route)
                     }
                 },
                 onNavigateToMyOrders = {
@@ -416,14 +422,46 @@ fun AppNavHost(
         }
 
         // --------------------- Address Routes ---------------------
+        composable(ManageAddressesDestination.route) {
+            AddressSelectionScreen(
+                totalPrice = "0.0",
+                isCheckoutMode = false,
+                onBackClick = { navController.popBackStack() },
+                onLoginClick = { navController.navigate(SignInScreen.route) },
+                onAddNewAddress = { navController.navigate(AddEditAddressDestination.route) },
+                onEditAddress = { addressId ->
+                    navController.navigate("${AddEditAddressDestination.route}/$addressId")
+                },
+                onDeliverHere = {}
+            )
+        }
+
         composable(
             route = "${AddressSelectionDestination.route}/{totalPrice}",
             arguments = listOf(navArgument("totalPrice") { type = NavType.StringType })
         ) { backStackEntry ->
             val totalPrice = backStackEntry.arguments?.getString("totalPrice") ?: "0.0"
 
+            val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            androidx.compose.runtime.LaunchedEffect(currentUser) {
+                if (currentUser != null) {
+                    try {
+                        val tokenResult = currentUser.getIdToken(false).await()
+                        if (tokenResult.claims["admin"] == true) {
+                            android.widget.Toast.makeText(context, "Admin accounts cannot place customer orders.", android.widget.Toast.LENGTH_SHORT).show()
+                            navController.navigate(AdminDashboardDestination.route) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        // ignore
+                    }
+                }
+            }
+
             AddressSelectionScreen(
                 totalPrice = totalPrice,
+                isCheckoutMode = true,
                 onBackClick = { navController.popBackStack() },
                 onLoginClick = { navController.navigate(SignInScreen.route) },
                 onAddNewAddress = { navController.navigate(AddEditAddressDestination.route) },
@@ -463,7 +501,7 @@ fun AppNavHost(
                 AdminDashboardScreen(
                     onLogout = {
                         AuthUtils.logout(context)
-                        navController.navigate(HomeScreen.route) {
+                        navController.navigate(AdminLoginDestination.route) {
                             popUpTo(0) { inclusive = true }
                         }
                     },
@@ -594,7 +632,7 @@ fun AppNavHost(
                 onBackClick = { navController.popBackStack() },
                 onAdminLoginSuccess = {
                     navController.navigate(AdminDashboardDestination.route) {
-                        popUpTo(AdminLoginDestination.route) { inclusive = true }
+                        popUpTo(0) { inclusive = true }
                     }
                 },
                 onCustomerLoginClick = {

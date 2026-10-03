@@ -65,6 +65,7 @@ fun SignInScreen(
     viewModel: SigInViewModel = hiltViewModel(),
     navigateToSignUpScreen: () -> Unit,
     navigateToHomeScreen: (UserInformationEntity) -> Unit,
+    navigateToAdminLogin: () -> Unit = {},
 ) {
     val loginState by viewModel.loginState.collectAsStateWithLifecycle()
 
@@ -124,7 +125,13 @@ fun SignInScreen(
 
             LaunchedEffect(loginState.data) {
                 loginState.data?.let { userInformationEntity ->
-                    navigateToHomeScreen(userInformationEntity)
+                    if (userInformationEntity.role.equals("admin", ignoreCase = true)) {
+                        snackbarHostState.showSnackbar("Admin account detected. Please use Admin Login.")
+                        kotlinx.coroutines.delay(1200)
+                        navigateToAdminLogin()
+                    } else {
+                        navigateToHomeScreen(userInformationEntity)
+                    }
                 }
             }
         }

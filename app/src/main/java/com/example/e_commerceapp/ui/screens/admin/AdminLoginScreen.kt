@@ -72,25 +72,8 @@ fun AdminLoginScreen(
             return
         }
 
-        val cleanEmail = email.trim().lowercase()
-        val isDesignatedAdminEmail = cleanEmail == "admin@ecommerce.com" ||
-                cleanEmail == "admin@store.com" ||
-                cleanEmail == "admin@store.in" ||
-                cleanEmail.startsWith("admin@")
-
         isLoading = true
         errorMessage = null
-
-        // Support built-in demo administrator credentials
-        if (isDesignatedAdminEmail && password.trim() == "admin123") {
-            // Attempt Firebase Auth sign-in; if account exists in Auth, authenticate session
-            auth.signInWithEmailAndPassword(cleanEmail, password.trim())
-                .addOnCompleteListener {
-                    isLoading = false
-                    onAdminLoginSuccess()
-                }
-            return
-        }
 
         auth.signInWithEmailAndPassword(email.trim(), password)
             .addOnSuccessListener { authResult ->
@@ -105,33 +88,15 @@ fun AdminLoginScreen(
                 user.getIdToken(true)
                     .addOnSuccessListener { tokenResult ->
                         val claims = tokenResult.claims
-                        val hasAdminClaim = claims["admin"] == true || claims["role"] == "admin"
+                        val hasAdminClaim = claims["admin"] == true
 
-                        if (hasAdminClaim || isDesignatedAdminEmail) {
+                        if (hasAdminClaim) {
                             isLoading = false
                             onAdminLoginSuccess()
                         } else {
-                            // Check Firestore /users/{uid} document for role == "admin"
-                            com.google.firebase.firestore.FirebaseFirestore.getInstance()
-                                .collection("users")
-                                .document(user.uid)
-                                .get()
-                                .addOnSuccessListener { doc ->
-                                    isLoading = false
-                                    val role = doc.getString("role")
-                                    if (role.equals("admin", ignoreCase = true)) {
-                                        onAdminLoginSuccess()
-                                    } else {
-                                        // Strictly reject normal customer accounts and sign out session
-                                        auth.signOut()
-                                        errorMessage = "Access Denied: Account '${user.email}' is a customer account and does not have administrator privileges."
-                                    }
-                                }
-                                .addOnFailureListener {
-                                    isLoading = false
-                                    auth.signOut()
-                                    errorMessage = "Access Denied: Unable to verify administrator privileges."
-                                }
+                            isLoading = false
+                            auth.signOut()
+                            errorMessage = "Access Denied: Account '${user.email}' is a customer account and does not have administrator privileges."
                         }
                     }
                     .addOnFailureListener { e ->

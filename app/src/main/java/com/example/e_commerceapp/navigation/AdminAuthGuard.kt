@@ -52,51 +52,19 @@ fun AdminAuthGuard(
             return@LaunchedEffect
         }
 
-        val cleanEmail = user.email?.trim()?.lowercase() ?: ""
-        val isDesignatedAdminEmail = cleanEmail == "admin@ecommerce.com" ||
-                cleanEmail == "admin@store.com" ||
-                cleanEmail == "admin@store.in" ||
-                cleanEmail.startsWith("admin@")
-
         // Force token refresh to verify current claims
         user.getIdToken(true)
             .addOnSuccessListener { tokenResult ->
                 val claims = tokenResult.claims
-                val hasAdminClaim = claims["admin"] == true || claims["role"] == "admin"
-                if (hasAdminClaim || isDesignatedAdminEmail) {
+                val hasAdminClaim = claims["admin"] == true
+                if (hasAdminClaim) {
                     authState = AdminAuthState.Authorized
                 } else {
-                    FirebaseFirestore.getInstance().collection("users").document(user.uid).get()
-                        .addOnSuccessListener { doc ->
-                            val role = doc.getString("role")
-                            if (role.equals("admin", ignoreCase = true)) {
-                                authState = AdminAuthState.Authorized
-                            } else {
-                                authState = AdminAuthState.Denied("Access restricted: Account '${user.email}' is a customer account and does not have administrator privileges.")
-                            }
-                        }
-                        .addOnFailureListener {
-                            authState = AdminAuthState.Denied("Access restricted: Unable to verify administrator privileges.")
-                        }
+                    authState = AdminAuthState.Denied("Access restricted: Administrator privileges required.")
                 }
             }
             .addOnFailureListener {
-                if (isDesignatedAdminEmail) {
-                    authState = AdminAuthState.Authorized
-                } else {
-                    FirebaseFirestore.getInstance().collection("users").document(user.uid).get()
-                        .addOnSuccessListener { doc ->
-                            val role = doc.getString("role")
-                            if (role.equals("admin", ignoreCase = true)) {
-                                authState = AdminAuthState.Authorized
-                            } else {
-                                authState = AdminAuthState.Denied("Access restricted: Account '${user.email}' does not have administrator privileges.")
-                            }
-                        }
-                        .addOnFailureListener {
-                            authState = AdminAuthState.Denied("Access restricted: Authentication error.")
-                        }
-                }
+                authState = AdminAuthState.Denied("Access restricted: Unable to verify administrator privileges.")
             }
     }
 

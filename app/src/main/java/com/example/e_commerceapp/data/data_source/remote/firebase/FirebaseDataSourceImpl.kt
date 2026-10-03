@@ -155,10 +155,10 @@ class FirebaseDataSourceImpl @Inject constructor(
                             }
                         }
 
-                    firebaseUser.getIdToken(false)
+                    firebaseUser.getIdToken(true)
                         .addOnSuccessListener { tokenResult ->
                             val claims = tokenResult.claims
-                            val isAdmin = isAdminEmail || claims["admin"] == true || claims["role"] == "admin"
+                            val isAdmin = claims["admin"] == true
                             onSuccess(
                                 customerEntity.copy(
                                     token = tokenResult.token ?: "",
@@ -335,38 +335,14 @@ class FirebaseDataSourceImpl @Inject constructor(
             onResult(false)
             return
         }
-        val isAdminEmail = isDesignatedAdminEmail(user.email)
         user.getIdToken(true) // force refresh ID token from Firebase backend
             .addOnSuccessListener { tokenResult ->
                 val claims = tokenResult.claims
-                val isAdminClaim = claims["admin"] == true || claims["role"] == "admin"
-                if (isAdminClaim || isAdminEmail) {
-                    onResult(true)
-                } else {
-                    // Check Firestore role as secondary verification
-                    collection.document(user.uid).get()
-                        .addOnSuccessListener { doc ->
-                            val role = doc.getString("role")
-                            onResult(role.equals("admin", ignoreCase = true))
-                        }
-                        .addOnFailureListener {
-                            onResult(false)
-                        }
-                }
+                val isAdminClaim = claims["admin"] == true
+                onResult(isAdminClaim)
             }
             .addOnFailureListener {
-                if (isAdminEmail) {
-                    onResult(true)
-                } else {
-                    collection.document(user.uid).get()
-                        .addOnSuccessListener { doc ->
-                            val role = doc.getString("role")
-                            onResult(role.equals("admin", ignoreCase = true))
-                        }
-                        .addOnFailureListener {
-                            onResult(false)
-                        }
-                }
+                onResult(false)
             }
     }
 

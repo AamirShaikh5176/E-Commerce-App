@@ -112,9 +112,12 @@ app.post('/api/payment/create-order', async (req, res) => {
 
         if (!response.ok) {
             console.error('Razorpay Order API error:', data.error?.description || data);
+            const isAuthError = response.status === 401 || (data.error?.description && data.error.description.includes('Authentication failed'));
             return res.status(response.status).json({
                 success: false,
-                message: data.error?.description || 'Failed to create Razorpay order'
+                message: isAuthError
+                    ? 'Online payment is temporarily unavailable. Please try again.'
+                    : (data.error?.description || 'Failed to create Razorpay order')
             });
         }
 

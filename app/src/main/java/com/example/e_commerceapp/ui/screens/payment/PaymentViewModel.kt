@@ -227,8 +227,15 @@ class PaymentViewModel @Inject constructor(
                 val rawMsg = orderResult.exceptionOrNull()?.message.orEmpty()
                 val userMsg = if (rawMsg.contains("Failed to connect", ignoreCase = true) || rawMsg.contains("connect", ignoreCase = true)) {
                     "Unable to reach payment server. Please ensure the payment backend is running."
+                } else if (rawMsg.contains("Authentication failed", ignoreCase = true) ||
+                    rawMsg.contains("BAD_REQUEST_ERROR", ignoreCase = true) ||
+                    rawMsg.trim().startsWith("{") ||
+                    rawMsg.contains("401") ||
+                    rawMsg.contains("503")
+                ) {
+                    "Online payment is temporarily unavailable. Please try again."
                 } else {
-                    rawMsg.ifBlank { "Failed to create payment order" }
+                    rawMsg.ifBlank { "Online payment is temporarily unavailable. Please try again." }
                 }
                 _orderState.update {
                     it.copy(

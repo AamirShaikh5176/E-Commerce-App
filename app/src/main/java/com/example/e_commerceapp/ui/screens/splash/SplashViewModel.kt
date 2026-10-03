@@ -9,12 +9,26 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 
+import kotlinx.coroutines.tasks.await
+
 @HiltViewModel
 class SplashViewModel @Inject constructor(
     private val sharedPref: SharedPreferences,
 ) : ViewModel() {
 
-    fun decideNextScreen(): String {
+    suspend fun decideNextScreen(): String {
+        val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+        if (user != null) {
+            try {
+                val tokenResult = user.getIdToken(false).await()
+                val isAdmin = tokenResult.claims["admin"] == true
+                if (isAdmin) {
+                    return com.example.e_commerceapp.navigation.AdminDashboardDestination.route
+                }
+            } catch (e: Exception) {
+                // Fallback to customer home
+            }
+        }
         return HomeScreen.route
     }
 }

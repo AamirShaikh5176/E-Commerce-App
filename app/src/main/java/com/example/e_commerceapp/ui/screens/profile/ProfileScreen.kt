@@ -460,10 +460,7 @@ fun ProfileScreenContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (isAdmin) {
-            AdminPortalCard(onNavigateToAdmin = onNavigateToAdmin)
-            Spacer(modifier = Modifier.height(12.dp))
-        }
+
 
         // --------------------- Profile Options ---------------------
         Card(
@@ -707,81 +704,7 @@ fun LogoutItem(
     }
 }
 
-@Composable
-fun AdminPortalCard(
-    onNavigateToAdmin: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
-        elevation = CardDefaults.cardElevation(4.dp),
-        onClick = onNavigateToAdmin
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(46.dp)
-                    .background(Color(0xFF0284C7).copy(alpha = 0.2f), RoundedCornerShape(10.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Lock,
-                    contentDescription = null,
-                    tint = Color(0xFF38BDF8),
-                    modifier = Modifier.size(24.dp)
-                )
-            }
 
-            Spacer(modifier = Modifier.width(14.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "Admin Portal",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily(Font(R.font.medium))
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .background(Color(0xFF0284C7), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "AUTHORIZED",
-                            color = Color.White,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "Manage inventory, orders & store catalog",
-                    color = Color(0xFF94A3B8),
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily(Font(R.font.cairo_regular))
-                )
-            }
-
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
-                contentDescription = null,
-                tint = Color(0xFF94A3B8)
-            )
-        }
-    }
-}
 
 @Composable
 fun ThemeSelectionDialog(onDismiss: () -> Unit) {

@@ -96,8 +96,16 @@ class PaymentRepositoryImpl @Inject constructor(
             response.body()!!
         } else {
             val errorMsg = response.body()?.message
-                ?: response.errorBody()?.string()
-                ?: "Failed to create Razorpay order (${response.code()})"
+                ?: try {
+                    val raw = response.errorBody()?.string().orEmpty()
+                    if (raw.contains("\"message\":")) {
+                        org.json.JSONObject(raw).optString("message", "Online payment is temporarily unavailable. Please try again.")
+                    } else {
+                        "Online payment is temporarily unavailable. Please try again."
+                    }
+                } catch (e: Exception) {
+                    "Online payment is temporarily unavailable. Please try again."
+                }
             throw Exception(errorMsg)
         }
     }

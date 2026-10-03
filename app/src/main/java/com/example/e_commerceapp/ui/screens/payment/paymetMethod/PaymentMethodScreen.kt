@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -160,6 +162,7 @@ fun PaymentMethodScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .statusBarsPadding()
                         .padding(horizontal = 8.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -195,7 +198,9 @@ fun PaymentMethodScreen(
                 ErrorMessage(orderState.errorMessage.toString())
             }
 
-            Column(modifier = Modifier.padding(14.dp)) {
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)) {
                 // Delivering To Card
                 selectedAddress?.let { address ->
                     Card(
@@ -436,10 +441,11 @@ fun PaymentMethodScreen(
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Image(
-                                    painter = painterResource(id = R.drawable.upi_qr_code),
+                                    painter = painterResource(id = R.drawable.googlepay_qr),
                                     contentDescription = "Aamir Shaikh Google Pay QR Code",
                                     modifier = Modifier
-                                        .size(240.dp)
+                                        .fillMaxWidth(0.85f)
+                                        .aspectRatio(1440f / 2000f)
                                         .clip(RoundedCornerShape(8.dp)),
                                     contentScale = ContentScale.Fit
                                 )

@@ -106,6 +106,27 @@ class AdminViewModel @Inject constructor(
     private val _opStatus = MutableStateFlow<AdminOpStatus>(AdminOpStatus.Idle)
     val opStatus: StateFlow<AdminOpStatus> = _opStatus.asStateFlow()
 
+    init {
+        // Automatically sync any existing delivered COD orders in Firestore whose paymentStatus is still PENDING
+        viewModelScope.launch {
+            orders.collect { orderList ->
+                orderList.filter {
+                    it.orderStatus.equals("DELIVERED", ignoreCase = true) &&
+                    it.paymentMethod.equals("COD", ignoreCase = true) &&
+                    it.paymentStatus.equals("PENDING", ignoreCase = true)
+                }.forEach { staleCodOrder ->
+                    try {
+                        firestoreCatalogDataSource.updateOrderStatusAndPayment(
+                            orderId = staleCodOrder.orderId,
+                            status = "DELIVERED",
+                            paymentStatus = "COMPLETED"
+                        )
+                    } catch (_: Exception) {}
+                }
+            }
+        }
+    }
+
     val metrics: StateFlow<AdminMetrics> = combine(products, orders, users) { prodList, orderList, userList ->
         val revenue = orderList.filter { it.orderStatus != "CANCELLED" }.sumOf { it.finalTotal }
         val placed = orderList.count { it.orderStatus == "PLACED" }
@@ -114,8 +135,15 @@ class AdminViewModel @Inject constructor(
         val shipped = orderList.count { it.orderStatus == "SHIPPED" || it.orderStatus == "OUT_FOR_DELIVERY" }
         val delivered = orderList.count { it.orderStatus == "DELIVERED" }
         val cancelled = orderList.count { it.orderStatus == "CANCELLED" }
-        val pendingPayments = orderList.count { it.paymentStatus == "PENDING" || it.paymentStatus == "PENDING_VERIFICATION" }
-        val paid = orderList.count { it.paymentStatus == "PAID" || it.paymentStatus == "COMPLETED" }
+        val isDeliveredCod = { o: FirestoreOrderDto ->
+            o.orderStatus.equals("DELIVERED", ignoreCase = true) && o.paymentMethod.equals("COD", ignoreCase = true)
+        }
+        val pendingPayments = orderList.count {
+            (it.paymentStatus == "PENDING" || it.paymentStatus == "PENDING_VERIFICATION") && !isDeliveredCod(it)
+        }
+        val paid = orderList.count {
+            it.paymentStatus == "PAID" || it.paymentStatus == "COMPLETED" || isDeliveredCod(it)
+        }
         val lowStock = prodList.count { it.stockQuantity <= 5 || !it.inStock }
 
         AdminMetrics(
@@ -226,11 +254,24 @@ class AdminViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 _opStatus.update { AdminOpStatus.Loading }
-                firestoreCatalogDataSource.updateOrderStatus(orderId, status, trackingNumber, courierPartner)
+                val targetOrder = orders.value.firstOrNull { it.orderId == orderId }
+                val isCod = targetOrder?.paymentMethod.equals("COD", ignoreCase = true)
+                val isDelivered = status.equals("DELIVERED", ignoreCase = true)
+
+                if (isDelivered && isCod) {
+                    firestoreCatalogDataSource.updateOrderStatusAndPayment(
+                        orderId = orderId,
+                        status = "DELIVERED",
+                        paymentStatus = "COMPLETED",
+                        trackingNumber = trackingNumber,
+                        courierPartner = courierPartner
+                    )
+                } else {
+                    firestoreCatalogDataSource.updateOrderStatus(orderId, status, trackingNumber, courierPartner)
+                }
                 _opStatus.update { AdminOpStatus.Success("Order status updated to $status") }
 
                 // SuperCoins lifecycle handling
-                val targetOrder = orders.value.firstOrNull { it.orderId == orderId }
                 val targetUserId = targetOrder?.userId.orEmpty()
                 if (targetUserId.isNotBlank()) {
                     if (status.equals("CONFIRMED", ignoreCase = true) || status.equals("DELIVERED", ignoreCase = true)) {
