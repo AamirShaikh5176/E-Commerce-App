@@ -136,7 +136,7 @@ class WalletViewModel @Inject constructor(
                 options.put("description", "Add ₹${"%.0f".format(amount)} to Wallet")
                 options.put("currency", "INR")
                 options.put("amount", Math.round(amount * 100))
-                if (razorpayOrderId.isNotBlank()) {
+                if (razorpayOrderId.isNotBlank() && !razorpayOrderId.startsWith("order_wlt_") && !razorpayOrderId.startsWith("order_test_")) {
                     options.put("order_id", razorpayOrderId)
                 }
 

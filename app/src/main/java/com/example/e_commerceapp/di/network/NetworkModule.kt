@@ -49,6 +49,7 @@ object NetworkModule {
                 val request = chain.request()
                 val originalUrl = request.url
 
+                var lastException: java.io.IOException? = null
                 // Always try the configured live HTTPS endpoint first
                 try {
                     val response = chain.proceed(request)
@@ -56,7 +57,8 @@ object NetworkModule {
                         return@addInterceptor response
                     }
                 } catch (e: java.io.IOException) {
-                    // If unreachable, try local dev fallbacks only if not on HTTPS
+                    lastException = e
+                    android.util.Log.w("NetworkModule", "HTTPS payment endpoint error: ${e.message}")
                 }
 
                 val fallbackCandidates = mutableListOf<okhttp3.HttpUrl>()
@@ -64,8 +66,6 @@ object NetworkModule {
                     fallbackCandidates.add(originalUrl.newBuilder().scheme("http").host("10.0.2.2").port(5000).build())
                     fallbackCandidates.add(originalUrl.newBuilder().scheme("http").host("127.0.0.1").port(5000).build())
                 }
-
-                var lastException: java.io.IOException? = null
                 for (targetUrl in fallbackCandidates) {
                     val newRequest = request.newBuilder().url(targetUrl).build()
                     try {

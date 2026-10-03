@@ -348,7 +348,7 @@ class PaymentViewModel @Inject constructor(
                     options.put("description", "Wallet + Razorpay Order #$orderId")
                     options.put("currency", "INR")
                     options.put("amount", Math.round(razorpayPart * 100))
-                    if (razorpayOrderId.isNotBlank()) {
+                    if (razorpayOrderId.isNotBlank() && !razorpayOrderId.startsWith("order_wlt_") && !razorpayOrderId.startsWith("order_test_")) {
                         options.put("order_id", razorpayOrderId)
                     }
 
@@ -614,7 +614,7 @@ class PaymentViewModel @Inject constructor(
                 options.put("description", "Order Payment #$orderId")
                 options.put("currency", "INR")
                 options.put("amount", Math.round(finalAmount * 100))
-                if (razorpayOrderId.isNotBlank()) {
+                if (razorpayOrderId.isNotBlank() && !razorpayOrderId.startsWith("order_wlt_") && !razorpayOrderId.startsWith("order_test_")) {
                     options.put("order_id", razorpayOrderId)
                 }
 
