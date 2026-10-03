@@ -13,5 +13,5 @@ object Constants {
 
     // Razorpay Client Publishable Key (NO secrets stored in Android APK)
     const val RAZORPAY_CLIENT_KEY = "rzp_test_TjNWkeRHzVPeh0"
-    const val BACKEND_BASE_URL = "https://scenes-joseph-meet-albert.trycloudflare.com/"
+    const val BACKEND_BASE_URL = "https://correct-ahead-assets-uploaded.trycloudflare.com/"
 }

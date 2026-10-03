@@ -22,7 +22,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -77,7 +76,7 @@ fun AdminOrderListScreen(
     val statusTabs = listOf("All", "PLACED", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED")
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
-    val paymentFilters = listOf("All Payments", "PENDING_VERIFICATION", "PAID", "PENDING")
+    val paymentFilters = listOf("All Payments", "PAID", "PENDING")
     var selectedPaymentFilter by remember { mutableStateOf("All Payments") }
 
     var searchQuery by remember { mutableStateOf("") }
@@ -92,7 +91,6 @@ fun AdminOrderListScreen(
 
         val paymentMatches = when (selectedPaymentFilter) {
             "All Payments" -> true
-            "PENDING_VERIFICATION" -> order.paymentStatus.equals("PENDING_VERIFICATION", ignoreCase = true)
             "PAID" -> order.paymentStatus.equals("PAID", ignoreCase = true) || order.paymentStatus.equals("COMPLETED", ignoreCase = true)
             "PENDING" -> order.paymentStatus.equals("PENDING", ignoreCase = true)
             else -> true
@@ -275,7 +273,7 @@ fun AdminOrderListScreen(
                             )
                         },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = if (filter == "PENDING_VERIFICATION") Color(0xFF7C3AED) else Color(0xFF0284C7),
+                            selectedContainerColor = Color(0xFF0284C7),
                             selectedLabelColor = Color.White,
                             containerColor = Color(0xFF1E293B),
                             labelColor = Color(0xFF94A3B8)
@@ -310,9 +308,6 @@ fun AdminOrderListScreen(
                     items(filteredOrders, key = { it.orderId }) { order ->
                         AdminOrderItemCard(
                             order = order,
-                            onVerifyPayment = {
-                                viewModel.verifyPaymentAndMarkPaid(order.orderId)
-                            },
                             onConfirmOrder = {
                                 viewModel.updateOrderStatus(order.orderId, "CONFIRMED")
                             },
@@ -342,7 +337,6 @@ fun AdminOrderListScreen(
 @Composable
 fun AdminOrderItemCard(
     order: FirestoreOrderDto,
-    onVerifyPayment: () -> Unit,
     onConfirmOrder: () -> Unit,
     onProcessOrder: () -> Unit,
     onOpenDispatch: () -> Unit,
@@ -462,7 +456,6 @@ fun AdminOrderItemCard(
                         text = order.paymentStatus.replace("_", " "),
                         color = when (order.paymentStatus) {
                             "PAID", "COMPLETED" -> Color(0xFF10B981)
-                            "PENDING_VERIFICATION" -> Color(0xFFA855F7)
                             "FAILED" -> Color(0xFFEF4444)
                             else -> Color(0xFFF59E0B)
                         },
@@ -511,26 +504,13 @@ fun AdminOrderItemCard(
                 }
             }
 
-            // Fulfillment & Payment Verification Buttons
+            // Fulfillment Buttons
             Spacer(modifier = Modifier.height(12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Verification button for PENDING_VERIFICATION (e.g. UPI QR)
-                if (order.paymentStatus == "PENDING_VERIFICATION") {
-                    Button(
-                        onClick = onVerifyPayment,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7C3AED)),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(imageVector = Icons.Default.Verified, contentDescription = null, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Verify Payment (Mark PAID)", color = Color.White, fontSize = 11.sp)
-                    }
-                }
-
                 when (order.orderStatus) {
                     "PLACED" -> {
                         Button(

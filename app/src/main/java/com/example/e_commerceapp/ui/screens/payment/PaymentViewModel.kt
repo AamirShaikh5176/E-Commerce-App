@@ -825,7 +825,7 @@ class PaymentViewModel @Inject constructor(
 
             val result = paymentUseCase.placeOrder(orderDto)
             if (result.isSuccess) {
-                // If order is immediately CONFIRMED / PAID (e.g. 100% SuperCoins or UPI QR), award 10% reward
+                // If order is immediately CONFIRMED / PAID (e.g. 100% SuperCoins or Wallet), award 10% reward
                 if ((orderStatus.equals("CONFIRMED", ignoreCase = true) || paymentStatus.equals("PAID", ignoreCase = true)) && userId.isNotBlank()) {
                     superCoinsRepository.awardOrderRewardIfEligible(orderId, userId)
                 }

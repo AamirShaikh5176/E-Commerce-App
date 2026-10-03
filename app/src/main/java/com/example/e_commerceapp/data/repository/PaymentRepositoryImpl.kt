@@ -1,14 +1,11 @@
 package com.example.e_commerceapp.data.repository
 
-import android.net.Uri
 import com.example.e_commerceapp.data.dto.firestore.FirestoreOrderDto
 import com.example.e_commerceapp.domain.repository.LocalRepository
 import com.example.e_commerceapp.domain.repository.PaymentRepository
-import com.example.e_commerceapp.utils.Constants
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
-import java.util.Locale
 import java.util.UUID
 import com.example.e_commerceapp.data.data_source.remote.api.RazorpayApiService
 import com.example.e_commerceapp.data.dto.payment.CreateRazorpayOrderRequest

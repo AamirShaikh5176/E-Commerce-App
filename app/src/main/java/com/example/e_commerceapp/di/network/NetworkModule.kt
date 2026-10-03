@@ -45,42 +45,9 @@ object NetworkModule {
 
     private fun createBackendOkHttpClient(baseClient: OkHttpClient): OkHttpClient {
         return baseClient.newBuilder()
-            .addInterceptor { chain ->
-                val request = chain.request()
-                val originalUrl = request.url
-
-                var lastException: java.io.IOException? = null
-                // Always try the configured live HTTPS endpoint first
-                try {
-                    val response = chain.proceed(request)
-                    if (response.code != 404 && response.code != 502) {
-                        return@addInterceptor response
-                    }
-                } catch (e: java.io.IOException) {
-                    lastException = e
-                    android.util.Log.w("NetworkModule", "HTTPS payment endpoint error: ${e.message}")
-                }
-
-                val fallbackCandidates = mutableListOf<okhttp3.HttpUrl>()
-                if (originalUrl.scheme != "https") {
-                    fallbackCandidates.add(originalUrl.newBuilder().scheme("http").host("10.0.2.2").port(5000).build())
-                    fallbackCandidates.add(originalUrl.newBuilder().scheme("http").host("127.0.0.1").port(5000).build())
-                }
-                for (targetUrl in fallbackCandidates) {
-                    val newRequest = request.newBuilder().url(targetUrl).build()
-                    try {
-                        val response = chain.proceed(newRequest)
-                        if (response.code != 404 && response.code != 502) {
-                            return@addInterceptor response
-                        }
-                    } catch (e: java.io.IOException) {
-                        lastException = e
-                    }
-                }
-                throw lastException ?: java.io.IOException("Unable to reach payment server")
-            }
-            .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(20, java.util.concurrent.TimeUnit.SECONDS)
+            .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(25, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(25, java.util.concurrent.TimeUnit.SECONDS)
             .build()
     }
 

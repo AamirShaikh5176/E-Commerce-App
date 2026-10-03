@@ -309,7 +309,6 @@ fun CustomerOrderItemCard(
                         Spacer(modifier = Modifier.width(6.dp))
                         val (payBg, payFg) = when (order.paymentStatus) {
                             "PAID", "COMPLETED" -> Color(0xFFDCFCE7) to Color(0xFF15803D)
-                            "PENDING_VERIFICATION" -> Color(0xFFFEF3C7) to Color(0xFFB45309)
                             "FAILED" -> Color(0xFFFEE2E2) to Color(0xFFB91C1C)
                             else -> Color(0xFFF1F5F9) to Color(0xFF475569)
                         }

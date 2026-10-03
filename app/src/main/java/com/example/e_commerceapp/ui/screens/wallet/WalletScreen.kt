@@ -175,40 +175,45 @@ fun WalletScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF8F9FA))
-            .statusBarsPadding()
     ) {
-        // Header
+        // Header with status bar padding inside white Surface
         Surface(
             modifier = Modifier.fillMaxWidth(),
             color = Color.White,
             shadowElevation = 2.dp
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .statusBarsPadding()
             ) {
-                IconButton(onClick = onBackClick) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
-                        tint = Color(0xFF1E293B)
-                    )
-                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color(0xFF1E293B)
+                        )
+                    }
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "My Wallet",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        color = Color(0xFF1E293B)
-                    )
-                    Text(
-                        text = "Real money • INR balance",
-                        fontSize = 12.sp,
-                        color = Color(0xFF64748B)
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "My Wallet",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = Color(0xFF1E293B)
+                        )
+                        Text(
+                            text = "Real money • INR balance",
+                            fontSize = 12.sp,
+                            color = Color(0xFF64748B)
+                        )
+                    }
                 }
             }
         }

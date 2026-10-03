@@ -28,7 +28,7 @@ data class FirestoreOrderDto(
     val finalTotal: Double = 0.0,
     val currency: String = "INR",
     val paymentMethod: String = "COD", // "COD" | "ONLINE" | "WALLET" | "CARD" | "NET_BANKING"
-    val paymentStatus: String = "PENDING", // "PENDING" | "PENDING_VERIFICATION" | "PAID" | "FAILED" | "REFUNDED"
+    val paymentStatus: String = "PENDING", // "PENDING" | "PAID" | "COMPLETED" | "FAILED" | "REFUNDED"
     val orderStatus: String = "PLACED", // "PLACED" | "CONFIRMED" | "PROCESSING" | "SHIPPED" | "OUT_FOR_DELIVERY" | "DELIVERED" | "CANCELLED"
     val trackingNumber: String = "",
     val courierPartner: String = "",

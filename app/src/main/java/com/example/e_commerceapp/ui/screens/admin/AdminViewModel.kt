@@ -141,7 +141,7 @@ class AdminViewModel @Inject constructor(
         val delivered = orderList.count { it.orderStatus == "DELIVERED" }
         val cancelled = orderList.count { it.orderStatus == "CANCELLED" }
         val pendingPayments = orderList.count {
-            it.orderStatus != "CANCELLED" && (it.paymentStatus == "PENDING" || it.paymentStatus == "PENDING_VERIFICATION") && !isDeliveredCod(it)
+            it.orderStatus != "CANCELLED" && it.paymentStatus == "PENDING" && !isDeliveredCod(it)
         }
         val paid = orderList.count {
             it.orderStatus != "CANCELLED" && (it.paymentStatus == "PAID" || it.paymentStatus == "COMPLETED" || isDeliveredCod(it))
@@ -163,22 +163,6 @@ class AdminViewModel @Inject constructor(
             totalCustomers = userList.size,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AdminMetrics())
-
-    fun verifyPaymentAndMarkPaid(orderId: String) {
-        viewModelScope.launch {
-            try {
-                _opStatus.update { AdminOpStatus.Loading }
-                firestoreCatalogDataSource.updateOrderStatusAndPayment(
-                    orderId = orderId,
-                    status = "CONFIRMED",
-                    paymentStatus = "PAID"
-                )
-                _opStatus.update { AdminOpStatus.Success("Payment verified! Order marked as PAID & CONFIRMED.") }
-            } catch (e: Exception) {
-                _opStatus.update { AdminOpStatus.Error("Failed to verify payment: ${e.message}") }
-            }
-        }
-    }
 
     fun clearOpStatus() {
         _opStatus.update { AdminOpStatus.Idle }
