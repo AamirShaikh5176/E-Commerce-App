@@ -4,10 +4,12 @@ import android.content.SharedPreferences
 import androidx.lifecycle.ViewModel
 import com.example.e_commerceapp.navigation.HomeScreen
 import com.example.e_commerceapp.navigation.SignInScreen
-import com.google.firebase.auth.FirebaseAuth
+import com.example.e_commerceapp.utils.Constants.PREF_FIREBASE_USERID_KEY
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
+
+
+import kotlinx.coroutines.tasks.await
 
 @HiltViewModel
 class SplashViewModel @Inject constructor(
@@ -15,20 +17,18 @@ class SplashViewModel @Inject constructor(
 ) : ViewModel() {
 
     suspend fun decideNextScreen(): String {
-        val user = FirebaseAuth.getInstance().currentUser
+        val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
         if (user != null) {
             try {
                 val tokenResult = user.getIdToken(false).await()
                 val isAdmin = tokenResult.claims["admin"] == true
                 if (isAdmin) {
-                    // Admin session was active when app closed; ensure signed out so admin must authenticate again
-                    FirebaseAuth.getInstance().signOut()
+                    return com.example.e_commerceapp.navigation.AdminDashboardDestination.route
                 }
-            } catch (_: Exception) {
-                // Ignore
+            } catch (e: Exception) {
+                // Fallback to customer home
             }
         }
-        // Always open normal Guest/Customer Home Screen
         return HomeScreen.route
     }
 }

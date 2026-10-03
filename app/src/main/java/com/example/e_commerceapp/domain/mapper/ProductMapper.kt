@@ -25,12 +25,10 @@ fun ProductDetailsEntity.toUserCartEntity(): UserCartEntity {
         title = title,
         description = description,
         price = price,
-        image = imageUrl.firstOrNull() ?: "",
+        image = imageUrl.first(),
         availableQuantity = availableQuantity,
         quantity = quantity,
         rating = rating,
-        categoryId = categoryId,
-        categoryName = categoryName,
     )
 }
 

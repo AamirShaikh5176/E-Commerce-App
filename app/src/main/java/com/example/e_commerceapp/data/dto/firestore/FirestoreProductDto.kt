@@ -76,8 +76,6 @@ data class FirestoreProductDto(
             isCodAvailable = isCodAvailable,
             isFavorite = false,
             isAddedToCart = false,
-            categoryId = categoryId,
-            categoryName = categoryName,
         )
     }
 
