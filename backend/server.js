@@ -555,104 +555,172 @@ app.post(['/api/wallet/deduct-for-order'], async (req, res) => {
 });
 
 /**
- * 6. Order Cancellation & Automated Refund
+ * 6. Order Cancellation & Return Requests (Customer Initiated, Admin Controlled)
  */
-app.post(['/api/order/cancel'], async (req, res) => {
+app.post(['/api/order/request-cancel'], async (req, res) => {
     try {
         const { userId, orderId, reason = 'Customer requested cancellation' } = req.body;
 
         if (!userId || !orderId) {
-            return res.status(400).json({
-                success: false,
-                message: 'userId and orderId are required'
-            });
+            return res.status(400).json({ success: false, message: 'userId and orderId are required' });
         }
-
         if (!db) {
-            return res.status(503).json({
-                success: false,
-                message: 'Database service unavailable'
-            });
+            return res.status(503).json({ success: false, message: 'Database service unavailable' });
         }
 
         const orderRef = db.collection('orders').doc(orderId);
         const orderSnap = await orderRef.get();
-
         if (!orderSnap.exists) {
-            return res.status(404).json({
-                success: false,
-                message: 'Order not found'
-            });
+            return res.status(404).json({ success: false, message: 'Order not found' });
         }
 
         const order = orderSnap.data();
-
-        // Security check: Only the order owner can cancel
         if (order.userId !== userId) {
-            return res.status(403).json({
-                success: false,
-                message: 'Unauthorized: You can only cancel your own orders'
-            });
+            return res.status(403).json({ success: false, message: 'Unauthorized: You can only cancel your own orders' });
         }
 
-        // Idempotency: If already cancelled, return existing details
-        if (order.orderStatus === 'CANCELLED') {
-            return res.json({
-                success: true,
-                message: 'Order is already cancelled',
-                orderStatus: 'CANCELLED',
-                refundStatus: order.refundStatus || 'NOT_APPLICABLE',
-                refundAmount: order.refundAmount || 0
-            });
+        if (order.orderStatus === 'CANCELLED' || order.orderStatus === 'CANCELLATION_REQUESTED') {
+            return res.json({ success: true, message: 'Cancellation already requested or order is cancelled', orderStatus: order.orderStatus });
         }
 
-        // Eligibility validation: Cannot cancel if SHIPPED, OUT_FOR_DELIVERY, or DELIVERED
-        const nonCancellableStates = ['SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'];
+        const nonCancellableStates = ['SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'RETURNED'];
         if (nonCancellableStates.includes(order.orderStatus)) {
             return res.status(400).json({
                 success: false,
-                message: `Order cannot be cancelled because it is already ${order.orderStatus.toLowerCase().replace('_', ' ')}.`
+                message: `Order cannot be cancelled because it is already ${order.orderStatus.toLowerCase().replace('_', ' ')}. Please request a return if delivered.`
+            });
+        }
+
+        const now = Date.now();
+        await orderRef.update({
+            orderStatus: 'CANCELLATION_REQUESTED',
+            cancellationRequested: true,
+            cancelReason: reason,
+            cancellationRequestedAt: now,
+            updatedAt: now
+        });
+
+        console.log(`Order ${orderId} cancellation requested by customer ${userId}`);
+        res.json({ success: true, orderId, orderStatus: 'CANCELLATION_REQUESTED', message: 'Cancellation request submitted for Admin review.' });
+    } catch (err) {
+        console.error('Error submitting cancellation request:', err);
+        res.status(500).json({ success: false, message: err.message || 'Server error' });
+    }
+});
+
+app.post(['/api/order/request-return'], async (req, res) => {
+    try {
+        const { userId, orderId, reason = 'Customer requested return' } = req.body;
+
+        if (!userId || !orderId) {
+            return res.status(400).json({ success: false, message: 'userId and orderId are required' });
+        }
+        if (!db) {
+            return res.status(503).json({ success: false, message: 'Database service unavailable' });
+        }
+
+        const orderRef = db.collection('orders').doc(orderId);
+        const orderSnap = await orderRef.get();
+        if (!orderSnap.exists) {
+            return res.status(404).json({ success: false, message: 'Order not found' });
+        }
+
+        const order = orderSnap.data();
+        if (order.userId !== userId) {
+            return res.status(403).json({ success: false, message: 'Unauthorized: You can only return your own orders' });
+        }
+
+        if (order.orderStatus !== 'DELIVERED') {
+            return res.status(400).json({ success: false, message: 'Returns can only be requested for delivered orders' });
+        }
+
+        const now = Date.now();
+        await orderRef.update({
+            orderStatus: 'RETURN_REQUESTED',
+            returnRequested: true,
+            returnReason: reason,
+            returnRequestedAt: now,
+            pickupRequired: true,
+            pickupStatus: 'PENDING',
+            updatedAt: now
+        });
+
+        console.log(`Order ${orderId} return requested by customer ${userId}`);
+        res.json({ success: true, orderId, orderStatus: 'RETURN_REQUESTED', message: 'Return request submitted. Admin will review and schedule pickup.' });
+    } catch (err) {
+        console.error('Error submitting return request:', err);
+        res.status(500).json({ success: false, message: err.message || 'Server error' });
+    }
+});
+
+/**
+ * 7. Admin Controlled Refund Processing (Razorpay / Wallet / COD)
+ */
+app.post(['/api/admin/order/refund'], async (req, res) => {
+    try {
+        const { orderId, adminUid = 'admin', reason = 'Admin approved refund', action = 'INITIATE_REFUND' } = req.body;
+
+        if (!orderId) {
+            return res.status(400).json({ success: false, message: 'orderId is required' });
+        }
+        if (!db) {
+            return res.status(503).json({ success: false, message: 'Database service unavailable' });
+        }
+
+        const orderRef = db.collection('orders').doc(orderId);
+        const orderSnap = await orderRef.get();
+        if (!orderSnap.exists) {
+            return res.status(404).json({ success: false, message: 'Order not found' });
+        }
+
+        const order = orderSnap.data();
+        const now = Date.now();
+
+        // Duplicate refund protection
+        if (order.refundStatus === 'REFUND_COMPLETED' || order.refundStatus === 'REFUNDED') {
+            return res.json({
+                success: true,
+                orderId,
+                refundId: order.refundId,
+                refundAmount: order.refundAmount,
+                refundStatus: order.refundStatus,
+                message: 'Refund was already completed for this order.'
             });
         }
 
         const paymentMethod = (order.paymentMethod || '').toUpperCase();
         const paymentStatus = (order.paymentStatus || '').toUpperCase();
-        const finalTotal = Number(order.finalTotal || 0);
+        const finalTotal = Number(order.finalTotal || order.itemsTotal || 0);
         const walletDeducted = Number(order.walletAmountDeducted || 0);
+        const isReturn = order.returnRequested || order.orderStatus === 'PRODUCT_RECEIVED' || order.orderStatus === 'RETURNED';
+        const finalOrderStatus = isReturn ? 'RETURNED' : 'CANCELLED';
 
-        let refundStatus = 'NOT_APPLICABLE';
+        let refundStatus = 'REFUND_COMPLETED';
         let refundId = '';
         let refundAmount = 0;
-        const now = Date.now();
 
-        // 1. Wallet Refund (for full or partial wallet payment)
+        // 1. Wallet Refund
         const effectiveWalletRefund = (paymentMethod === 'WALLET') ? finalTotal : walletDeducted;
-        if (effectiveWalletRefund > 0) {
+        if (effectiveWalletRefund > 0 && order.userId) {
             try {
-                const walletDocRef = db.collection('users').doc(userId).collection('wallet').doc('money');
-                const mainDocRef = db.collection('users').doc(userId).collection('wallet').doc('main');
+                const walletDocRef = db.collection('users').doc(order.userId).collection('wallet').doc('money');
+                const mainDocRef = db.collection('users').doc(order.userId).collection('wallet').doc('main');
                 const txnDocRef = walletDocRef.collection('transactions').doc();
-                const userTxnDocRef = db.collection('users').doc(userId).collection('walletTransactions').doc(txnDocRef.id);
+                const userTxnDocRef = db.collection('users').doc(order.userId).collection('walletTransactions').doc(txnDocRef.id);
 
                 await db.runTransaction(async (transaction) => {
                     const snap = await transaction.get(walletDocRef);
                     const currentBalance = snap.exists ? (snap.data().balance || 0.0) : 0.0;
-                    const currentAdded = snap.exists ? (snap.data().lifetimeAdded || 0.0) : 0.0;
                     const currentSpent = snap.exists ? (snap.data().lifetimeSpent || 0.0) : 0.0;
 
                     const newBalance = Number((currentBalance + effectiveWalletRefund).toFixed(2));
                     const newSpent = Number(Math.max(0, currentSpent - effectiveWalletRefund).toFixed(2));
 
-                    const updates = {
-                        balance: newBalance,
-                        lifetimeSpent: newSpent,
-                        totalSpent: newSpent,
-                        updatedAt: now
-                    };
+                    const updates = { balance: newBalance, lifetimeSpent: newSpent, totalSpent: newSpent, updatedAt: now };
 
                     if (!snap.exists) {
-                        updates.lifetimeAdded = 0.0;
-                        updates.totalAdded = 0.0;
+                        updates.lifetimeAdded = newBalance;
+                        updates.totalAdded = newBalance;
                         updates.createdAt = now;
                         transaction.set(walletDocRef, updates);
                         transaction.set(mainDocRef, updates);
@@ -670,110 +738,129 @@ app.post(['/api/order/cancel'], async (req, res) => {
                         status: 'SUCCESS',
                         source: 'WALLET_REFUND',
                         orderId: orderId,
-                        description: `Refund for cancelled Order #${orderId}`,
+                        description: `Refund for Order #${orderId}`,
                         createdAt: now,
                         updatedAt: now,
                         timestamp: now
                     };
-
                     transaction.set(txnDocRef, txnPayload);
                     transaction.set(userTxnDocRef, txnPayload);
                 });
 
-                refundStatus = 'REFUNDED';
-                refundId = `WLT_REF_${Date.now()}`;
+                refundId = `WLT_REF_${now}`;
                 refundAmount += effectiveWalletRefund;
                 console.log(`Wallet refund of ₹${effectiveWalletRefund} completed for order ${orderId}`);
             } catch (wErr) {
                 console.error(`Error refunding wallet for order ${orderId}:`, wErr.message);
-                refundStatus = 'REFUND_PENDING';
+                refundStatus = 'REFUND_PROCESSING';
             }
         }
 
-        // 2. Razorpay Online Refund (if order was paid online)
+        // 2. Razorpay Online Refund
         const onlinePaidAmount = (paymentMethod === 'ONLINE') ? finalTotal : Number(order.onlineAmountPaid || 0);
-        if (paymentMethod === 'ONLINE' || onlinePaidAmount > 0) {
+        if ((paymentMethod === 'ONLINE' || onlinePaidAmount > 0) && (paymentStatus === 'PAID' || paymentStatus === 'COMPLETED')) {
             const paymentIdToRefund = order.gatewayPaymentId || order.paymentReference;
-            if (paymentStatus === 'PAID' || paymentStatus === 'COMPLETED') {
-                if (paymentIdToRefund && paymentIdToRefund.startsWith('pay_') && RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET) {
-                    try {
-                        const amountInPaise = Math.round(onlinePaidAmount * 100);
-                        const authHeader = 'Basic ' + Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString('base64');
-                        const rzpResp = await fetch(`https://api.razorpay.com/v1/payments/${paymentIdToRefund}/refund`, {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': authHeader,
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                amount: amountInPaise,
-                                notes: { orderId: orderId, reason: reason }
-                            })
-                        });
+            if (paymentIdToRefund && paymentIdToRefund.startsWith('pay_') && RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET) {
+                try {
+                    const amountInPaise = Math.round(onlinePaidAmount * 100);
+                    const authHeader = 'Basic ' + Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString('base64');
+                    const rzpResp = await fetch(`https://api.razorpay.com/v1/payments/${paymentIdToRefund}/refund`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': authHeader,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            amount: amountInPaise,
+                            notes: { orderId: orderId, reason: reason }
+                        })
+                    });
 
-                        const rzpData = await rzpResp.json();
-                        if (rzpResp.ok) {
-                            refundId = rzpData.id || `REF_${Date.now()}`;
-                            refundStatus = 'REFUNDED';
-                            refundAmount += onlinePaidAmount;
-                            console.log(`Razorpay refund ${refundId} initiated for order ${orderId}`);
-                        } else {
-                            console.warn('Razorpay refund API response:', rzpData.error?.description || rzpData);
-                            refundId = `REF_${Date.now()}`;
-                            refundStatus = 'REFUND_PENDING';
-                            refundAmount += onlinePaidAmount;
-                        }
-                    } catch (rzpErr) {
-                        console.error('Razorpay refund error:', rzpErr.message);
-                        refundId = `REF_${Date.now()}`;
-                        refundStatus = 'REFUND_PENDING';
+                    const rzpData = await rzpResp.json();
+                    if (rzpResp.ok) {
+                        refundId = rzpData.id || `REF_${now}`;
+                        refundStatus = 'REFUND_COMPLETED';
+                        refundAmount += onlinePaidAmount;
+                        console.log(`Razorpay refund ${refundId} initiated for order ${orderId}`);
+                    } else {
+                        console.warn('Razorpay refund API response:', rzpData.error?.description || rzpData);
+                        refundId = `REF_${now}`;
+                        refundStatus = 'REFUND_PROCESSING';
                         refundAmount += onlinePaidAmount;
                     }
-                } else {
-                    // Test mode or offline recorded payment
-                    refundId = `REF_${Date.now()}`;
-                    refundStatus = 'REFUNDED';
+                } catch (rzpErr) {
+                    console.error('Razorpay refund error:', rzpErr.message);
+                    refundId = `REF_${now}`;
+                    refundStatus = 'REFUND_PROCESSING';
                     refundAmount += onlinePaidAmount;
                 }
             } else {
-                // Not paid yet (e.g. pending/failed)
-                refundStatus = 'NOT_APPLICABLE';
+                // Test / mock refund
+                refundId = `REF_${now}`;
+                refundStatus = 'REFUND_COMPLETED';
+                refundAmount += onlinePaidAmount;
             }
         }
 
-        // 3. Update the Order document in Firestore
+        // 3. COD Handling
+        if (paymentMethod === 'COD') {
+            if (isReturn) {
+                refundId = `COD_REF_${now}`;
+                refundStatus = 'REFUND_COMPLETED';
+                refundAmount = finalTotal;
+            } else {
+                refundStatus = 'NOT_APPLICABLE';
+                refundAmount = 0;
+            }
+        }
+
+        // Audit Trail entry
+        const auditEntry = {
+            adminUid: adminUid,
+            action: isReturn ? 'RETURN_REFUND_COMPLETED' : 'CANCELLATION_REFUND_COMPLETED',
+            previousStatus: order.orderStatus,
+            newStatus: finalOrderStatus,
+            notes: reason,
+            timestamp: now
+        };
+
+        const existingTrail = Array.isArray(order.adminAuditTrail) ? order.adminAuditTrail : [];
+        existingTrail.push(auditEntry);
+
         const orderUpdates = {
-            orderStatus: 'CANCELLED',
-            paymentStatus: (refundStatus === 'REFUNDED') ? 'REFUNDED' : (paymentStatus === 'PAID' || paymentStatus === 'COMPLETED' ? 'REFUND_PENDING' : 'CANCELLED'),
+            orderStatus: finalOrderStatus,
+            paymentStatus: (refundStatus === 'REFUND_COMPLETED') ? 'REFUNDED' : 'REFUND_PROCESSING',
             refundStatus: refundStatus,
-            refundId: refundId,
+            refundId: refundId || `REF_${now}`,
             refundAmount: refundAmount,
-            refundCreatedAt: now,
-            cancelledAt: now,
-            cancellationReason: reason,
+            refundInitiatedAt: order.refundInitiatedAt || now,
+            refundCompletedAt: (refundStatus === 'REFUND_COMPLETED') ? now : 0,
+            adminNotes: reason,
+            adminAuditTrail: existingTrail,
             updatedAt: now
         };
 
+        if (!isReturn) {
+            orderUpdates.cancelledAt = now;
+        }
+
         await orderRef.update(orderUpdates);
 
-        console.log(`Order ${orderId} successfully cancelled by user ${userId}`);
-
+        console.log(`Order ${orderId} refund processed by Admin ${adminUid}: ₹${refundAmount}`);
         res.json({
             success: true,
-            orderId: orderId,
-            orderStatus: 'CANCELLED',
-            refundStatus: refundStatus,
-            refundAmount: refundAmount,
+            orderId,
+            refundId: orderUpdates.refundId,
+            refundAmount,
+            refundStatus,
+            orderStatus: finalOrderStatus,
             message: refundAmount > 0
-                ? `Order cancelled. ₹${refundAmount} has been refunded.`
-                : 'Order cancelled successfully.'
+                ? `Refund of ₹${refundAmount} processed successfully.`
+                : 'Order updated successfully.'
         });
     } catch (err) {
-        console.error('Exception cancelling order:', err.message);
-        res.status(500).json({
-            success: false,
-            message: 'Failed to cancel order: ' + err.message
-        });
+        console.error('Error processing admin refund:', err);
+        res.status(500).json({ success: false, message: err.message || 'Server error' });
     }
 });
 

@@ -39,5 +39,8 @@ interface FirestoreCatalogDataSource {
     fun getOrderByIdFlow(orderId: String): Flow<FirestoreOrderDto?>
     suspend fun updateOrderStatus(orderId: String, status: String, trackingNumber: String = "", courierPartner: String = "")
     suspend fun updateOrderStatusAndPayment(orderId: String, status: String, paymentStatus: String? = null, trackingNumber: String = "", courierPartner: String = "")
+    suspend fun requestOrderCancellation(orderId: String, reason: String)
+    suspend fun requestOrderReturn(orderId: String, reason: String)
+    suspend fun updateOrderAdminAction(orderId: String, updates: Map<String, Any>, auditEntry: Map<String, Any>)
     fun getUsersFlow(): Flow<List<UserInformationEntity>>
 }

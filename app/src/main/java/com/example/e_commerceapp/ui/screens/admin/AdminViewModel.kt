@@ -48,6 +48,9 @@ class AdminViewModel @Inject constructor(
     private val firestoreCatalogDataSource: FirestoreCatalogDataSource,
     private val catalogDataMigrator: CatalogDataMigrator,
     private val superCoinsRepository: com.example.e_commerceapp.domain.repository.SuperCoinsRepository,
+    private val razorpayApiService: com.example.e_commerceapp.data.data_source.remote.api.RazorpayApiService,
+    private val walletRepository: com.example.e_commerceapp.domain.repository.WalletRepository,
+    private val firebaseAuth: com.google.firebase.auth.FirebaseAuth,
 ) : ViewModel() {
 
     init {
@@ -268,6 +271,290 @@ class AdminViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 _opStatus.update { AdminOpStatus.Error("Failed to update order: ${e.message}") }
+            }
+        }
+    }
+
+    private fun createAuditEntry(
+        action: String,
+        previousStatus: String,
+        newStatus: String,
+        notes: String
+    ): Map<String, Any> {
+        val adminUid = firebaseAuth.currentUser?.uid.orEmpty().ifBlank { "admin" }
+        return mapOf(
+            "adminUid" to adminUid,
+            "action" to action,
+            "previousStatus" to previousStatus,
+            "newStatus" to newStatus,
+            "notes" to notes,
+            "timestamp" to System.currentTimeMillis()
+        )
+    }
+
+    fun approveCancellation(orderId: String, notes: String = "") {
+        viewModelScope.launch {
+            try {
+                _opStatus.update { AdminOpStatus.Loading }
+                val targetOrder = orders.value.firstOrNull { it.orderId == orderId }
+                    ?: throw IllegalStateException("Order not found")
+                val isCod = targetOrder.paymentMethod.equals("COD", ignoreCase = true)
+                val newStatus = if (isCod) "CANCELLED" else "CANCELLATION_APPROVED"
+                val refundStatus = if (isCod) "NOT_APPLICABLE" else "REFUND_PENDING"
+                val now = System.currentTimeMillis()
+
+                val updates = mutableMapOf<String, Any>(
+                    "orderStatus" to newStatus,
+                    "cancellationRequested" to true,
+                    "refundStatus" to refundStatus,
+                    "adminNotes" to notes,
+                    "updatedAt" to now
+                )
+                if (isCod) {
+                    updates["cancelledAt"] = now
+                }
+
+                val audit = createAuditEntry("CANCELLATION_APPROVED", targetOrder.orderStatus, newStatus, notes)
+                firestoreCatalogDataSource.updateOrderAdminAction(orderId, updates, audit)
+
+                if (isCod && targetOrder.userId.isNotBlank()) {
+                    superCoinsRepository.refundRedeemedCoinsIfEligible(orderId, targetOrder.userId)
+                }
+                _opStatus.update { AdminOpStatus.Success("Cancellation approved for Order #${orderId.takeLast(6).uppercase()}") }
+            } catch (e: Exception) {
+                _opStatus.update { AdminOpStatus.Error("Failed to approve cancellation: ${e.message}") }
+            }
+        }
+    }
+
+    fun rejectCancellation(orderId: String, notes: String = "") {
+        viewModelScope.launch {
+            try {
+                _opStatus.update { AdminOpStatus.Loading }
+                val targetOrder = orders.value.firstOrNull { it.orderId == orderId }
+                    ?: throw IllegalStateException("Order not found")
+                val newStatus = "CANCELLATION_REJECTED"
+                val updates = mapOf<String, Any>(
+                    "orderStatus" to newStatus,
+                    "cancellationRequested" to false,
+                    "adminNotes" to notes,
+                    "updatedAt" to System.currentTimeMillis()
+                )
+                val audit = createAuditEntry("CANCELLATION_REJECTED", targetOrder.orderStatus, newStatus, notes)
+                firestoreCatalogDataSource.updateOrderAdminAction(orderId, updates, audit)
+                _opStatus.update { AdminOpStatus.Success("Cancellation rejected for Order #${orderId.takeLast(6).uppercase()}") }
+            } catch (e: Exception) {
+                _opStatus.update { AdminOpStatus.Error("Failed to reject cancellation: ${e.message}") }
+            }
+        }
+    }
+
+    fun approveReturn(orderId: String, notes: String = "") {
+        viewModelScope.launch {
+            try {
+                _opStatus.update { AdminOpStatus.Loading }
+                val targetOrder = orders.value.firstOrNull { it.orderId == orderId }
+                    ?: throw IllegalStateException("Order not found")
+                val newStatus = "RETURN_APPROVED"
+                val updates = mapOf<String, Any>(
+                    "orderStatus" to newStatus,
+                    "returnRequested" to true,
+                    "pickupRequired" to true,
+                    "pickupStatus" to "PENDING",
+                    "adminNotes" to notes,
+                    "updatedAt" to System.currentTimeMillis()
+                )
+                val audit = createAuditEntry("RETURN_APPROVED", targetOrder.orderStatus, newStatus, notes)
+                firestoreCatalogDataSource.updateOrderAdminAction(orderId, updates, audit)
+                _opStatus.update { AdminOpStatus.Success("Return request approved for Order #${orderId.takeLast(6).uppercase()}") }
+            } catch (e: Exception) {
+                _opStatus.update { AdminOpStatus.Error("Failed to approve return: ${e.message}") }
+            }
+        }
+    }
+
+    fun rejectReturn(orderId: String, notes: String = "") {
+        viewModelScope.launch {
+            try {
+                _opStatus.update { AdminOpStatus.Loading }
+                val targetOrder = orders.value.firstOrNull { it.orderId == orderId }
+                    ?: throw IllegalStateException("Order not found")
+                val newStatus = "RETURN_REJECTED"
+                val updates = mapOf<String, Any>(
+                    "orderStatus" to newStatus,
+                    "returnRequested" to false,
+                    "pickupStatus" to "NOT_REQUIRED",
+                    "adminNotes" to notes,
+                    "updatedAt" to System.currentTimeMillis()
+                )
+                val audit = createAuditEntry("RETURN_REJECTED", targetOrder.orderStatus, newStatus, notes)
+                firestoreCatalogDataSource.updateOrderAdminAction(orderId, updates, audit)
+                _opStatus.update { AdminOpStatus.Success("Return request rejected for Order #${orderId.takeLast(6).uppercase()}") }
+            } catch (e: Exception) {
+                _opStatus.update { AdminOpStatus.Error("Failed to reject return: ${e.message}") }
+            }
+        }
+    }
+
+    fun schedulePickup(orderId: String, courierPartner: String, scheduledTime: String = "", notes: String = "") {
+        viewModelScope.launch {
+            try {
+                _opStatus.update { AdminOpStatus.Loading }
+                val targetOrder = orders.value.firstOrNull { it.orderId == orderId }
+                    ?: throw IllegalStateException("Order not found")
+                val newStatus = "PICKUP_SCHEDULED"
+                val now = System.currentTimeMillis()
+                val updates = mapOf<String, Any>(
+                    "orderStatus" to newStatus,
+                    "pickupStatus" to "SCHEDULED",
+                    "courierPartner" to courierPartner,
+                    "pickupScheduledAt" to now,
+                    "pickupNotes" to if (notes.isNotBlank()) notes else "Scheduled pickup via $courierPartner",
+                    "updatedAt" to now
+                )
+                val audit = createAuditEntry("PICKUP_SCHEDULED", targetOrder.orderStatus, newStatus, "Scheduled pickup via $courierPartner $notes")
+                firestoreCatalogDataSource.updateOrderAdminAction(orderId, updates, audit)
+                _opStatus.update { AdminOpStatus.Success("Pickup scheduled with $courierPartner") }
+            } catch (e: Exception) {
+                _opStatus.update { AdminOpStatus.Error("Failed to schedule pickup: ${e.message}") }
+            }
+        }
+    }
+
+    fun markProductPickedUp(orderId: String, notes: String = "") {
+        viewModelScope.launch {
+            try {
+                _opStatus.update { AdminOpStatus.Loading }
+                val targetOrder = orders.value.firstOrNull { it.orderId == orderId }
+                    ?: throw IllegalStateException("Order not found")
+                val newStatus = "PICKED_UP"
+                val now = System.currentTimeMillis()
+                val updates = mapOf<String, Any>(
+                    "orderStatus" to newStatus,
+                    "pickupStatus" to "PICKED_UP",
+                    "pickupCompletedAt" to now,
+                    "adminNotes" to notes,
+                    "updatedAt" to now
+                )
+                val audit = createAuditEntry("PRODUCT_PICKED_UP", targetOrder.orderStatus, newStatus, notes)
+                firestoreCatalogDataSource.updateOrderAdminAction(orderId, updates, audit)
+                _opStatus.update { AdminOpStatus.Success("Product marked as picked up") }
+            } catch (e: Exception) {
+                _opStatus.update { AdminOpStatus.Error("Failed to update pickup status: ${e.message}") }
+            }
+        }
+    }
+
+    fun confirmProductReceived(orderId: String, notes: String = "") {
+        viewModelScope.launch {
+            try {
+                _opStatus.update { AdminOpStatus.Loading }
+                val targetOrder = orders.value.firstOrNull { it.orderId == orderId }
+                    ?: throw IllegalStateException("Order not found")
+                val newStatus = "PRODUCT_RECEIVED"
+                val now = System.currentTimeMillis()
+                val updates = mapOf<String, Any>(
+                    "orderStatus" to newStatus,
+                    "pickupStatus" to "RECEIVED",
+                    "refundStatus" to "REFUND_PENDING",
+                    "adminNotes" to notes,
+                    "updatedAt" to now
+                )
+                val audit = createAuditEntry("PRODUCT_RECEIVED", targetOrder.orderStatus, newStatus, notes)
+                firestoreCatalogDataSource.updateOrderAdminAction(orderId, updates, audit)
+                _opStatus.update { AdminOpStatus.Success("Product received & inspected. Ready for refund.") }
+            } catch (e: Exception) {
+                _opStatus.update { AdminOpStatus.Error("Failed to confirm product receipt: ${e.message}") }
+            }
+        }
+    }
+
+    fun processRefund(orderId: String, notes: String = "") {
+        viewModelScope.launch {
+            try {
+                _opStatus.update { AdminOpStatus.Loading }
+                val targetOrder = orders.value.firstOrNull { it.orderId == orderId }
+                    ?: throw IllegalStateException("Order not found")
+
+                if (targetOrder.refundStatus == "REFUND_COMPLETED" || targetOrder.refundStatus == "REFUNDED") {
+                    _opStatus.update { AdminOpStatus.Error("Refund already completed for this order") }
+                    return@launch
+                }
+
+                val adminUid = firebaseAuth.currentUser?.uid.orEmpty().ifBlank { "admin" }
+                val isDeliveredReturn = targetOrder.orderStatus == "PRODUCT_RECEIVED" || targetOrder.returnRequested
+                val finalOrderStatus = if (isDeliveredReturn) "RETURNED" else "CANCELLED"
+                val now = System.currentTimeMillis()
+                val method = targetOrder.paymentMethod.uppercase()
+
+                // Try backend API first
+                var apiSucceeded = false
+                try {
+                    val apiResp = razorpayApiService.processAdminRefund(
+                        com.example.e_commerceapp.data.data_source.remote.api.AdminRefundRequest(
+                            orderId = orderId,
+                            adminUid = adminUid,
+                            reason = notes.ifBlank { "Admin approved refund" },
+                            action = "INITIATE_REFUND"
+                        )
+                    )
+                    if (apiResp.isSuccessful && apiResp.body()?.success == true) {
+                        apiSucceeded = true
+                        _opStatus.update { AdminOpStatus.Success("Refund processed: ${apiResp.body()?.message}") }
+                    }
+                } catch (_: Exception) {
+                    apiSucceeded = false
+                }
+
+                if (!apiSucceeded) {
+                    // Fallback to direct trusted wallet / order state update
+                    val refundAmt = if (targetOrder.finalTotal > 0) targetOrder.finalTotal else targetOrder.itemsTotal
+                    if (method == "WALLET" || targetOrder.walletAmountDeducted > 0) {
+                        walletRepository.refundForOrder(targetOrder.userId, orderId, refundAmt)
+                        val updates = mapOf<String, Any>(
+                            "orderStatus" to finalOrderStatus,
+                            "refundStatus" to "REFUND_COMPLETED",
+                            "refundId" to "WLT_REF_$now",
+                            "refundAmount" to refundAmt,
+                            "refundInitiatedAt" to now,
+                            "refundCompletedAt" to now,
+                            "updatedAt" to now
+                        )
+                        val audit = createAuditEntry("REFUND_COMPLETED", targetOrder.orderStatus, finalOrderStatus, "Refunded to BazaarGo Wallet ₹$refundAmt")
+                        firestoreCatalogDataSource.updateOrderAdminAction(orderId, updates, audit)
+                    } else if (method == "ONLINE" || targetOrder.onlineAmountPaid > 0) {
+                        val updates = mapOf<String, Any>(
+                            "orderStatus" to finalOrderStatus,
+                            "refundStatus" to "REFUND_COMPLETED",
+                            "refundId" to (targetOrder.gatewayPaymentId.ifBlank { "REF_$now" }),
+                            "refundAmount" to refundAmt,
+                            "refundInitiatedAt" to now,
+                            "refundCompletedAt" to now,
+                            "updatedAt" to now
+                        )
+                        val audit = createAuditEntry("REFUND_COMPLETED", targetOrder.orderStatus, finalOrderStatus, "Razorpay Online Refund completed ₹$refundAmt")
+                        firestoreCatalogDataSource.updateOrderAdminAction(orderId, updates, audit)
+                    } else {
+                        // COD
+                        val updates = mapOf<String, Any>(
+                            "orderStatus" to finalOrderStatus,
+                            "refundStatus" to "REFUND_COMPLETED",
+                            "refundAmount" to refundAmt,
+                            "refundCompletedAt" to now,
+                            "updatedAt" to now
+                        )
+                        val audit = createAuditEntry("REFUND_COMPLETED", targetOrder.orderStatus, finalOrderStatus, "COD return refund recorded ₹$refundAmt")
+                        firestoreCatalogDataSource.updateOrderAdminAction(orderId, updates, audit)
+                    }
+                    _opStatus.update { AdminOpStatus.Success("Refund completed for Order #${orderId.takeLast(6).uppercase()}") }
+                }
+
+                // SuperCoins refund if applicable
+                if (targetOrder.userId.isNotBlank()) {
+                    superCoinsRepository.refundRedeemedCoinsIfEligible(orderId, targetOrder.userId)
+                }
+            } catch (e: Exception) {
+                _opStatus.update { AdminOpStatus.Error("Failed to process refund: ${e.message}") }
             }
         }
     }

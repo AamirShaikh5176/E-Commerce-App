@@ -10,6 +10,7 @@ import com.example.e_commerceapp.domain.entity.product.ProductEntity
 import com.example.e_commerceapp.domain.entity.product.SearchProductEntity
 import com.example.e_commerceapp.domain.entity.user.UserInformationEntity
 import com.google.android.gms.tasks.Task
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.channels.awaitClose
@@ -443,6 +444,49 @@ class FirestoreCatalogDataSourceImpl @Inject constructor(
         if (trackingNumber.isNotBlank()) updates["trackingNumber"] = trackingNumber
         if (courierPartner.isNotBlank()) updates["courierPartner"] = courierPartner
         ordersCollection.document(orderId).update(updates).awaitTask()
+    }
+
+    override suspend fun requestOrderCancellation(
+        orderId: String,
+        reason: String
+    ): Unit = withContext(ioDispatcher) {
+        val now = System.currentTimeMillis()
+        val updates = mapOf<String, Any>(
+            "orderStatus" to "CANCELLATION_REQUESTED",
+            "cancellationRequested" to true,
+            "cancelReason" to reason,
+            "cancellationRequestedAt" to now,
+            "updatedAt" to now
+        )
+        ordersCollection.document(orderId).update(updates).awaitTask()
+    }
+
+    override suspend fun requestOrderReturn(
+        orderId: String,
+        reason: String
+    ): Unit = withContext(ioDispatcher) {
+        val now = System.currentTimeMillis()
+        val updates = mapOf<String, Any>(
+            "orderStatus" to "RETURN_REQUESTED",
+            "returnRequested" to true,
+            "returnReason" to reason,
+            "returnRequestedAt" to now,
+            "pickupRequired" to true,
+            "pickupStatus" to "PENDING",
+            "updatedAt" to now
+        )
+        ordersCollection.document(orderId).update(updates).awaitTask()
+    }
+
+    override suspend fun updateOrderAdminAction(
+        orderId: String,
+        updates: Map<String, Any>,
+        auditEntry: Map<String, Any>
+    ): Unit = withContext(ioDispatcher) {
+        val finalUpdates = updates.toMutableMap()
+        finalUpdates["updatedAt"] = System.currentTimeMillis()
+        finalUpdates["adminAuditTrail"] = FieldValue.arrayUnion(auditEntry)
+        ordersCollection.document(orderId).update(finalUpdates).awaitTask()
     }
 
     override fun getUsersFlow(): Flow<List<UserInformationEntity>> = callbackFlow {

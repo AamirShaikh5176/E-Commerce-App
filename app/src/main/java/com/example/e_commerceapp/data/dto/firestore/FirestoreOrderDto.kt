@@ -46,9 +46,25 @@ data class FirestoreOrderDto(
     val superCoinsRefunded: Boolean = false,
     val cancelReason: String = "",
     val cancelledAt: Long = 0L,
-    val refundStatus: String = "", // "NOT_APPLICABLE" | "REFUND_PENDING" | "REFUNDED"
+    val cancellationRequested: Boolean = false,
+    val cancellationRequestedAt: Long = 0L,
+    val returnRequested: Boolean = false,
+    val returnReason: String = "",
+    val returnRequestedAt: Long = 0L,
+    val pickupRequired: Boolean = false,
+    val pickupStatus: String = "NOT_REQUIRED", // "NOT_REQUIRED" | "PENDING" | "SCHEDULED" | "PICKED_UP" | "RECEIVED"
+    val pickupScheduledAt: Long = 0L,
+    val pickupCompletedAt: Long = 0L,
+    val pickupAddress: String = "",
+    val pickupNotes: String = "",
+    val refundStatus: String = "", // "NOT_APPLICABLE" | "REFUND_PENDING" | "REFUND_INITIATED" | "REFUND_PROCESSING" | "REFUND_COMPLETED" | "REFUNDED_TO_WALLET" | "REFUND_FAILED"
     val refundId: String = "",
     val refundAmount: Double = 0.0,
+    val refundInitiatedAt: Long = 0L,
+    val refundCompletedAt: Long = 0L,
+    val refundFailureReason: String = "",
+    val adminNotes: String = "",
+    val adminAuditTrail: List<Map<String, Any>> = emptyList(),
     val walletAmountDeducted: Double = 0.0,
     val onlineAmountPaid: Double = 0.0,
 )

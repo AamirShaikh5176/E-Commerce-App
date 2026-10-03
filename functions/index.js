@@ -449,6 +449,62 @@ async function handleWalletDeductOrder(req, res) {
     }
 }
 
+// 6. Admin Refund Processing
+async function handleAdminRefund(req, res) {
+    try {
+        const { orderId, adminUid = 'admin', reason = 'Admin approved refund' } = req.body;
+        if (!orderId) {
+            return res.status(400).json({ success: false, message: 'orderId is required' });
+        }
+        const db = admin.firestore();
+        const orderRef = db.collection('orders').doc(orderId);
+        const orderSnap = await orderRef.get();
+        if (!orderSnap.exists) {
+            return res.status(404).json({ success: false, message: 'Order not found' });
+        }
+        const order = orderSnap.data();
+        const now = Date.now();
+        const isReturn = order.returnRequested || order.orderStatus === 'PRODUCT_RECEIVED' || order.orderStatus === 'RETURNED';
+        const finalStatus = isReturn ? 'RETURNED' : 'CANCELLED';
+
+        const existingTrail = Array.isArray(order.adminAuditTrail) ? order.adminAuditTrail : [];
+        existingTrail.push({
+            adminUid,
+            action: isReturn ? 'RETURN_REFUND_COMPLETED' : 'CANCELLATION_REFUND_COMPLETED',
+            previousStatus: order.orderStatus,
+            newStatus: finalStatus,
+            notes: reason,
+            timestamp: now
+        });
+
+        const refundAmt = Number(order.finalTotal || order.itemsTotal || 0);
+        await orderRef.update({
+            orderStatus: finalStatus,
+            paymentStatus: 'REFUNDED',
+            refundStatus: 'REFUND_COMPLETED',
+            refundId: `REF_${now}`,
+            refundAmount: refundAmt,
+            refundInitiatedAt: order.refundInitiatedAt || now,
+            refundCompletedAt: now,
+            adminNotes: reason,
+            adminAuditTrail: existingTrail,
+            updatedAt: now
+        });
+
+        return res.json({
+            success: true,
+            orderId,
+            refundId: `REF_${now}`,
+            refundAmount: refundAmt,
+            refundStatus: 'REFUND_COMPLETED',
+            orderStatus: finalStatus,
+            message: `Refund of ₹${refundAmt} processed successfully.`
+        });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: err.message || 'Failed to process refund' });
+    }
+}
+
 // Express App for Functions
 const app = express();
 app.use((req, res, next) => cors(req, res, next));
@@ -459,6 +515,7 @@ app.post(['/payment/verify-signature', '/api/payment/verify-signature', '/verify
 app.post(['/wallet/add-money/create-order', '/api/wallet/add-money/create-order'], handleWalletAddMoneyCreateOrder);
 app.post(['/wallet/add-money/verify', '/api/wallet/add-money/verify'], handleWalletAddMoneyVerify);
 app.post(['/wallet/deduct-for-order', '/api/wallet/deduct-for-order'], handleWalletDeductOrder);
+app.post(['/admin/order/refund', '/api/admin/order/refund'], handleAdminRefund);
 
 exports.api = functions.https.onRequest(app);
 exports.createRazorpayOrder = functions.https.onRequest((req, res) => cors(req, res, () => handleCreateOrder(req, res)));

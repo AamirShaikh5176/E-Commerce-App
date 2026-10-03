@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
@@ -73,26 +74,86 @@ fun AdminOrderListScreen(
 ) {
     val orders by viewModel.orders.collectAsStateWithLifecycle()
 
-    val statusTabs = listOf("All", "PLACED", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED")
+    val statusTabs = listOf(
+        "All",
+        "CANCELLATIONS & RETURNS",
+        "PLACED",
+        "CONFIRMED",
+        "PROCESSING",
+        "SHIPPED",
+        "OUT_FOR_DELIVERY",
+        "DELIVERED",
+        "CANCELLED",
+        "RETURNED"
+    )
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
-    val paymentFilters = listOf("All Payments", "PAID", "PENDING")
+    val cancelReturnFilters = listOf(
+        "All Requests",
+        "Cancellation Requests",
+        "Return Requests",
+        "Approved",
+        "Pickup Scheduled",
+        "Product Picked Up",
+        "Product Received",
+        "Refund Processing",
+        "Completed"
+    )
+    var selectedCancelReturnFilter by remember { mutableStateOf("All Requests") }
+
+    val paymentFilters = listOf("All Payments", "PAID", "PENDING", "REFUNDED")
     var selectedPaymentFilter by remember { mutableStateOf("All Payments") }
 
     var searchQuery by remember { mutableStateOf("") }
 
+    // Dialog States
     var dispatchOrderDialog by remember { mutableStateOf<FirestoreOrderDto?>(null) }
     var courierPartner by remember { mutableStateOf("BlueDart Express") }
     var trackingNumber by remember { mutableStateOf("") }
 
+    var pickupScheduleDialog by remember { mutableStateOf<FirestoreOrderDto?>(null) }
+    var pickupCourierPartner by remember { mutableStateOf("BlueDart Reverse Logistics") }
+    var pickupNotes by remember { mutableStateOf("Standard doorstep pickup") }
+
+    var rejectDialogOrder by remember { mutableStateOf<FirestoreOrderDto?>(null) }
+    var isRejectingCancellation by remember { mutableStateOf(true) }
+    var rejectReasonNotes by remember { mutableStateOf("") }
+
+    var refundConfirmOrder by remember { mutableStateOf<FirestoreOrderDto?>(null) }
+    var refundNotes by remember { mutableStateOf("") }
+
+    var auditTrailOrder by remember { mutableStateOf<FirestoreOrderDto?>(null) }
+
     val filteredOrders = orders.filter { order ->
         val selectedStatus = statusTabs[selectedTabIndex]
-        val statusMatches = selectedStatus == "All" || order.orderStatus.equals(selectedStatus, ignoreCase = true)
+        val statusMatches = when (selectedStatus) {
+            "All" -> true
+            "CANCELLATIONS & RETURNS" -> {
+                val isCancelOrReturn = order.cancellationRequested || order.returnRequested ||
+                    order.orderStatus.startsWith("CANCELLATION") || order.orderStatus.startsWith("RETURN") ||
+                    order.orderStatus.startsWith("REFUND") ||
+                    order.orderStatus in listOf("PICKUP_SCHEDULED", "PICKED_UP", "PRODUCT_RECEIVED", "CANCELLED", "RETURNED")
+                if (!isCancelOrReturn) return@filter false
+                when (selectedCancelReturnFilter) {
+                    "Cancellation Requests" -> order.orderStatus == "CANCELLATION_REQUESTED"
+                    "Return Requests" -> order.orderStatus == "RETURN_REQUESTED"
+                    "Approved" -> order.orderStatus in listOf("CANCELLATION_APPROVED", "RETURN_APPROVED")
+                    "Pickup Scheduled" -> order.orderStatus == "PICKUP_SCHEDULED" || order.pickupStatus == "SCHEDULED"
+                    "Product Picked Up" -> order.orderStatus == "PICKED_UP" || order.pickupStatus == "PICKED_UP"
+                    "Product Received" -> order.orderStatus == "PRODUCT_RECEIVED" || order.pickupStatus == "RECEIVED"
+                    "Refund Processing" -> order.orderStatus.startsWith("REFUND") || order.refundStatus in listOf("REFUND_INITIATED", "REFUND_PROCESSING", "REFUND_PENDING")
+                    "Completed" -> order.orderStatus in listOf("CANCELLED", "RETURNED") || order.refundStatus == "REFUND_COMPLETED"
+                    else -> true
+                }
+            }
+            else -> order.orderStatus.equals(selectedStatus, ignoreCase = true)
+        }
 
         val paymentMatches = when (selectedPaymentFilter) {
             "All Payments" -> true
             "PAID" -> order.paymentStatus.equals("PAID", ignoreCase = true) || order.paymentStatus.equals("COMPLETED", ignoreCase = true)
             "PENDING" -> order.paymentStatus.equals("PENDING", ignoreCase = true)
+            "REFUNDED" -> order.paymentStatus.equals("REFUNDED", ignoreCase = true) || order.refundStatus.equals("REFUND_COMPLETED", ignoreCase = true)
             else -> true
         }
 
@@ -104,6 +165,7 @@ fun AdminOrderListScreen(
         statusMatches && paymentMatches && searchMatches
     }
 
+    // 1. Dispatch Order Dialog
     if (dispatchOrderDialog != null) {
         AlertDialog(
             onDismissRequest = { dispatchOrderDialog = null },
@@ -173,6 +235,277 @@ fun AdminOrderListScreen(
         )
     }
 
+    // 2. Schedule Pickup Dialog
+    if (pickupScheduleDialog != null) {
+        val targetOrder = pickupScheduleDialog!!
+        AlertDialog(
+            onDismissRequest = { pickupScheduleDialog = null },
+            title = { Text("Schedule Return Pickup", color = Color.White, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "Schedule reverse logistics pickup for Order #${targetOrder.orderId.takeLast(6).uppercase()}:",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 13.sp
+                    )
+                    OutlinedTextField(
+                        value = pickupCourierPartner,
+                        onValueChange = { pickupCourierPartner = it },
+                        label = { Text("Logistics / Courier Partner", color = Color(0xFF94A3B8)) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFF38BDF8),
+                            unfocusedBorderColor = Color(0xFF334155),
+                            focusedContainerColor = Color(0xFF0F172A),
+                            unfocusedContainerColor = Color(0xFF0F172A)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = pickupNotes,
+                        onValueChange = { pickupNotes = it },
+                        label = { Text("Pickup Instructions / Notes", color = Color(0xFF94A3B8)) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFF38BDF8),
+                            unfocusedBorderColor = Color(0xFF334155),
+                            focusedContainerColor = Color(0xFF0F172A),
+                            unfocusedContainerColor = Color(0xFF0F172A)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            containerColor = Color(0xFF1E293B),
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.schedulePickup(
+                            orderId = targetOrder.orderId,
+                            courierPartner = pickupCourierPartner.trim(),
+                            notes = pickupNotes.trim()
+                        )
+                        pickupScheduleDialog = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+                ) {
+                    Text("Confirm Schedule", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pickupScheduleDialog = null }) {
+                    Text("Cancel", color = Color(0xFF94A3B8))
+                }
+            }
+        )
+    }
+
+    // 3. Reject Request Dialog
+    if (rejectDialogOrder != null) {
+        val targetOrder = rejectDialogOrder!!
+        val actionLabel = if (isRejectingCancellation) "Cancellation" else "Return"
+        AlertDialog(
+            onDismissRequest = { rejectDialogOrder = null },
+            title = { Text("Reject $actionLabel Request", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "Please specify the reason for rejecting this $actionLabel request:",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 13.sp
+                    )
+                    OutlinedTextField(
+                        value = rejectReasonNotes,
+                        onValueChange = { rejectReasonNotes = it },
+                        label = { Text("Admin Rejection Reason", color = Color(0xFF94A3B8)) },
+                        placeholder = { Text("e.g. Item already processed, Policy window expired", color = Color(0xFF64748B)) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFFEF4444),
+                            unfocusedBorderColor = Color(0xFF334155),
+                            focusedContainerColor = Color(0xFF0F172A),
+                            unfocusedContainerColor = Color(0xFF0F172A)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            containerColor = Color(0xFF1E293B),
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (isRejectingCancellation) {
+                            viewModel.rejectCancellation(targetOrder.orderId, rejectReasonNotes.trim())
+                        } else {
+                            viewModel.rejectReturn(targetOrder.orderId, rejectReasonNotes.trim())
+                        }
+                        rejectDialogOrder = null
+                        rejectReasonNotes = ""
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
+                ) {
+                    Text("Confirm Reject", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { rejectDialogOrder = null }) {
+                    Text("Cancel", color = Color(0xFF94A3B8))
+                }
+            }
+        )
+    }
+
+    // 4. Process Refund Confirmation Dialog
+    if (refundConfirmOrder != null) {
+        val targetOrder = refundConfirmOrder!!
+        val refundAmount = if (targetOrder.finalTotal > 0) targetOrder.finalTotal else targetOrder.itemsTotal
+        AlertDialog(
+            onDismissRequest = { refundConfirmOrder = null },
+            title = { Text("Process Order Refund", color = Color.White, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "You are initiating a refund of ${CurrencyUtils.formatInr(refundAmount)} for Order #${targetOrder.orderId.takeLast(6).uppercase()}.",
+                        color = Color.White,
+                        fontSize = 13.sp
+                    )
+                    Text(
+                        "Payment Method: ${targetOrder.paymentMethod} • Status: ${targetOrder.paymentStatus}",
+                        color = Color(0xFF38BDF8),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    OutlinedTextField(
+                        value = refundNotes,
+                        onValueChange = { refundNotes = it },
+                        label = { Text("Refund Notes / Reason", color = Color(0xFF94A3B8)) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFF10B981),
+                            unfocusedBorderColor = Color(0xFF334155),
+                            focusedContainerColor = Color(0xFF0F172A),
+                            unfocusedContainerColor = Color(0xFF0F172A)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            containerColor = Color(0xFF1E293B),
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.processRefund(targetOrder.orderId, refundNotes.trim())
+                        refundConfirmOrder = null
+                        refundNotes = ""
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981))
+                ) {
+                    Text("Process Refund", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { refundConfirmOrder = null }) {
+                    Text("Cancel", color = Color(0xFF94A3B8))
+                }
+            }
+        )
+    }
+
+    // 5. Audit Trail Dialog
+    if (auditTrailOrder != null) {
+        val targetOrder = auditTrailOrder!!
+        AlertDialog(
+            onDismissRequest = { auditTrailOrder = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(imageVector = Icons.Default.History, contentDescription = null, tint = Color(0xFF38BDF8))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Admin Audit Trail", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "Order #${targetOrder.orderId.uppercase()}",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    HorizontalDivider(color = Color(0xFF334155))
+
+                    val trail = targetOrder.adminAuditTrail
+                    if (trail.isEmpty()) {
+                        Text("No audit log recorded yet for this order.", color = Color(0xFF64748B), fontSize = 12.sp)
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxWidth().height(260.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(trail) { entry ->
+                                val action = (entry["action"] as? String) ?: "STATUS_UPDATE"
+                                val notes = (entry["notes"] as? String).orEmpty()
+                                val newStatus = (entry["newStatus"] as? String).orEmpty()
+                                val prevStatus = (entry["previousStatus"] as? String).orEmpty()
+                                val ts = (entry["timestamp"] as? Long) ?: 0L
+                                val tsStr = if (ts > 0) SimpleDateFormat("dd MMM, hh:mm a", Locale.ENGLISH).format(Date(ts)) else "Recent"
+                                val adminUid = (entry["adminUid"] as? String) ?: "admin"
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color(0xFF0F172A), RoundedCornerShape(8.dp))
+                                        .padding(10.dp)
+                                ) {
+                                    Column {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = action.replace("_", " "),
+                                                color = Color(0xFF38BDF8),
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.sp
+                                            )
+                                            Text(text = tsStr, color = Color(0xFF64748B), fontSize = 10.sp)
+                                        }
+                                        if (prevStatus.isNotBlank() || newStatus.isNotBlank()) {
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = "$prevStatus ➔ $newStatus",
+                                                color = Color(0xFF94A3B8),
+                                                fontSize = 11.sp
+                                            )
+                                        }
+                                        if (notes.isNotBlank()) {
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(text = "Notes: $notes", color = Color.White, fontSize = 11.sp)
+                                        }
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(text = "Admin: ${adminUid.takeLast(6)}", color = Color(0xFF475569), fontSize = 10.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            containerColor = Color(0xFF1E293B),
+            confirmButton = {
+                TextButton(onClick = { auditTrailOrder = null }) {
+                    Text("Close", color = Color(0xFF38BDF8))
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -193,7 +526,9 @@ fun AdminOrderListScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF0F172A))
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color(0xFF0F172A)
+                )
             )
         },
         containerColor = Color(0xFF0B132B)
@@ -255,9 +590,38 @@ fun AdminOrderListScreen(
                 }
             }
 
+            // Sub-filter chips for CANCELLATIONS & RETURNS
+            if (statusTabs[selectedTabIndex] == "CANCELLATIONS & RETURNS") {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(cancelReturnFilters) { subFilter ->
+                        val isSelected = selectedCancelReturnFilter == subFilter
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { selectedCancelReturnFilter = subFilter },
+                            label = {
+                                Text(
+                                    text = subFilter,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0xFF0284C7),
+                                selectedLabelColor = Color.White,
+                                containerColor = Color(0xFF1E293B),
+                                labelColor = Color(0xFF94A3B8)
+                            )
+                        )
+                    }
+                }
+            }
+
             // Payment Filter Chips
             LazyRow(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(paymentFilters) { filter ->
@@ -308,21 +672,26 @@ fun AdminOrderListScreen(
                     items(filteredOrders, key = { it.orderId }) { order ->
                         AdminOrderItemCard(
                             order = order,
-                            onConfirmOrder = {
-                                viewModel.updateOrderStatus(order.orderId, "CONFIRMED")
+                            onConfirmOrder = { viewModel.updateOrderStatus(order.orderId, "CONFIRMED") },
+                            onProcessOrder = { viewModel.updateOrderStatus(order.orderId, "PROCESSING") },
+                            onOpenDispatch = { dispatchOrderDialog = order },
+                            onOutForDelivery = { viewModel.updateOrderStatus(order.orderId, "OUT_FOR_DELIVERY") },
+                            onDeliverOrder = { viewModel.updateOrderStatus(order.orderId, "DELIVERED") },
+                            onApproveCancellation = { viewModel.approveCancellation(order.orderId) },
+                            onRejectCancellation = {
+                                rejectDialogOrder = order
+                                isRejectingCancellation = true
                             },
-                            onProcessOrder = {
-                                viewModel.updateOrderStatus(order.orderId, "PROCESSING")
+                            onApproveReturn = { viewModel.approveReturn(order.orderId) },
+                            onRejectReturn = {
+                                rejectDialogOrder = order
+                                isRejectingCancellation = false
                             },
-                            onOpenDispatch = {
-                                dispatchOrderDialog = order
-                            },
-                            onOutForDelivery = {
-                                viewModel.updateOrderStatus(order.orderId, "OUT_FOR_DELIVERY")
-                            },
-                            onDeliverOrder = {
-                                viewModel.updateOrderStatus(order.orderId, "DELIVERED")
-                            }
+                            onOpenSchedulePickup = { pickupScheduleDialog = order },
+                            onMarkPickedUp = { viewModel.markProductPickedUp(order.orderId) },
+                            onConfirmReceived = { viewModel.confirmProductReceived(order.orderId) },
+                            onProcessRefund = { refundConfirmOrder = order },
+                            onViewAuditTrail = { auditTrailOrder = order }
                         )
                     }
                     item {
@@ -342,12 +711,26 @@ fun AdminOrderItemCard(
     onOpenDispatch: () -> Unit,
     onOutForDelivery: () -> Unit,
     onDeliverOrder: () -> Unit,
+    onApproveCancellation: () -> Unit,
+    onRejectCancellation: () -> Unit,
+    onApproveReturn: () -> Unit,
+    onRejectReturn: () -> Unit,
+    onOpenSchedulePickup: () -> Unit,
+    onMarkPickedUp: () -> Unit,
+    onConfirmReceived: () -> Unit,
+    onProcessRefund: () -> Unit,
+    onViewAuditTrail: () -> Unit,
 ) {
     val dateStr = if (order.createdAt > 0) {
         SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.ENGLISH).format(Date(order.createdAt))
     } else {
         "Recent"
     }
+
+    val isCancelOrReturnActive = order.cancellationRequested || order.returnRequested ||
+        order.orderStatus.startsWith("CANCELLATION") || order.orderStatus.startsWith("RETURN") ||
+        order.orderStatus.startsWith("REFUND") ||
+        order.orderStatus in listOf("PICKUP_SCHEDULED", "PICKED_UP", "PRODUCT_RECEIVED")
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -380,9 +763,10 @@ fun AdminOrderItemCard(
                     modifier = Modifier
                         .background(
                             when (order.orderStatus) {
-                                "DELIVERED" -> Color(0xFF10B981).copy(alpha = 0.2f)
-                                "SHIPPED", "OUT_FOR_DELIVERY" -> Color(0xFF38BDF8).copy(alpha = 0.2f)
-                                "CANCELLED" -> Color(0xFFEF4444).copy(alpha = 0.2f)
+                                "DELIVERED", "RETURNED" -> Color(0xFF10B981).copy(alpha = 0.2f)
+                                "SHIPPED", "OUT_FOR_DELIVERY", "PICKUP_SCHEDULED" -> Color(0xFF38BDF8).copy(alpha = 0.2f)
+                                "CANCELLED", "CANCELLATION_REJECTED", "RETURN_REJECTED" -> Color(0xFFEF4444).copy(alpha = 0.2f)
+                                "CONFIRMED", "PROCESSING", "PICKED_UP", "PRODUCT_RECEIVED" -> Color(0xFF6366F1).copy(alpha = 0.2f)
                                 else -> Color(0xFFF59E0B).copy(alpha = 0.2f)
                             },
                             RoundedCornerShape(4.dp)
@@ -392,9 +776,10 @@ fun AdminOrderItemCard(
                     Text(
                         text = order.orderStatus.replace("_", " "),
                         color = when (order.orderStatus) {
-                            "DELIVERED" -> Color(0xFF10B981)
-                            "SHIPPED", "OUT_FOR_DELIVERY" -> Color(0xFF38BDF8)
-                            "CANCELLED" -> Color(0xFFEF4444)
+                            "DELIVERED", "RETURNED" -> Color(0xFF10B981)
+                            "SHIPPED", "OUT_FOR_DELIVERY", "PICKUP_SCHEDULED" -> Color(0xFF38BDF8)
+                            "CANCELLED", "CANCELLATION_REJECTED", "RETURN_REJECTED" -> Color(0xFFEF4444)
+                            "CONFIRMED", "PROCESSING", "PICKED_UP", "PRODUCT_RECEIVED" -> Color(0xFF818CF8)
                             else -> Color(0xFFF59E0B)
                         },
                         fontSize = 11.sp,
@@ -456,6 +841,7 @@ fun AdminOrderItemCard(
                         text = order.paymentStatus.replace("_", " "),
                         color = when (order.paymentStatus) {
                             "PAID", "COMPLETED" -> Color(0xFF10B981)
+                            "REFUNDED" -> Color(0xFF38BDF8)
                             "FAILED" -> Color(0xFFEF4444)
                             else -> Color(0xFFF59E0B)
                         },
@@ -481,7 +867,67 @@ fun AdminOrderItemCard(
                 )
             }
 
-            if (order.orderStatus == "CANCELLED") {
+            // Cancellation / Return Lifecycle Banner
+            if (isCancelOrReturnActive) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF0F172A), RoundedCornerShape(8.dp))
+                        .padding(10.dp)
+                ) {
+                    val isReturnWorkflow = order.returnRequested || order.orderStatus.startsWith("RETURN") ||
+                        order.orderStatus in listOf("PICKUP_SCHEDULED", "PICKED_UP", "PRODUCT_RECEIVED")
+                    Text(
+                        text = if (isReturnWorkflow) "RETURN & REFUND LIFECYCLE" else "CANCELLATION & REFUND LIFECYCLE",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF38BDF8),
+                        letterSpacing = 0.5.sp
+                    )
+
+                    val reason = if (isReturnWorkflow) order.returnReason else order.cancelReason
+                    if (reason.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Customer Reason: $reason",
+                            color = Color(0xFFF1F5F9),
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    if (order.pickupRequired) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Pickup Status: ${order.pickupStatus} ${if (order.courierPartner.isNotBlank()) "(${order.courierPartner})" else ""}",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    if (order.refundStatus.isNotBlank() || order.refundAmount > 0) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Refund: ${order.refundStatus.replace('_', ' ')} • ${CurrencyUtils.formatInr(if (order.refundAmount > 0) order.refundAmount else order.finalTotal)}",
+                            color = if (order.refundStatus == "REFUND_COMPLETED") Color(0xFF10B981) else Color(0xFFF59E0B),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    if (order.adminNotes.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Admin Note: ${order.adminNotes}",
+                            color = Color(0xFF64748B),
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            }
+
+            // Closed / Completed Cancelled Summary
+            if (order.orderStatus == "CANCELLED" && !isCancelOrReturnActive) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -496,7 +942,7 @@ fun AdminOrderItemCard(
                     if (order.refundStatus.isNotBlank()) {
                         Text(
                             text = "Refund: ${order.refundStatus.replace('_', ' ')}",
-                            color = if (order.refundStatus == "REFUNDED") Color(0xFF10B981) else Color(0xFFF59E0B),
+                            color = if (order.refundStatus == "REFUND_COMPLETED") Color(0xFF10B981) else Color(0xFFF59E0B),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -504,70 +950,177 @@ fun AdminOrderItemCard(
                 }
             }
 
-            // Fulfillment Buttons
+            // Action Buttons Section
             Spacer(modifier = Modifier.height(12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                when (order.orderStatus) {
-                    "PLACED" -> {
-                        Button(
-                            onClick = onConfirmOrder,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Confirm Order", color = Color.White, fontSize = 11.sp)
+                // Left: Audit Trail
+                OutlinedButton(
+                    onClick = onViewAuditTrail,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.History, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Audit Trail", color = Color(0xFF38BDF8), fontSize = 11.sp)
+                }
+
+                // Right: State-specific fulfillment / lifecycle action buttons
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    when (order.orderStatus) {
+                        // 1. Cancellation Flow
+                        "CANCELLATION_REQUESTED" -> {
+                            Button(
+                                onClick = onApproveCancellation,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Approve", color = Color.White, fontSize = 11.sp)
+                            }
+                            Button(
+                                onClick = onRejectCancellation,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Reject", color = Color.White, fontSize = 11.sp)
+                            }
                         }
-                    }
-                    "CONFIRMED" -> {
-                        Button(
-                            onClick = onProcessOrder,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Process", color = Color.White, fontSize = 11.sp)
+                        "CANCELLATION_APPROVED" -> {
+                            Button(
+                                onClick = onProcessRefund,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Process Refund", color = Color.White, fontSize = 11.sp)
+                            }
                         }
-                        Button(
-                            onClick = onOpenDispatch,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Dispatch", color = Color.White, fontSize = 11.sp)
+
+                        // 2. Return Flow
+                        "RETURN_REQUESTED" -> {
+                            Button(
+                                onClick = onApproveReturn,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Approve Return", color = Color.White, fontSize = 11.sp)
+                            }
+                            Button(
+                                onClick = onRejectReturn,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Reject", color = Color.White, fontSize = 11.sp)
+                            }
                         }
-                    }
-                    "PROCESSING" -> {
-                        Button(
-                            onClick = onOpenDispatch,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Dispatch & Attach Tracking", color = Color.White, fontSize = 11.sp)
+                        "RETURN_APPROVED" -> {
+                            Button(
+                                onClick = onOpenSchedulePickup,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Schedule Pickup", color = Color.White, fontSize = 11.sp)
+                            }
                         }
-                    }
-                    "SHIPPED" -> {
-                        Button(
-                            onClick = onOutForDelivery,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Out for Delivery", color = Color.White, fontSize = 11.sp)
+                        "PICKUP_SCHEDULED" -> {
+                            Button(
+                                onClick = onMarkPickedUp,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Mark Picked Up", color = Color.White, fontSize = 11.sp)
+                            }
                         }
-                        OutlinedButton(
-                            onClick = onDeliverOrder,
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Delivered", color = Color(0xFF10B981), fontSize = 11.sp)
+                        "PICKED_UP" -> {
+                            Button(
+                                onClick = onConfirmReceived,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Confirm Received", color = Color.White, fontSize = 11.sp)
+                            }
                         }
-                    }
-                    "OUT_FOR_DELIVERY" -> {
-                        Button(
-                            onClick = onDeliverOrder,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Mark as Delivered", color = Color.White, fontSize = 11.sp)
+                        "PRODUCT_RECEIVED" -> {
+                            Button(
+                                onClick = onProcessRefund,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Initiate Refund", color = Color.White, fontSize = 11.sp)
+                            }
+                        }
+                        "REFUND_INITIATED", "REFUND_PROCESSING" -> {
+                            Button(
+                                onClick = onProcessRefund,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Complete Refund", color = Color.White, fontSize = 11.sp)
+                            }
+                        }
+
+                        // 3. Normal Order Fulfillment
+                        "PLACED" -> {
+                            Button(
+                                onClick = onConfirmOrder,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Confirm Order", color = Color.White, fontSize = 11.sp)
+                            }
+                        }
+                        "CONFIRMED" -> {
+                            Button(
+                                onClick = onProcessOrder,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Process", color = Color.White, fontSize = 11.sp)
+                            }
+                            Button(
+                                onClick = onOpenDispatch,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Dispatch", color = Color.White, fontSize = 11.sp)
+                            }
+                        }
+                        "PROCESSING" -> {
+                            Button(
+                                onClick = onOpenDispatch,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Dispatch & Track", color = Color.White, fontSize = 11.sp)
+                            }
+                        }
+                        "SHIPPED" -> {
+                            Button(
+                                onClick = onOutForDelivery,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Out for Delivery", color = Color.White, fontSize = 11.sp)
+                            }
+                            OutlinedButton(
+                                onClick = onDeliverOrder,
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Delivered", color = Color(0xFF10B981), fontSize = 11.sp)
+                            }
+                        }
+                        "OUT_FOR_DELIVERY" -> {
+                            Button(
+                                onClick = onDeliverOrder,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Mark as Delivered", color = Color.White, fontSize = 11.sp)
+                            }
                         }
                     }
                 }

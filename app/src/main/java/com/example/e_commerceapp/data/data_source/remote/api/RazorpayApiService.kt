@@ -18,4 +18,26 @@ interface RazorpayApiService {
     suspend fun verifySignature(
         @Body request: VerifyRazorpaySignatureRequest
     ): Response<VerifySignatureResponseDto>
+
+    @POST("api/admin/order/refund")
+    suspend fun processAdminRefund(
+        @Body request: AdminRefundRequest
+    ): Response<AdminRefundResponse>
 }
+
+data class AdminRefundRequest(
+    val orderId: String,
+    val adminUid: String,
+    val reason: String = "",
+    val action: String = "INITIATE_REFUND"
+)
+
+data class AdminRefundResponse(
+    val success: Boolean = false,
+    val orderId: String = "",
+    val refundId: String = "",
+    val refundAmount: Double = 0.0,
+    val refundStatus: String = "",
+    val orderStatus: String = "",
+    val message: String = ""
+)

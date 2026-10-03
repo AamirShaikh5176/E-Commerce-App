@@ -52,4 +52,26 @@ class MyOrdersViewModel @Inject constructor(
     }
 
     fun getOrderByIdFlow(orderId: String) = firestoreCatalogDataSource.getOrderByIdFlow(orderId)
+
+    fun requestCancellation(orderId: String, reason: String, onResult: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                firestoreCatalogDataSource.requestOrderCancellation(orderId, reason)
+                onResult(true, null)
+            } catch (e: Exception) {
+                onResult(false, e.message ?: "Failed to submit cancellation request")
+            }
+        }
+    }
+
+    fun requestReturn(orderId: String, reason: String, onResult: (Boolean, String?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                firestoreCatalogDataSource.requestOrderReturn(orderId, reason)
+                onResult(true, null)
+            } catch (e: Exception) {
+                onResult(false, e.message ?: "Failed to submit return request")
+            }
+        }
+    }
 }

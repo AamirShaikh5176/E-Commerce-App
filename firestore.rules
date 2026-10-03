@@ -95,14 +95,22 @@ service cloud.firestore {
       }
     }
 
-    // Orders Collection: Customers create/read their own; Admins manage fulfillment
+    // Orders Collection: Customers create/read their own; Admins manage fulfillment & refund lifecycle
     match /orders/{orderId} {
       allow read: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
-      // Status updates: Customers CANNOT arbitrarily mark ONLINE orders as PAID (only Admin or trusted server Admin SDK can)
+      // Status & Refund updates:
+      // Customers CANNOT modify refund fields, admin audit trails, pickup completion or mark payment as PAID
+      // Customers can ONLY submit CANCELLATION_REQUESTED or RETURN_REQUESTED
       allow update: if isAdmin() || (
         isAuthenticated() && resource.data.userId == request.auth.uid &&
-        !(resource.data.paymentMethod == 'ONLINE' && request.resource.data.paymentStatus == 'PAID' && resource.data.paymentStatus != 'PAID')
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'refundId', 'refundAmount', 'refundStatus', 'refundInitiatedAt', 'refundCompletedAt', 
+          'refundFailureReason', 'adminNotes', 'adminAuditTrail', 'pickupCompletedAt', 'pickupScheduledAt'
+        ]) &&
+        !(resource.data.paymentMethod == 'ONLINE' && request.resource.data.paymentStatus == 'PAID' && resource.data.paymentStatus != 'PAID') &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['orderStatus']) ||
+         request.resource.data.orderStatus in ['CANCELLATION_REQUESTED', 'RETURN_REQUESTED'])
       );
       allow delete: if isAdmin();
     }

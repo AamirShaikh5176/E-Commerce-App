@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -22,16 +23,25 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Payment
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -71,11 +81,185 @@ fun OrderDetailsScreen(
     var order by remember { mutableStateOf<FirestoreOrderDto?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
+    var showCancelDialog by remember { mutableStateOf(false) }
+    var cancelReason by remember { mutableStateOf("Ordered by mistake") }
+    var customCancelReason by remember { mutableStateOf("") }
+    var isSubmittingAction by remember { mutableStateOf(false) }
+
+    var showReturnDialog by remember { mutableStateOf(false) }
+    var returnReason by remember { mutableStateOf("Damaged / Defective item") }
+    var customReturnReason by remember { mutableStateOf("") }
+
     LaunchedEffect(orderId) {
         viewModel.getOrderByIdFlow(orderId).collect { loadedOrder ->
             order = loadedOrder
             isLoading = false
         }
+    }
+
+    // Cancellation Request Dialog
+    if (showCancelDialog && order != null) {
+        val reasons = listOf(
+            "Ordered by mistake",
+            "Found a better price elsewhere",
+            "Expected delivery date is too long",
+            "Need to change delivery address",
+            "Other reason"
+        )
+        AlertDialog(
+            onDismissRequest = { if (!isSubmittingAction) showCancelDialog = false },
+            title = {
+                Text(
+                    text = "Request Order Cancellation",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Please select the reason for cancelling your order. Your request will be reviewed by BazaarGo Admin.",
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                    reasons.forEach { text ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .selectable(
+                                    selected = (cancelReason == text),
+                                    onClick = { cancelReason = text }
+                                )
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = (cancelReason == text),
+                                onClick = { cancelReason = text }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = text, fontSize = 13.sp)
+                        }
+                    }
+                    if (cancelReason == "Other reason") {
+                        OutlinedTextField(
+                            value = customCancelReason,
+                            onValueChange = { customCancelReason = it },
+                            label = { Text("Describe reason") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val finalReason = if (cancelReason == "Other reason" && customCancelReason.isNotBlank()) {
+                            customCancelReason.trim()
+                        } else {
+                            cancelReason
+                        }
+                        isSubmittingAction = true
+                        viewModel.requestCancellation(order!!.orderId, finalReason) { success, _ ->
+                            isSubmittingAction = false
+                            showCancelDialog = false
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                    enabled = !isSubmittingAction
+                ) {
+                    Text("Submit Cancellation", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelDialog = false }, enabled = !isSubmittingAction) {
+                    Text("Close")
+                }
+            }
+        )
+    }
+
+    // Return Request Dialog
+    if (showReturnDialog && order != null) {
+        val returnReasons = listOf(
+            "Damaged / Defective item",
+            "Item does not match description",
+            "Wrong size or color delivered",
+            "Missing parts / accessories",
+            "Quality not as expected",
+            "Other reason"
+        )
+        AlertDialog(
+            onDismissRequest = { if (!isSubmittingAction) showReturnDialog = false },
+            title = {
+                Text(
+                    text = "Request Order Return",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Delivered items can be returned within policy guidelines. An Admin will review your return and schedule doorstep pickup.",
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                    returnReasons.forEach { text ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .selectable(
+                                    selected = (returnReason == text),
+                                    onClick = { returnReason = text }
+                                )
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = (returnReason == text),
+                                onClick = { returnReason = text }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = text, fontSize = 13.sp)
+                        }
+                    }
+                    if (returnReason == "Other reason") {
+                        OutlinedTextField(
+                            value = customReturnReason,
+                            onValueChange = { customReturnReason = it },
+                            label = { Text("Describe return reason") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val finalReason = if (returnReason == "Other reason" && customReturnReason.isNotBlank()) {
+                            customReturnReason.trim()
+                        } else {
+                            returnReason
+                        }
+                        isSubmittingAction = true
+                        viewModel.requestReturn(order!!.orderId, finalReason) { success, _ ->
+                            isSubmittingAction = false
+                            showReturnDialog = false
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                    enabled = !isSubmittingAction
+                ) {
+                    Text("Submit Return Request", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showReturnDialog = false }, enabled = !isSubmittingAction) {
+                    Text("Close")
+                }
+            }
+        )
     }
 
     Column(
@@ -137,6 +321,20 @@ fun OrderDetailsScreen(
                 "Recent"
             }
 
+            val isCancellationLifecycle = ord.cancellationRequested || ord.orderStatus in listOf(
+                "CANCELLATION_REQUESTED", "CANCELLATION_APPROVED", "CANCELLATION_REJECTED", "CANCELLED"
+            )
+
+            val isReturnLifecycle = ord.returnRequested || ord.orderStatus in listOf(
+                "RETURN_REQUESTED", "RETURN_APPROVED", "RETURN_REJECTED", "PICKUP_SCHEDULED",
+                "PICKED_UP", "PRODUCT_RECEIVED", "REFUND_INITIATED", "REFUND_PROCESSING", "REFUND_COMPLETED", "RETURNED"
+            )
+
+            val canRequestCancellation = !isCancellationLifecycle && !isReturnLifecycle &&
+                ord.orderStatus in listOf("PLACED", "CONFIRMED", "PROCESSING")
+
+            val canRequestReturn = !isReturnLifecycle && ord.orderStatus == "DELIVERED"
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -152,12 +350,37 @@ fun OrderDetailsScreen(
                     elevation = CardDefaults.cardElevation(2.dp)
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
-                        Text(
-                            text = "ORDER #${ord.orderId.uppercase()}",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "ORDER #${ord.orderId.uppercase()}",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            val (badgeBg, badgeFg) = when {
+                                ord.orderStatus in listOf("DELIVERED", "RETURNED") -> Color(0xFFDCFCE7) to Color(0xFF15803D)
+                                ord.orderStatus in listOf("CANCELLED", "CANCELLATION_REJECTED", "RETURN_REJECTED") -> Color(0xFFFEE2E2) to Color(0xFFB91C1C)
+                                isReturnLifecycle -> Color(0xFFE0F2FE) to Color(0xFF0369A1)
+                                isCancellationLifecycle -> Color(0xFFFEF3C7) to Color(0xFFB45309)
+                                else -> Color(0xFFEDE9FE) to Color(0xFF6D28D9)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .background(badgeBg, RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = ord.orderStatus.replace('_', ' '),
+                                    color = badgeFg,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Placed on $dateStr",
@@ -185,151 +408,251 @@ fun OrderDetailsScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        val steps = listOf(
-                            "PLACED" to "Order Placed",
-                            "CONFIRMED" to "Confirmed",
-                            "PROCESSING" to "Processing",
-                            "SHIPPED" to "Shipped",
-                            "OUT_FOR_DELIVERY" to "Out for Delivery",
-                            "DELIVERED" to "Delivered"
-                        )
+                        if (isCancellationLifecycle) {
+                            // CANCELLATION TIMELINE
+                            val cancelSteps = listOf(
+                                "Order Placed",
+                                "Cancellation Requested",
+                                "Admin Review / Approved",
+                                "Refund Processing",
+                                "Order Cancelled"
+                            )
+                            val cancelIndex = when (ord.orderStatus) {
+                                "CANCELLATION_REQUESTED" -> 1
+                                "CANCELLATION_APPROVED" -> 2
+                                "REFUND_INITIATED", "REFUND_PROCESSING" -> 3
+                                "CANCELLED" -> 4
+                                "CANCELLATION_REJECTED" -> 1
+                                else -> 1
+                            }
 
-                        val currentStatusIndex = when (ord.orderStatus) {
-                            "CANCELLED" -> -1
-                            "DELIVERED" -> 5
-                            "OUT_FOR_DELIVERY" -> 4
-                            "SHIPPED" -> 3
-                            "PROCESSING" -> 2
-                            "CONFIRMED" -> 1
-                            else -> 0
-                        }
+                            OrderStatusTimelineView(
+                                steps = cancelSteps,
+                                currentIndex = cancelIndex,
+                                activeColor = if (ord.orderStatus == "CANCELLATION_REJECTED") Color(0xFFEF4444) else Color(0xFFD97706)
+                            )
 
-                        if (ord.orderStatus == "CANCELLED") {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color(0xFFFEE2E2), RoundedCornerShape(8.dp))
-                                    .padding(14.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = null,
-                                        tint = Color(0xFFB91C1C),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
+                            if (ord.orderStatus == "CANCELLATION_REJECTED") {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color(0xFFFEE2E2), RoundedCornerShape(8.dp))
+                                        .padding(10.dp)
+                                ) {
                                     Text(
-                                        text = "ORDER CANCELLED",
-                                        color = Color(0xFFB91C1C),
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp
-                                    )
-                                }
-                                if (ord.cancelReason.isNotBlank()) {
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Text(
-                                        text = "Reason: ${ord.cancelReason}",
-                                        color = Color(0xFF7F1D1D),
+                                        text = "Cancellation rejected: ${ord.adminNotes.ifBlank { "Request not approved by Admin." }}",
+                                        color = Color(0xFF991B1B),
                                         fontSize = 12.sp
                                     )
                                 }
-                                if (ord.refundAmount > 0 || ord.refundStatus.isNotBlank()) {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    HorizontalDivider(color = Color(0xFFFCA5A5).copy(alpha = 0.5f))
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = "REFUND DETAILS",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp,
-                                        color = Color(0xFF7F1D1D),
-                                        letterSpacing = 0.5.sp
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "Refund Status: ${ord.refundStatus.ifBlank { "PROCESSED" }.replace('_', ' ')}",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = if (ord.refundStatus == "REFUNDED") Color(0xFF15803D) else Color(0xFFB45309)
-                                    )
-                                    if (ord.refundAmount > 0) {
+                            }
+                        } else if (isReturnLifecycle) {
+                            // RETURN & REFUND TIMELINE
+                            val returnSteps = listOf(
+                                "Delivered",
+                                "Return Requested",
+                                "Return Approved",
+                                "Pickup Scheduled",
+                                "Product Picked Up",
+                                "Product Received",
+                                "Refund Processing",
+                                "Returned & Refunded"
+                            )
+                            val returnIndex = when (ord.orderStatus) {
+                                "RETURN_REQUESTED" -> 1
+                                "RETURN_APPROVED" -> 2
+                                "PICKUP_SCHEDULED" -> 3
+                                "PICKED_UP" -> 4
+                                "PRODUCT_RECEIVED" -> 5
+                                "REFUND_INITIATED", "REFUND_PROCESSING" -> 6
+                                "RETURNED" -> 7
+                                "RETURN_REJECTED" -> 1
+                                else -> 1
+                            }
+
+                            OrderStatusTimelineView(
+                                steps = returnSteps,
+                                currentIndex = returnIndex,
+                                activeColor = if (ord.orderStatus == "RETURN_REJECTED") Color(0xFFEF4444) else Color(0xFF0284C7)
+                            )
+
+                            if (ord.pickupScheduledAt > 0 || ord.pickupStatus.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color(0xFFE0F2FE), RoundedCornerShape(8.dp))
+                                        .padding(10.dp)
+                                ) {
+                                    Column {
                                         Text(
-                                            text = "Refund Amount: ${CurrencyUtils.formatInr(ord.refundAmount)}",
-                                            fontSize = 12.sp,
+                                            text = "Pickup Status: ${ord.pickupStatus.replace('_', ' ')}",
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF1E293B)
+                                            fontSize = 12.sp,
+                                            color = Color(0xFF0369A1)
                                         )
+                                        if (ord.courierPartner.isNotBlank()) {
+                                            Text(
+                                                text = "Logistics: ${ord.courierPartner}",
+                                                fontSize = 11.sp,
+                                                color = Color(0xFF075985)
+                                            )
+                                        }
+                                        if (ord.pickupNotes.isNotBlank()) {
+                                            Text(
+                                                text = "Notes: ${ord.pickupNotes}",
+                                                fontSize = 11.sp,
+                                                color = Color(0xFF075985)
+                                            )
+                                        }
                                     }
-                                    if (ord.refundId.isNotBlank()) {
+                                }
+                            }
+
+                            if (ord.orderStatus == "RETURN_REJECTED") {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color(0xFFFEE2E2), RoundedCornerShape(8.dp))
+                                        .padding(10.dp)
+                                ) {
+                                    Text(
+                                        text = "Return rejected: ${ord.adminNotes.ifBlank { "Request not approved by Admin." }}",
+                                        color = Color(0xFF991B1B),
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+                        } else {
+                            // NORMAL FULFILLMENT TIMELINE
+                            val steps = listOf(
+                                "Order Placed",
+                                "Confirmed",
+                                "Processing",
+                                "Shipped",
+                                "Out for Delivery",
+                                "Delivered"
+                            )
+                            val currentStatusIndex = when (ord.orderStatus) {
+                                "DELIVERED" -> 5
+                                "OUT_FOR_DELIVERY" -> 4
+                                "SHIPPED" -> 3
+                                "PROCESSING" -> 2
+                                "CONFIRMED" -> 1
+                                else -> 0
+                            }
+
+                            OrderStatusTimelineView(
+                                steps = steps,
+                                currentIndex = currentStatusIndex,
+                                activeColor = Color(0xFF0284C7)
+                            )
+                        }
+
+                        // Refund details banner if applicable
+                        if (ord.refundAmount > 0 || ord.refundStatus.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "REFUND INFORMATION",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                color = Color(0xFF64748B),
+                                letterSpacing = 0.5.sp
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Status: ${ord.refundStatus.ifBlank { "REFUND_COMPLETED" }.replace('_', ' ')}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (ord.refundStatus == "REFUND_COMPLETED" || ord.refundStatus == "REFUNDED") Color(0xFF15803D) else Color(0xFFB45309)
+                            )
+                            Text(
+                                text = "Amount: ${CurrencyUtils.formatInr(if (ord.refundAmount > 0) ord.refundAmount else ord.finalTotal)}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E293B)
+                            )
+                            if (ord.refundId.isNotBlank()) {
+                                Text(
+                                    text = "Refund ID: ${ord.refundId}",
+                                    fontSize = 11.sp,
+                                    color = Color.Gray
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Action Buttons Card (Cancel / Return)
+                if (canRequestCancellation || canRequestReturn) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(2.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            if (canRequestCancellation) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = "Reference ID: ${ord.refundId}",
+                                            text = "Need to cancel?",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "Cancellation request will be reviewed by admin before dispatch.",
                                             fontSize = 11.sp,
                                             color = Color.Gray
                                         )
                                     }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    OutlinedButton(
+                                        onClick = { showCancelDialog = true },
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444))
+                                    ) {
+                                        Text("Cancel Order", color = Color(0xFFEF4444), fontSize = 12.sp)
+                                    }
                                 }
                             }
-                        } else {
-                            steps.forEachIndexed { index, (_, label) ->
-                                val isPassed = index < currentStatusIndex
-                                val isCurrent = index == currentStatusIndex
 
+                            if (canRequestReturn) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    // Step Indicator Circle
-                                    Box(
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .clip(CircleShape)
-                                            .background(
-                                                when {
-                                                    isPassed -> Color(0xFF10B981)
-                                                    isCurrent -> Color(0xFF0284C7)
-                                                    else -> Color(0xFFE2E8F0)
-                                                }
-                                            ),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        if (isPassed) {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = null,
-                                                tint = Color.White,
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                        } else if (isCurrent) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(8.dp)
-                                                    .background(Color.White, CircleShape)
-                                            )
-                                        }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Return Item(s)",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "Item delivered? Request a return & pickup within policy.",
+                                            fontSize = 11.sp,
+                                            color = Color.Gray
+                                        )
                                     }
-
-                                    Spacer(modifier = Modifier.width(12.dp))
-
-                                    Text(
-                                        text = label,
-                                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
-                                        fontSize = 14.sp,
-                                        color = when {
-                                            isCurrent -> Color(0xFF0284C7)
-                                            isPassed -> Color(0xFF10B981)
-                                            else -> Color.Gray
-                                        }
-                                    )
-                                }
-
-                                if (index < steps.size - 1) {
-                                    Box(
-                                        modifier = Modifier
-                                            .padding(start = 11.dp)
-                                            .width(2.dp)
-                                            .height(24.dp)
-                                            .background(if (index < currentStatusIndex) Color(0xFF10B981) else Color(0xFFE2E8F0))
-                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    OutlinedButton(
+                                        onClick = { showReturnDialog = true },
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0284C7))
+                                    ) {
+                                        Text("Request Return", color = Color(0xFF0284C7), fontSize = 12.sp)
+                                    }
                                 }
                             }
                         }
@@ -464,7 +787,7 @@ fun OrderDetailsScreen(
                         PriceRow(
                             "Payment Status",
                             ord.paymentStatus.replace("_", " "),
-                            if (ord.paymentStatus == "PAID" || ord.paymentStatus == "COMPLETED") Color(0xFF16A34A) else Color(0xFFD97706)
+                            if (ord.paymentStatus in listOf("PAID", "COMPLETED", "REFUNDED")) Color(0xFF16A34A) else Color(0xFFD97706)
                         )
                         if (ord.paymentReference.isNotBlank()) {
                             PriceRow("Transaction Reference", ord.paymentReference)
@@ -525,6 +848,75 @@ fun OrderDetailsScreen(
 
                 Spacer(modifier = Modifier.height(30.dp))
             }
+        }
+    }
+}
+
+@Composable
+private fun OrderStatusTimelineView(
+    steps: List<String>,
+    currentIndex: Int,
+    activeColor: Color = Color(0xFF0284C7)
+) {
+    steps.forEachIndexed { index, label ->
+        val isPassed = index < currentIndex
+        val isCurrent = index == currentIndex
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(
+                        when {
+                            isPassed -> Color(0xFF10B981)
+                            isCurrent -> activeColor
+                            else -> Color(0xFFE2E8F0)
+                        }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isPassed) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(14.dp)
+                    )
+                } else if (isCurrent) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(Color.White, CircleShape)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Text(
+                text = label,
+                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                fontSize = 14.sp,
+                color = when {
+                    isCurrent -> activeColor
+                    isPassed -> Color(0xFF10B981)
+                    else -> Color.Gray
+                }
+            )
+        }
+
+        if (index < steps.size - 1) {
+            Box(
+                modifier = Modifier
+                    .padding(start = 11.dp)
+                    .width(2.dp)
+                    .height(22.dp)
+                    .background(if (index < currentIndex) Color(0xFF10B981) else Color(0xFFE2E8F0))
+            )
         }
     }
 }
