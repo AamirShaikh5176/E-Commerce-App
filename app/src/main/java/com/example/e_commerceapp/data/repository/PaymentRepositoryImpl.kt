@@ -23,22 +23,6 @@ class PaymentRepositoryImpl @Inject constructor(
     private val razorpayApiService: RazorpayApiService,
 ) : PaymentRepository {
 
-    override fun generateUpiIntentUri(
-        orderId: String,
-        amount: Double,
-        payeeVpa: String,
-        payeeName: String,
-        transactionNote: String,
-    ): String {
-        val vpa = payeeVpa.ifBlank { Constants.DEFAULT_UPI_MERCHANT_VPA }
-        val name = payeeName.ifBlank { Constants.DEFAULT_UPI_MERCHANT_NAME }
-        val formattedAmount = String.format(Locale.ENGLISH, "%.2f", amount)
-        val encodedName = Uri.encode(name)
-        val encodedNote = Uri.encode(transactionNote)
-
-        return "upi://pay?pa=$vpa&pn=$encodedName&mc=5311&tid=$orderId&tr=$orderId&am=$formattedAmount&cu=INR&tn=$encodedNote"
-    }
-
     override suspend fun placeOrder(
         order: FirestoreOrderDto,
     ): Result<String> = runCatching {

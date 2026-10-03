@@ -21,16 +21,26 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Payment
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -69,6 +79,8 @@ fun OrderDetailsScreen(
 
     var order by remember { mutableStateOf<FirestoreOrderDto?>(null) }
     var isLoading by remember { mutableStateOf(true) }
+    var showCancelDialog by remember { mutableStateOf(false) }
+    var isCancelling by remember { mutableStateOf(false) }
 
     LaunchedEffect(orderId) {
         viewModel.getOrderByIdFlow(orderId).collect { loadedOrder ->
@@ -204,18 +216,69 @@ fun OrderDetailsScreen(
                         }
 
                         if (ord.orderStatus == "CANCELLED") {
-                            Box(
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(Color(0xFFFEE2E2), RoundedCornerShape(8.dp))
-                                    .padding(12.dp)
+                                    .padding(14.dp)
                             ) {
-                                Text(
-                                    text = "This order was cancelled.",
-                                    color = Color(0xFFB91C1C),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = null,
+                                        tint = Color(0xFFB91C1C),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "ORDER CANCELLED",
+                                        color = Color(0xFFB91C1C),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp
+                                    )
+                                }
+                                if (ord.cancelReason.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = "Reason: ${ord.cancelReason}",
+                                        color = Color(0xFF7F1D1D),
+                                        fontSize = 12.sp
+                                    )
+                                }
+                                if (ord.refundAmount > 0 || ord.refundStatus.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    HorizontalDivider(color = Color(0xFFFCA5A5).copy(alpha = 0.5f))
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "REFUND DETAILS",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF7F1D1D),
+                                        letterSpacing = 0.5.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Refund Status: ${ord.refundStatus.ifBlank { "PROCESSED" }.replace('_', ' ')}",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (ord.refundStatus == "REFUNDED") Color(0xFF15803D) else Color(0xFFB45309)
+                                    )
+                                    if (ord.refundAmount > 0) {
+                                        Text(
+                                            text = "Refund Amount: ${CurrencyUtils.formatInr(ord.refundAmount)}",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF1E293B)
+                                        )
+                                    }
+                                    if (ord.refundId.isNotBlank()) {
+                                        Text(
+                                            text = "Reference ID: ${ord.refundId}",
+                                            fontSize = 11.sp,
+                                            color = Color.Gray
+                                        )
+                                    }
+                                }
                             }
                         } else {
                             steps.forEachIndexed { index, (_, label) ->
@@ -471,9 +534,137 @@ fun OrderDetailsScreen(
                     }
                 }
 
+                // Cancellation Action (only shown if order is eligible for cancellation)
+                val cancellableStatuses = listOf("PLACED", "CONFIRMED", "PENDING", "PROCESSING")
+                if (ord.orderStatus in cancellableStatuses) {
+                    OutlinedButton(
+                        onClick = { showCancelDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color(0xFFEF4444)
+                        )
+                    ) {
+                        Text(
+                            text = "Cancel Order",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(30.dp))
             }
         }
+    }
+
+    if (showCancelDialog && order != null) {
+        val ord = order!!
+        val context = LocalContext.current
+        var selectedReason by remember { mutableStateOf("Changed my mind") }
+        val reasons = listOf(
+            "Changed my mind",
+            "Found better price elsewhere",
+            "Ordered by mistake",
+            "Delivery time is too long",
+            "Other reason"
+        )
+
+        AlertDialog(
+            onDismissRequest = { if (!isCancelling) showCancelDialog = false },
+            title = {
+                Text(
+                    text = "Cancel Order?",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Column {
+                    val refundNotice = when {
+                        ord.paymentMethod.equals("WALLET", ignoreCase = true) ->
+                            "A refund of ${CurrencyUtils.formatInr(ord.finalTotal)} will be credited back to your BazaarGo Wallet immediately."
+                        ord.paymentMethod.equals("ONLINE", ignoreCase = true) && (ord.paymentStatus == "PAID" || ord.paymentStatus == "COMPLETED") ->
+                            "A refund of ${CurrencyUtils.formatInr(ord.finalTotal)} will be initiated to your original payment method via Razorpay."
+                        ord.paymentMethod.equals("COD", ignoreCase = true) ->
+                            "Your Cash on Delivery order will be cancelled. No payment was deducted."
+                        else -> "Your order will be cancelled."
+                    }
+
+                    Text(
+                        text = refundNotice,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Please select a reason:",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    reasons.forEach { r ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedReason == r,
+                                onClick = { selectedReason = r }
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = r, fontSize = 13.sp)
+                        }
+                    }
+
+                    if (isCancelling) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        isCancelling = true
+                        viewModel.cancelOrder(ord.orderId, selectedReason) { success, msg ->
+                            isCancelling = false
+                            showCancelDialog = false
+                            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                        }
+                    },
+                    enabled = !isCancelling,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFDC2626)
+                    )
+                ) {
+                    Text("Confirm Cancel", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showCancelDialog = false },
+                    enabled = !isCancelling
+                ) {
+                    Text("Keep Order")
+                }
+            }
+        )
     }
 }
 

@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.e_commerceapp.data.model.wallet.WalletTransaction
+import com.example.e_commerceapp.ui.screens.common.HideNavigationBarOnly
 import com.example.e_commerceapp.utils.CurrencyUtils
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -79,6 +80,8 @@ fun WalletScreen(
     onBackClick: () -> Unit,
     viewModel: WalletViewModel = hiltViewModel(),
 ) {
+    HideNavigationBarOnly()
+
     val walletBalance by viewModel.walletBalance.collectAsStateWithLifecycle()
     val transactions by viewModel.transactions.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -172,6 +175,7 @@ fun WalletScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF8F9FA))
+            .statusBarsPadding()
     ) {
         // Header
         Surface(
@@ -182,7 +186,6 @@ fun WalletScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .statusBarsPadding()
                     .padding(horizontal = 8.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {

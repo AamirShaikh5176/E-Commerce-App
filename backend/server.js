@@ -554,6 +554,229 @@ app.post(['/api/wallet/deduct-for-order'], async (req, res) => {
     }
 });
 
+/**
+ * 6. Order Cancellation & Automated Refund
+ */
+app.post(['/api/order/cancel'], async (req, res) => {
+    try {
+        const { userId, orderId, reason = 'Customer requested cancellation' } = req.body;
+
+        if (!userId || !orderId) {
+            return res.status(400).json({
+                success: false,
+                message: 'userId and orderId are required'
+            });
+        }
+
+        if (!db) {
+            return res.status(503).json({
+                success: false,
+                message: 'Database service unavailable'
+            });
+        }
+
+        const orderRef = db.collection('orders').doc(orderId);
+        const orderSnap = await orderRef.get();
+
+        if (!orderSnap.exists) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+
+        const order = orderSnap.data();
+
+        // Security check: Only the order owner can cancel
+        if (order.userId !== userId) {
+            return res.status(403).json({
+                success: false,
+                message: 'Unauthorized: You can only cancel your own orders'
+            });
+        }
+
+        // Idempotency: If already cancelled, return existing details
+        if (order.orderStatus === 'CANCELLED') {
+            return res.json({
+                success: true,
+                message: 'Order is already cancelled',
+                orderStatus: 'CANCELLED',
+                refundStatus: order.refundStatus || 'NOT_APPLICABLE',
+                refundAmount: order.refundAmount || 0
+            });
+        }
+
+        // Eligibility validation: Cannot cancel if SHIPPED, OUT_FOR_DELIVERY, or DELIVERED
+        const nonCancellableStates = ['SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED'];
+        if (nonCancellableStates.includes(order.orderStatus)) {
+            return res.status(400).json({
+                success: false,
+                message: `Order cannot be cancelled because it is already ${order.orderStatus.toLowerCase().replace('_', ' ')}.`
+            });
+        }
+
+        const paymentMethod = (order.paymentMethod || '').toUpperCase();
+        const paymentStatus = (order.paymentStatus || '').toUpperCase();
+        const finalTotal = Number(order.finalTotal || 0);
+        const walletDeducted = Number(order.walletAmountDeducted || 0);
+
+        let refundStatus = 'NOT_APPLICABLE';
+        let refundId = '';
+        let refundAmount = 0;
+        const now = Date.now();
+
+        // 1. Wallet Refund (for full or partial wallet payment)
+        const effectiveWalletRefund = (paymentMethod === 'WALLET') ? finalTotal : walletDeducted;
+        if (effectiveWalletRefund > 0) {
+            try {
+                const walletDocRef = db.collection('users').doc(userId).collection('wallet').doc('money');
+                const mainDocRef = db.collection('users').doc(userId).collection('wallet').doc('main');
+                const txnDocRef = walletDocRef.collection('transactions').doc();
+                const userTxnDocRef = db.collection('users').doc(userId).collection('walletTransactions').doc(txnDocRef.id);
+
+                await db.runTransaction(async (transaction) => {
+                    const snap = await transaction.get(walletDocRef);
+                    const currentBalance = snap.exists ? (snap.data().balance || 0.0) : 0.0;
+                    const currentAdded = snap.exists ? (snap.data().lifetimeAdded || 0.0) : 0.0;
+                    const currentSpent = snap.exists ? (snap.data().lifetimeSpent || 0.0) : 0.0;
+
+                    const newBalance = Number((currentBalance + effectiveWalletRefund).toFixed(2));
+                    const newSpent = Number(Math.max(0, currentSpent - effectiveWalletRefund).toFixed(2));
+
+                    const updates = {
+                        balance: newBalance,
+                        lifetimeSpent: newSpent,
+                        totalSpent: newSpent,
+                        updatedAt: now
+                    };
+
+                    if (!snap.exists) {
+                        updates.lifetimeAdded = 0.0;
+                        updates.totalAdded = 0.0;
+                        updates.createdAt = now;
+                        transaction.set(walletDocRef, updates);
+                        transaction.set(mainDocRef, updates);
+                    } else {
+                        transaction.update(walletDocRef, updates);
+                        transaction.set(mainDocRef, updates, { merge: true });
+                    }
+
+                    const txnPayload = {
+                        id: txnDocRef.id,
+                        type: 'REFUND',
+                        amount: effectiveWalletRefund,
+                        balanceBefore: currentBalance,
+                        balanceAfter: newBalance,
+                        status: 'SUCCESS',
+                        source: 'WALLET_REFUND',
+                        orderId: orderId,
+                        description: `Refund for cancelled Order #${orderId}`,
+                        createdAt: now,
+                        updatedAt: now,
+                        timestamp: now
+                    };
+
+                    transaction.set(txnDocRef, txnPayload);
+                    transaction.set(userTxnDocRef, txnPayload);
+                });
+
+                refundStatus = 'REFUNDED';
+                refundId = `WLT_REF_${Date.now()}`;
+                refundAmount += effectiveWalletRefund;
+                console.log(`Wallet refund of ₹${effectiveWalletRefund} completed for order ${orderId}`);
+            } catch (wErr) {
+                console.error(`Error refunding wallet for order ${orderId}:`, wErr.message);
+                refundStatus = 'REFUND_PENDING';
+            }
+        }
+
+        // 2. Razorpay Online Refund (if order was paid online)
+        const onlinePaidAmount = (paymentMethod === 'ONLINE') ? finalTotal : Number(order.onlineAmountPaid || 0);
+        if (paymentMethod === 'ONLINE' || onlinePaidAmount > 0) {
+            const paymentIdToRefund = order.gatewayPaymentId || order.paymentReference;
+            if (paymentStatus === 'PAID' || paymentStatus === 'COMPLETED') {
+                if (paymentIdToRefund && paymentIdToRefund.startsWith('pay_') && RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET) {
+                    try {
+                        const amountInPaise = Math.round(onlinePaidAmount * 100);
+                        const authHeader = 'Basic ' + Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString('base64');
+                        const rzpResp = await fetch(`https://api.razorpay.com/v1/payments/${paymentIdToRefund}/refund`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': authHeader,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                amount: amountInPaise,
+                                notes: { orderId: orderId, reason: reason }
+                            })
+                        });
+
+                        const rzpData = await rzpResp.json();
+                        if (rzpResp.ok) {
+                            refundId = rzpData.id || `REF_${Date.now()}`;
+                            refundStatus = 'REFUNDED';
+                            refundAmount += onlinePaidAmount;
+                            console.log(`Razorpay refund ${refundId} initiated for order ${orderId}`);
+                        } else {
+                            console.warn('Razorpay refund API response:', rzpData.error?.description || rzpData);
+                            refundId = `REF_${Date.now()}`;
+                            refundStatus = 'REFUND_PENDING';
+                            refundAmount += onlinePaidAmount;
+                        }
+                    } catch (rzpErr) {
+                        console.error('Razorpay refund error:', rzpErr.message);
+                        refundId = `REF_${Date.now()}`;
+                        refundStatus = 'REFUND_PENDING';
+                        refundAmount += onlinePaidAmount;
+                    }
+                } else {
+                    // Test mode or offline recorded payment
+                    refundId = `REF_${Date.now()}`;
+                    refundStatus = 'REFUNDED';
+                    refundAmount += onlinePaidAmount;
+                }
+            } else {
+                // Not paid yet (e.g. pending/failed)
+                refundStatus = 'NOT_APPLICABLE';
+            }
+        }
+
+        // 3. Update the Order document in Firestore
+        const orderUpdates = {
+            orderStatus: 'CANCELLED',
+            paymentStatus: (refundStatus === 'REFUNDED') ? 'REFUNDED' : (paymentStatus === 'PAID' || paymentStatus === 'COMPLETED' ? 'REFUND_PENDING' : 'CANCELLED'),
+            refundStatus: refundStatus,
+            refundId: refundId,
+            refundAmount: refundAmount,
+            refundCreatedAt: now,
+            cancelledAt: now,
+            cancellationReason: reason,
+            updatedAt: now
+        };
+
+        await orderRef.update(orderUpdates);
+
+        console.log(`Order ${orderId} successfully cancelled by user ${userId}`);
+
+        res.json({
+            success: true,
+            orderId: orderId,
+            orderStatus: 'CANCELLED',
+            refundStatus: refundStatus,
+            refundAmount: refundAmount,
+            message: refundAmount > 0
+                ? `Order cancelled. ₹${refundAmount} has been refunded.`
+                : 'Order cancelled successfully.'
+        });
+    } catch (err) {
+        console.error('Exception cancelling order:', err.message);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to cancel order: ' + err.message
+        });
+    }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Razorpay Test Mode & Wallet backend running on port ${PORT}`);
 });

@@ -8,17 +8,6 @@ import com.example.e_commerceapp.data.dto.firestore.FirestoreOrderDto
  */
 interface PaymentRepository {
     /**
-     * Generates a standard NPCI compliant Indian UPI intent deep link URI.
-     */
-    fun generateUpiIntentUri(
-        orderId: String,
-        amount: Double,
-        payeeVpa: String = "",
-        payeeName: String = "",
-        transactionNote: String = "Order Payment",
-    ): String
-
-    /**
      * Places the order into Firestore and clears the local shopping cart upon successful creation.
      */
     suspend fun placeOrder(

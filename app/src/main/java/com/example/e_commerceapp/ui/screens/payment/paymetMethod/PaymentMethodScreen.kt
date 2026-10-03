@@ -97,7 +97,6 @@ fun PaymentMethodScreen(
     val selectedMethod by viewModel.selectedMethod.collectAsStateWithLifecycle()
     val selectedAddress by viewModel.selectedAddress.collectAsStateWithLifecycle()
     val orderState by viewModel.orderState.collectAsStateWithLifecycle()
-    val upiQrConfig by viewModel.upiQrConfig.collectAsStateWithLifecycle()
     val superCoinsWallet by viewModel.superCoinsWallet.collectAsStateWithLifecycle()
     val walletBalance by viewModel.walletBalance.collectAsStateWithLifecycle()
     val useSuperCoins by viewModel.useSuperCoins.collectAsStateWithLifecycle()
@@ -106,8 +105,6 @@ fun PaymentMethodScreen(
     val effectivePayable = remember(parsedPrice, coinsToRedeem) {
         (parsedPrice - coinsToRedeem).coerceAtLeast(0.0)
     }
-
-    var upiRefInput by remember { mutableStateOf("") }
     // Error dialog for payment / order operations
     orderState.errorMessage?.let { errorMsg ->
         AlertDialog(
@@ -462,194 +459,7 @@ fun PaymentMethodScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
 
-                // 3. Personal Default UPI QR Option
-                IndianPaymentOptionCard(
-                    title = "Personal UPI QR Code",
-                    subtitle = "Scan store QR & pay via Google Pay, PhonePe or Paytm",
-                    icon = Icons.Default.QrCode,
-                    isSelected = selectedMethod == PaymentMethod.UPI_QR,
-                    onClick = { viewModel.selectPaymentMethod(PaymentMethod.UPI_QR) }
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 10.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        // Real Google Pay QR Code Display
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color.White, RoundedCornerShape(12.dp))
-                                .border(1.5.dp, Color(0xFF0284C7), RoundedCornerShape(12.dp))
-                                .padding(12.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Image(
-                                    painter = painterResource(id = R.drawable.googlepay_qr),
-                                    contentDescription = "Aamir Shaikh Google Pay QR Code",
-                                    modifier = Modifier
-                                        .fillMaxWidth(0.85f)
-                                        .aspectRatio(1440f / 2000f)
-                                        .clip(RoundedCornerShape(8.dp)),
-                                    contentScale = ContentScale.Fit
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = upiQrConfig.merchantName,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF0F172A)
-                                )
-                                Text(
-                                    text = "Scan to pay with Google Pay, PhonePe, Paytm or any UPI App",
-                                    fontSize = 11.sp,
-                                    color = Color(0xFF64748B)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // GPay Phone Number row with copy button
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFFF1F5F9),
-                            border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text("Google Pay / Phone Number:", fontSize = 10.sp, color = Color.Gray)
-                                    Text(
-                                        text = upiQrConfig.gpayNumber,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
-                                        color = Color(0xFF1E293B)
-                                    )
-                                }
-                                IconButton(
-                                    onClick = {
-                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        val clip = ClipData.newPlainText("GPay Number", upiQrConfig.gpayNumber)
-                                        clipboard.setPrimaryClip(clip)
-                                        Toast.makeText(context, "GPay number copied to clipboard", Toast.LENGTH_SHORT).show()
-                                    },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.ContentCopy,
-                                        contentDescription = "Copy GPay Number",
-                                        tint = Color(0xFF0284C7),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // UPI ID row with copy button
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFFF1F5F9),
-                            border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
-                                    Text("UPI ID:", fontSize = 10.sp, color = Color.Gray)
-                                    Text(
-                                        text = upiQrConfig.upiId,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp,
-                                        color = Color(0xFF0284C7)
-                                    )
-                                }
-                                IconButton(
-                                    onClick = {
-                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        val clip = ClipData.newPlainText("UPI ID", upiQrConfig.upiId)
-                                        clipboard.setPrimaryClip(clip)
-                                        Toast.makeText(context, "UPI ID copied to clipboard", Toast.LENGTH_SHORT).show()
-                                    },
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.ContentCopy,
-                                        contentDescription = "Copy UPI ID",
-                                        tint = Color(0xFF0284C7),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // Open UPI App direct intent
-                        OutlinedButton(
-                            onClick = {
-                                val uri = viewModel.generateUpiIntentUri(parsedPrice)
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri))
-                                try {
-                                    context.startActivity(intent)
-                                } catch (_: Exception) {
-                                    Toast.makeText(context, "No UPI app installed. Please scan QR with any phone app.", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Pay via Google Pay / Any UPI App", fontWeight = FontWeight.Bold, color = Color(0xFF0284C7))
-                        }
-
-                        // Optional UTR Reference Field
-                        OutlinedTextField(
-                            value = upiRefInput,
-                            onValueChange = { upiRefInput = it },
-                            label = { Text("UPI Reference / UTR Number (Optional)", fontSize = 11.sp) },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color(0xFF0284C7),
-                                unfocusedBorderColor = Color(0xFFCBD5E1)
-                            )
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFFF0FDF4),
-                            border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "💡 Scan the QR above with any UPI app and complete payment. Enter your UPI Reference / UTR Number above, then tap 'Submit Payment for Verification' below. Your order will be confirmed upon admin verification.",
-                                fontSize = 11.sp,
-                                color = Color(0xFF166534),
-                                modifier = Modifier.padding(8.dp)
-                            )
-                        }
-                    }
-                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -753,9 +563,6 @@ fun PaymentMethodScreen(
                                         )
                                     }
                                 }
-                                PaymentMethod.UPI_QR -> {
-                                    viewModel.placeUpiQrOrder(parsedPrice, upiRefInput.trim())
-                                }
                                 PaymentMethod.SUPERCOINS -> {
                                     viewModel.placeSuperCoinsOnlyOrder(parsedPrice)
                                 }
@@ -768,7 +575,6 @@ fun PaymentMethodScreen(
                                 PaymentMethod.COD -> Color(0xFF16A34A)
                                 PaymentMethod.WALLET -> Color(0xFF0D9488)
                                 PaymentMethod.ONLINE -> Color(0xFF0284C7)
-                                PaymentMethod.UPI_QR -> Color(0xFF7C3AED)
                                 PaymentMethod.SUPERCOINS -> Color(0xFFD97706)
                             }
                         )
@@ -791,7 +597,6 @@ fun PaymentMethodScreen(
                                 PaymentMethod.COD -> "Place COD Order"
                                 PaymentMethod.WALLET -> if (walletBalance >= effectivePayable) "Pay with Wallet  ➔" else "Pay with Wallet + Razorpay  ➔"
                                 PaymentMethod.ONLINE -> "Pay Online  ➔"
-                                PaymentMethod.UPI_QR -> "Submit Payment for Verification"
                                 PaymentMethod.SUPERCOINS -> "Confirm with Coins"
                             }
                             Text(

@@ -128,21 +128,23 @@ class AdminViewModel @Inject constructor(
     }
 
     val metrics: StateFlow<AdminMetrics> = combine(products, orders, users) { prodList, orderList, userList ->
-        val revenue = orderList.filter { it.orderStatus != "CANCELLED" }.sumOf { it.finalTotal }
+        val isDeliveredCod = { o: FirestoreOrderDto ->
+            o.orderStatus.equals("DELIVERED", ignoreCase = true) && o.paymentMethod.equals("COD", ignoreCase = true)
+        }
+        val revenue = orderList.filter {
+            it.orderStatus != "CANCELLED" && (it.paymentStatus == "PAID" || it.paymentStatus == "COMPLETED" || isDeliveredCod(it))
+        }.sumOf { it.finalTotal }
         val placed = orderList.count { it.orderStatus == "PLACED" }
         val confirmed = orderList.count { it.orderStatus == "CONFIRMED" }
         val processing = orderList.count { it.orderStatus == "PROCESSING" }
         val shipped = orderList.count { it.orderStatus == "SHIPPED" || it.orderStatus == "OUT_FOR_DELIVERY" }
         val delivered = orderList.count { it.orderStatus == "DELIVERED" }
         val cancelled = orderList.count { it.orderStatus == "CANCELLED" }
-        val isDeliveredCod = { o: FirestoreOrderDto ->
-            o.orderStatus.equals("DELIVERED", ignoreCase = true) && o.paymentMethod.equals("COD", ignoreCase = true)
-        }
         val pendingPayments = orderList.count {
-            (it.paymentStatus == "PENDING" || it.paymentStatus == "PENDING_VERIFICATION") && !isDeliveredCod(it)
+            it.orderStatus != "CANCELLED" && (it.paymentStatus == "PENDING" || it.paymentStatus == "PENDING_VERIFICATION") && !isDeliveredCod(it)
         }
         val paid = orderList.count {
-            it.paymentStatus == "PAID" || it.paymentStatus == "COMPLETED" || isDeliveredCod(it)
+            it.orderStatus != "CANCELLED" && (it.paymentStatus == "PAID" || it.paymentStatus == "COMPLETED" || isDeliveredCod(it))
         }
         val lowStock = prodList.count { it.stockQuantity <= 5 || !it.inStock }
 

@@ -27,7 +27,7 @@ data class FirestoreOrderDto(
     val deliveryFee: Double = 0.0,
     val finalTotal: Double = 0.0,
     val currency: String = "INR",
-    val paymentMethod: String = "COD", // "COD" | "ONLINE" | "UPI" | "UPI_QR" | "CARD" | "NET_BANKING"
+    val paymentMethod: String = "COD", // "COD" | "ONLINE" | "WALLET" | "CARD" | "NET_BANKING"
     val paymentStatus: String = "PENDING", // "PENDING" | "PENDING_VERIFICATION" | "PAID" | "FAILED" | "REFUNDED"
     val orderStatus: String = "PLACED", // "PLACED" | "CONFIRMED" | "PROCESSING" | "SHIPPED" | "OUT_FOR_DELIVERY" | "DELIVERED" | "CANCELLED"
     val trackingNumber: String = "",
@@ -44,4 +44,11 @@ data class FirestoreOrderDto(
     val superCoinsEarned: Long = 0L,
     val superCoinsRewardGranted: Boolean = false,
     val superCoinsRefunded: Boolean = false,
+    val cancelReason: String = "",
+    val cancelledAt: Long = 0L,
+    val refundStatus: String = "", // "NOT_APPLICABLE" | "REFUND_PENDING" | "REFUNDED"
+    val refundId: String = "",
+    val refundAmount: Double = 0.0,
+    val walletAmountDeducted: Double = 0.0,
+    val onlineAmountPaid: Double = 0.0,
 )

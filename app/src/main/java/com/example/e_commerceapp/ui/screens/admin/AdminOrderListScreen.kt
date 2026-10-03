@@ -488,6 +488,29 @@ fun AdminOrderItemCard(
                 )
             }
 
+            if (order.orderStatus == "CANCELLED") {
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (order.cancelReason.isNotBlank()) "Reason: ${order.cancelReason}" else "Order Cancelled",
+                        color = Color(0xFFFCA5A5),
+                        fontSize = 11.sp
+                    )
+                    if (order.refundStatus.isNotBlank()) {
+                        Text(
+                            text = "Refund: ${order.refundStatus.replace('_', ' ')}",
+                            color = if (order.refundStatus == "REFUNDED") Color(0xFF10B981) else Color(0xFFF59E0B),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
             // Fulfillment & Payment Verification Buttons
             Spacer(modifier = Modifier.height(12.dp))
             Row(

@@ -11,9 +11,7 @@ object Constants {
     const val USER_TOKEN = "USER_TOKEN"
     const val USER_TOKEN_EXPIRATION_TIME = "USER_TOKEN_EXPIRATION_TIME"
 
-    // Indian Payment Constants (Client publishable identifier - NO secrets stored in Android APK)
-    const val DEFAULT_UPI_MERCHANT_VPA = "ecommerce.orders@okaxis"
-    const val DEFAULT_UPI_MERCHANT_NAME = "Festive Indian Store"
-    const val RAZORPAY_CLIENT_KEY = "rzp_test_TgbS1IiWpcCHb1"
+    // Razorpay Client Publishable Key (NO secrets stored in Android APK)
+    const val RAZORPAY_CLIENT_KEY = "rzp_test_TjNWkeRHzVPeh0"
     const val BACKEND_BASE_URL = "https://scenes-joseph-meet-albert.trycloudflare.com/"
 }

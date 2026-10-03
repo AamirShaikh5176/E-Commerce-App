@@ -50,6 +50,8 @@ local.properties
 secrets.properties
 secrets.gradle
 *rzp*.csv
+*.csv
+scratch/
 serviceAccountKey.json
 
 # ================================

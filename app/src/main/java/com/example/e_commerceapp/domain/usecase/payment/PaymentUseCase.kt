@@ -7,15 +7,7 @@ import javax.inject.Inject
 class PaymentUseCase @Inject constructor(
     private val paymentRepository: PaymentRepository,
 ) {
-    fun generateUpiIntentUri(
-        orderId: String,
-        amount: Double,
-        payeeVpa: String = "",
-        payeeName: String = "",
-        transactionNote: String = "Order Payment",
-    ): String {
-        return paymentRepository.generateUpiIntentUri(orderId, amount, payeeVpa, payeeName, transactionNote)
-    }
+
 
     suspend fun placeOrder(order: FirestoreOrderDto): Result<String> {
         return paymentRepository.placeOrder(order)

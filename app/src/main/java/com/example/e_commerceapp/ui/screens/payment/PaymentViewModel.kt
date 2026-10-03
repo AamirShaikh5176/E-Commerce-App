@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.e_commerceapp.data.dto.firestore.FirestoreOrderDto
 import com.example.e_commerceapp.data.dto.firestore.FirestoreOrderItemDto
-import com.example.e_commerceapp.data.dto.firestore.UpiQrConfig
 import com.example.e_commerceapp.domain.entity.address.AddressEntity
 import com.example.e_commerceapp.domain.entity.cart.UserCartEntity
 import com.example.e_commerceapp.domain.repository.AddressRepository
@@ -63,9 +62,6 @@ class PaymentViewModel @Inject constructor(
     private val _orderState = MutableStateFlow(ScreenState<OrderSuccessData>())
     val orderState: StateFlow<ScreenState<OrderSuccessData>> = _orderState.asStateFlow()
 
-    private val _upiQrConfig = MutableStateFlow(UpiQrConfig())
-    val upiQrConfig: StateFlow<UpiQrConfig> = _upiQrConfig.asStateFlow()
-
     private val _superCoinsWallet = MutableStateFlow(SuperCoinsWallet())
     val superCoinsWallet: StateFlow<SuperCoinsWallet> = _superCoinsWallet.asStateFlow()
 
@@ -81,7 +77,6 @@ class PaymentViewModel @Inject constructor(
     init {
         loadCartItems()
         loadDefaultAddress()
-        loadUpiQrConfig()
         loadSuperCoinsWallet()
         loadWalletBalance()
     }
@@ -144,32 +139,8 @@ class PaymentViewModel @Inject constructor(
         }
     }
 
-    private fun loadUpiQrConfig() {
-        firestore.collection("paymentConfig").document("defaultUpiQr")
-            .get()
-            .addOnSuccessListener { doc ->
-                if (doc.exists()) {
-                    doc.toObject(UpiQrConfig::class.java)?.let {
-                        _upiQrConfig.value = it
-                    }
-                }
-            }
-    }
-
     fun selectPaymentMethod(method: PaymentMethod) {
         _selectedMethod.value = method
-    }
-
-    fun generateUpiIntentUri(amount: Double): String {
-        val orderId = "OD" + System.currentTimeMillis().toString().takeLast(9)
-        val config = _upiQrConfig.value
-        return paymentUseCase.generateUpiIntentUri(
-            orderId = orderId,
-            amount = amount,
-            payeeVpa = config.upiId,
-            payeeName = config.merchantName,
-            transactionNote = "Payment for Order $orderId"
-        )
     }
 
     /**
@@ -196,22 +167,6 @@ class PaymentViewModel @Inject constructor(
             orderStatus = "CONFIRMED",
             totalAmount = totalAmount,
             deliveryFee = deliveryFee
-        )
-    }
-
-    /**
-     * Configurable Personal UPI QR:
-     * Marked as PENDING_VERIFICATION until manual admin verification.
-     * Never auto-confirms or auto-awards SuperCoins.
-     */
-    fun placeUpiQrOrder(totalAmount: Double, upiRef: String = "", deliveryFee: Double = 0.0) {
-        placeOrderInternal(
-            method = PaymentMethod.UPI_QR,
-            paymentStatus = "PENDING_VERIFICATION",
-            orderStatus = "PENDING_VERIFICATION",
-            totalAmount = totalAmount,
-            deliveryFee = deliveryFee,
-            paymentReference = upiRef.ifBlank { "UPI_MANUAL_VERIFICATION" }
         )
     }
 
