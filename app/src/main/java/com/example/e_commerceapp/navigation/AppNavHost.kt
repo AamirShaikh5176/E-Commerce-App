@@ -294,7 +294,13 @@ fun AppNavHost(
 
         composable(ProfileScreen.route) {
             ProfileScreen(
-                onBackClick = { navController.popBackStack() },
+                onBackClick = {
+                    if (!navController.popBackStack()) {
+                        navController.navigate(HomeScreen.route) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                },
                 logout = {
                     AuthUtils.logout(context)
                     navController.navigate(HomeScreen.route) {
@@ -528,8 +534,11 @@ fun AppNavHost(
                     onLogout = {
                         AdminSessionManager.onAdminLogout()
                         AuthUtils.logout(context)
-                        navController.navigate(AdminLoginDestination.route) {
+                        navController.navigate(HomeScreen.route) {
                             popUpTo(0) { inclusive = true }
+                        }
+                        navController.navigate(ProfileScreen.route) {
+                            launchSingleTop = true
                         }
                     },
                     onNavigateToProducts = { navController.navigate(AdminProductListDestination.route) },
