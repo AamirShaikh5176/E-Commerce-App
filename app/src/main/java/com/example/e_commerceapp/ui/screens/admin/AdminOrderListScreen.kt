@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
@@ -42,6 +43,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
@@ -84,6 +86,7 @@ fun AdminOrderListScreen(
 
     val statusTabs = listOf(
         "All",
+        "UPI Verification",
         "PLACED",
         "CONFIRMED",
         "PROCESSING",
@@ -95,7 +98,7 @@ fun AdminOrderListScreen(
     )
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
-    val paymentFilters = listOf("All Payments", "PAID", "PENDING", "REFUNDED")
+    val paymentFilters = listOf("All Payments", "UPI Verification", "PAID", "PENDING", "REFUNDED")
     var selectedPaymentFilter by remember { mutableStateOf("All Payments") }
 
     var searchQuery by remember { mutableStateOf("") }
@@ -113,6 +116,9 @@ fun AdminOrderListScreen(
     var isRejectingCancellation by remember { mutableStateOf(true) }
     var rejectReasonNotes by remember { mutableStateOf("") }
 
+    var rejectUpiDialogOrder by remember { mutableStateOf<FirestoreOrderDto?>(null) }
+    var rejectUpiReasonNotes by remember { mutableStateOf("") }
+
     var refundConfirmOrder by remember { mutableStateOf<FirestoreOrderDto?>(null) }
     var refundNotes by remember { mutableStateOf("") }
 
@@ -122,11 +128,13 @@ fun AdminOrderListScreen(
         val selectedStatus = statusTabs[selectedTabIndex]
         val statusMatches = when (selectedStatus) {
             "All" -> true
+            "UPI Verification" -> order.paymentMethod.equals("UPI_QR", ignoreCase = true) && order.paymentStatus.equals("VERIFICATION_PENDING", ignoreCase = true)
             else -> order.orderStatus.equals(selectedStatus, ignoreCase = true)
         }
 
         val paymentMatches = when (selectedPaymentFilter) {
             "All Payments" -> true
+            "UPI Verification" -> order.paymentMethod.equals("UPI_QR", ignoreCase = true) && order.paymentStatus.equals("VERIFICATION_PENDING", ignoreCase = true)
             "PAID" -> order.paymentStatus.equals("PAID", ignoreCase = true) || order.paymentStatus.equals("COMPLETED", ignoreCase = true)
             "PENDING" -> order.paymentStatus.equals("PENDING", ignoreCase = true)
             "REFUNDED" -> order.paymentStatus.equals("REFUNDED", ignoreCase = true) || order.refundStatus.equals("REFUND_COMPLETED", ignoreCase = true)
@@ -328,6 +336,56 @@ fun AdminOrderListScreen(
             },
             dismissButton = {
                 TextButton(onClick = { rejectDialogOrder = null }) {
+                    Text("Cancel", color = Color(0xFF94A3B8))
+                }
+            }
+        )
+    }
+
+    // 3b. Reject UPI Payment Dialog
+    if (rejectUpiDialogOrder != null) {
+        val targetOrder = rejectUpiDialogOrder!!
+        AlertDialog(
+            onDismissRequest = { rejectUpiDialogOrder = null },
+            title = { Text("Reject UPI Payment", color = Color(0xFFEF4444), fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "Are you sure you want to reject manual UPI payment for Order #${targetOrder.orderId.takeLast(8).uppercase()}? Amount: ₹${targetOrder.finalTotal}",
+                        color = Color(0xFFCBD5E1),
+                        fontSize = 13.sp
+                    )
+                    OutlinedTextField(
+                        value = rejectUpiReasonNotes,
+                        onValueChange = { rejectUpiReasonNotes = it },
+                        label = { Text("Rejection Reason (Optional)", color = Color(0xFF94A3B8)) },
+                        placeholder = { Text("e.g. Payment not received / incorrect amount", color = Color(0xFF64748B)) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Color(0xFFEF4444),
+                            unfocusedBorderColor = Color(0xFF334155),
+                            focusedContainerColor = Color(0xFF0F172A),
+                            unfocusedContainerColor = Color(0xFF0F172A)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            containerColor = Color(0xFF1E293B),
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.rejectUpiPayment(targetOrder.orderId, rejectUpiReasonNotes.trim())
+                        rejectUpiDialogOrder = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
+                ) {
+                    Text("Reject Payment", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { rejectUpiDialogOrder = null }) {
                     Text("Cancel", color = Color(0xFF94A3B8))
                 }
             }
@@ -639,7 +697,12 @@ fun AdminOrderListScreen(
                             onMarkPickedUp = { viewModel.markProductPickedUp(order.orderId) },
                             onConfirmReceived = { viewModel.confirmProductReceived(order.orderId) },
                             onProcessRefund = { refundConfirmOrder = order },
-                            onViewAuditTrail = { auditTrailOrder = order }
+                            onViewAuditTrail = { auditTrailOrder = order },
+                            onConfirmUpiPayment = { viewModel.confirmUpiPayment(order.orderId) },
+                            onRejectUpiPayment = {
+                                rejectUpiDialogOrder = order
+                                rejectUpiReasonNotes = ""
+                            }
                         )
                     }
                     item {
@@ -668,6 +731,8 @@ fun AdminOrderItemCard(
     onConfirmReceived: () -> Unit,
     onProcessRefund: () -> Unit,
     onViewAuditTrail: () -> Unit,
+    onConfirmUpiPayment: () -> Unit = {},
+    onRejectUpiPayment: () -> Unit = {},
 ) {
     val dateStr = if (order.createdAt > 0) {
         SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.ENGLISH).format(Date(order.createdAt))
@@ -935,6 +1000,77 @@ fun AdminOrderItemCard(
                 }
             }
 
+            // UPI Payment Verification Banner
+            if (order.paymentMethod.equals("UPI_QR", ignoreCase = true) && order.paymentStatus.equals("VERIFICATION_PENDING", ignoreCase = true)) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFFEF3C7).copy(alpha = 0.15f),
+                    border = BorderStroke(1.dp, Color(0xFFF59E0B)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = Color(0xFFF59E0B),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "UPI PAYMENT VERIFICATION REQUIRED",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                color = Color(0xFFF59E0B)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Customer submitted manual UPI payment to aamirshaikh78601-3@oksbi. Check your bank/UPI app to verify receipt before confirming.",
+                            fontSize = 11.sp,
+                            color = Color(0xFFCBD5E1)
+                        )
+                        if (order.customerPaymentSubmittedAt > 0) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            val submittedStr = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.ENGLISH).format(Date(order.customerPaymentSubmittedAt))
+                            Text(
+                                text = "Submitted At: $submittedStr",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFFFBBF24)
+                            )
+                        }
+                    }
+                }
+            } else if (order.paymentStatus == "PAYMENT_REJECTED") {
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFFEE2E2).copy(alpha = 0.15f),
+                    border = BorderStroke(1.dp, Color(0xFFEF4444)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text(
+                            text = "PAYMENT REJECTED BY ADMIN",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            color = Color(0xFFEF4444)
+                        )
+                        val rReason = order.paymentRejectionReason.ifBlank { order.rejectionReason }
+                        if (rReason.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Reason: $rReason",
+                                fontSize = 11.sp,
+                                color = Color(0xFFFCA5A5)
+                            )
+                        }
+                    }
+                }
+            }
+
             // Action Buttons Section
             Spacer(modifier = Modifier.height(12.dp))
             HorizontalDivider(color = Color(0xFF334155), thickness = 0.5.dp)
@@ -944,6 +1080,33 @@ fun AdminOrderItemCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // 0. Manual UPI Verification Actions
+                if (order.paymentMethod.equals("UPI_QR", ignoreCase = true) && order.paymentStatus.equals("VERIFICATION_PENDING", ignoreCase = true)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = onConfirmUpiPayment,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(vertical = 8.dp)
+                        ) {
+                            Text("Confirm Payment", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+                        }
+                        Button(
+                            onClick = onRejectUpiPayment,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(vertical = 8.dp)
+                        ) {
+                            Text("Reject Payment", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+                        }
+                    }
+                }
+
                 // Primary fulfillment / lifecycle action buttons
                 when (order.orderStatus) {
                     // 1. Cancellation Flow

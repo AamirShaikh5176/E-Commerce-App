@@ -233,8 +233,8 @@ fun CustomerOrderItemCard(
                     "DELIVERED", "RETURNED" -> Color(0xFFDCFCE7) to Color(0xFF15803D)
                     "SHIPPED", "OUT_FOR_DELIVERY", "PICKUP_SCHEDULED" -> Color(0xFFE0F2FE) to Color(0xFF0369A1)
                     "CONFIRMED", "PROCESSING", "PICKED_UP", "PRODUCT_RECEIVED" -> Color(0xFFEDE9FE) to Color(0xFF6D28D9)
-                    "CANCELLED", "CANCELLATION_REJECTED", "RETURN_REJECTED" -> Color(0xFFFEE2E2) to Color(0xFFB91C1C)
-                    "CANCELLATION_REQUESTED", "RETURN_REQUESTED", "CANCELLATION_APPROVED", "RETURN_APPROVED", "REFUND_INITIATED", "REFUND_PROCESSING" -> Color(0xFFFEF3C7) to Color(0xFFB45309)
+                    "CANCELLED", "CANCELLATION_REJECTED", "RETURN_REJECTED", "PAYMENT_REJECTED" -> Color(0xFFFEE2E2) to Color(0xFFB91C1C)
+                    "PAYMENT_VERIFICATION_PENDING", "CANCELLATION_REQUESTED", "RETURN_REQUESTED", "CANCELLATION_APPROVED", "RETURN_APPROVED", "REFUND_INITIATED", "REFUND_PROCESSING" -> Color(0xFFFEF3C7) to Color(0xFFB45309)
                     else -> Color(0xFFF1F5F9) to Color(0xFF475569)
                 }
 
@@ -310,7 +310,8 @@ fun CustomerOrderItemCard(
                         Spacer(modifier = Modifier.width(6.dp))
                         val (payBg, payFg) = when (order.paymentStatus) {
                             "PAID", "COMPLETED" -> Color(0xFFDCFCE7) to Color(0xFF15803D)
-                            "FAILED" -> Color(0xFFFEE2E2) to Color(0xFFB91C1C)
+                            "VERIFICATION_PENDING" -> Color(0xFFFEF3C7) to Color(0xFFB45309)
+                            "PAYMENT_REJECTED", "FAILED" -> Color(0xFFFEE2E2) to Color(0xFFB91C1C)
                             else -> Color(0xFFF1F5F9) to Color(0xFF475569)
                         }
                         Box(

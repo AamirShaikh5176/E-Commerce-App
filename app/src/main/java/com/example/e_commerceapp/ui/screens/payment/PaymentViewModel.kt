@@ -63,6 +63,9 @@ class PaymentViewModel @Inject constructor(
     private val _selectedMethod = MutableStateFlow(PaymentMethod.COD)
     val selectedMethod: StateFlow<PaymentMethod> = _selectedMethod.asStateFlow()
 
+    private val _upiPaymentSubmitted = MutableStateFlow(false)
+    val upiPaymentSubmitted: StateFlow<Boolean> = _upiPaymentSubmitted.asStateFlow()
+
     private suspend fun buildFirestoreOrderItems(totalAmount: Double = 0.0): List<FirestoreOrderItemDto> {
         val sessionItems = CheckoutSessionHolder.getEffectiveCheckoutItems()
         val sourceItems: List<UserCartEntity> = if (sessionItems.isNotEmpty()) {
@@ -290,6 +293,28 @@ class PaymentViewModel @Inject constructor(
             orderStatus = "CONFIRMED",
             totalAmount = totalAmount,
             deliveryFee = deliveryFee
+        )
+    }
+
+    /**
+     * Manual UPI QR Payment: Customer scans uploaded QR code and submits payment for Admin verification.
+     * Order status: PAYMENT_VERIFICATION_PENDING
+     * Payment status: VERIFICATION_PENDING
+     * Does NOT mark as PAID until confirmed by Admin.
+     */
+    fun submitUpiQrPayment(totalAmount: Double, deliveryFee: Double = 0.0) {
+        if (_upiPaymentSubmitted.value) return
+        _upiPaymentSubmitted.value = true
+        val now = System.currentTimeMillis()
+        placeOrderInternal(
+            method = PaymentMethod.UPI_QR,
+            paymentStatus = "VERIFICATION_PENDING",
+            orderStatus = "PAYMENT_VERIFICATION_PENDING",
+            totalAmount = totalAmount,
+            deliveryFee = deliveryFee,
+            paymentReference = "UPI_QR_MANUAL",
+            paymentVerificationRequired = true,
+            customerPaymentSubmittedAt = now
         )
     }
 
@@ -859,6 +884,8 @@ class PaymentViewModel @Inject constructor(
         totalAmount: Double,
         deliveryFee: Double = 0.0,
         paymentReference: String = "",
+        paymentVerificationRequired: Boolean = false,
+        customerPaymentSubmittedAt: Long = 0L,
     ) {
         viewModelScope.launch {
             _orderState.update { it.copy(isLoading = true, errorMessage = null, data = null) }
@@ -887,6 +914,7 @@ class PaymentViewModel @Inject constructor(
             if (coinsUsed > 0 && userId.isNotBlank()) {
                 val redeemResult = superCoinsRepository.redeemSuperCoinsForOrder(userId, orderId, coinsUsed)
                 if (redeemResult.isFailure) {
+                    if (method == PaymentMethod.UPI_QR) _upiPaymentSubmitted.value = false
                     _orderState.update {
                         it.copy(
                             isLoading = false,
@@ -899,6 +927,20 @@ class PaymentViewModel @Inject constructor(
             }
 
             val orderItems = buildFirestoreOrderItems(totalAmount)
+
+            val initialAuditTrail = if (method == PaymentMethod.UPI_QR) {
+                listOf(
+                    mapOf(
+                        "adminUid" to (userId.ifBlank { "customer" }),
+                        "action" to "UPI PAYMENT SUBMITTED",
+                        "previousStatus" to "NONE",
+                        "newStatus" to "VERIFICATION_PENDING",
+                        "notes" to "Customer submitted manual UPI payment verification request",
+                        "orderId" to orderId,
+                        "timestamp" to (if (customerPaymentSubmittedAt > 0) customerPaymentSubmittedAt else System.currentTimeMillis())
+                    )
+                )
+            } else emptyList()
 
             val orderDto = FirestoreOrderDto(
                 orderId = orderId,
@@ -922,6 +964,9 @@ class PaymentViewModel @Inject constructor(
                 updatedAt = System.currentTimeMillis(),
                 courierPartner = "BlueDart Express",
                 superCoinsRedeemed = coinsUsed,
+                paymentVerificationRequired = paymentVerificationRequired,
+                customerPaymentSubmittedAt = customerPaymentSubmittedAt,
+                adminAuditTrail = initialAuditTrail,
             )
 
             val result = paymentUseCase.placeOrder(orderDto)
@@ -948,6 +993,7 @@ class PaymentViewModel @Inject constructor(
                     )
                 }
             } else {
+                if (method == PaymentMethod.UPI_QR) _upiPaymentSubmitted.value = false
                 // Restore redeemed coins if order placement failed
                 if (coinsUsed > 0 && userId.isNotBlank()) {
                     superCoinsRepository.refundRedeemedCoinsIfEligible(orderId, userId)

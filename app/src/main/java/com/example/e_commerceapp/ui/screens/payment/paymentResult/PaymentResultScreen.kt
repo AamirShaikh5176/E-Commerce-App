@@ -60,7 +60,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.e_commerceapp.R
+import com.example.e_commerceapp.data.dto.firestore.FirestoreOrderDto
 import com.example.e_commerceapp.ui.screens.common.HideNavigationBarOnly
+import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -81,6 +83,16 @@ fun PaymentResultScreen(
         if (orderId.isNotBlank()) orderId else "OD" + System.currentTimeMillis().toString().takeLast(9)
     }
 
+    var orderData by remember { mutableStateOf<FirestoreOrderDto?>(null) }
+    LaunchedEffect(effectiveOrderId) {
+        if (effectiveOrderId.isNotBlank()) {
+            FirebaseFirestore.getInstance().collection("orders").document(effectiveOrderId).get()
+                .addOnSuccessListener { doc ->
+                    orderData = doc.toObject(FirestoreOrderDto::class.java)
+                }
+        }
+    }
+
     var animateIn by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         animateIn = true
@@ -97,6 +109,9 @@ fun PaymentResultScreen(
         cal.add(Calendar.DAY_OF_YEAR, 3)
         SimpleDateFormat("EEE, dd MMM yyyy", Locale.ENGLISH).format(cal.time)
     }
+
+    val isUpiPending = orderData?.paymentMethod.equals("UPI_QR", ignoreCase = true) &&
+        orderData?.paymentStatus == "VERIFICATION_PENDING"
 
     Column(
         modifier = modifier
@@ -115,13 +130,13 @@ fun PaymentResultScreen(
                 modifier = Modifier
                     .size(110.dp)
                     .scale(scale)
-                    .background(Color(0xFFDCFCE7), CircleShape),
+                    .background(if (isUpiPending) Color(0xFFFEF3C7) else Color(0xFFDCFCE7), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
                         .size(80.dp)
-                        .background(Color(0xFF22C55E), CircleShape),
+                        .background(if (isUpiPending) Color(0xFFF59E0B) else Color(0xFF22C55E), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -136,7 +151,7 @@ fun PaymentResultScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "Order Placed Successfully! 🎉",
+                text = if (isUpiPending) "Payment Submitted for Verification ⏳" else "Order Placed Successfully! 🎉",
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1E293B),
@@ -146,7 +161,8 @@ fun PaymentResultScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Thank you for shopping with us! We have received your order and are getting it ready.",
+                text = if (isUpiPending) "Your payment has been submitted and is waiting for admin verification."
+                       else "Thank you for shopping with us! We have received your order and are getting it ready.",
                 fontSize = 14.sp,
                 color = Color(0xFF64748B),
                 textAlign = TextAlign.Center,
@@ -249,15 +265,17 @@ fun PaymentResultScreen(
                             fontSize = 13.sp,
                             color = Color(0xFF475569)
                         )
+                        val statusText = if (isUpiPending) "VERIFICATION PENDING"
+                            else (orderData?.orderStatus?.replace('_', ' ')?.ifBlank { "CONFIRMED" } ?: "CONFIRMED")
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFFDCFCE7)
+                            color = if (isUpiPending) Color(0xFFFEF3C7) else Color(0xFFDCFCE7)
                         ) {
                             Text(
-                                text = "CONFIRMED",
+                                text = statusText,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF15803D),
+                                color = if (isUpiPending) Color(0xFFB45309) else Color(0xFF15803D),
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }

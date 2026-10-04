@@ -120,4 +120,12 @@ data class FirestoreOrderDto(
     val adminAuditTrail: List<Map<String, Any>> = emptyList(),
     val walletAmountDeducted: Double = 0.0,
     val onlineAmountPaid: Double = 0.0,
+    val paymentVerificationRequired: Boolean = false,
+    val customerPaymentSubmittedAt: Long = 0L,
+    val paymentVerifiedBy: String = "",
+    val paymentVerifiedAt: Long = 0L,
+    val paymentRejectedBy: String = "",
+    val paymentRejectedAt: Long = 0L,
+    val paymentRejectionReason: String = "",
+    val rejectionReason: String = "",
 )

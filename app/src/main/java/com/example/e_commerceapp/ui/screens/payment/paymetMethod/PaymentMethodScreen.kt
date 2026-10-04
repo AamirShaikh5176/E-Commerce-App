@@ -1,9 +1,15 @@
 package com.example.e_commerceapp.ui.screens.payment.paymetMethod
 
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,9 +30,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.LocalAtm
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Payment
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -43,6 +51,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.example.e_commerceapp.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -80,6 +92,7 @@ fun PaymentMethodScreen(
     val walletBalance by viewModel.walletBalance.collectAsStateWithLifecycle()
     val useSuperCoins by viewModel.useSuperCoins.collectAsStateWithLifecycle()
     val coinsToRedeem by viewModel.coinsToRedeem.collectAsStateWithLifecycle()
+    val upiPaymentSubmitted by viewModel.upiPaymentSubmitted.collectAsStateWithLifecycle()
 
     val effectivePayable = remember(parsedPrice, coinsToRedeem) {
         (parsedPrice - coinsToRedeem).coerceAtLeast(0.0)
@@ -116,6 +129,9 @@ fun PaymentMethodScreen(
     // On Order Placed successfully
     LaunchedEffect(orderState.data) {
         orderState.data?.let { orderData ->
+            if (selectedMethod == PaymentMethod.UPI_QR) {
+                Toast.makeText(context, "Payment submitted for verification", Toast.LENGTH_LONG).show()
+            }
             onPaymentCompleted(orderData.orderId, true)
         }
     }
@@ -438,7 +454,142 @@ fun PaymentMethodScreen(
                     }
                 }
 
+                Spacer(modifier = Modifier.height(10.dp))
 
+                // 3. UPI QR Payment (Manual Transfer + Admin Verification)
+                IndianPaymentOptionCard(
+                    title = "UPI QR Payment",
+                    subtitle = "Scan the QR code using any UPI app and pay manually.",
+                    icon = Icons.Default.Payment,
+                    isSelected = selectedMethod == PaymentMethod.UPI_QR,
+                    onClick = { viewModel.selectPaymentMethod(PaymentMethod.UPI_QR) }
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFF8FAFC),
+                        border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Scan to Pay",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0F172A)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Pay the exact order amount",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF64748B)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Prominently displayed order amount
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFFEFF6FF),
+                                border = BorderStroke(1.dp, Color(0xFFBFDBFE))
+                            ) {
+                                Text(
+                                    text = "Pay Exact Amount: ₹${CurrencyUtils.formatInr(effectivePayable).replace("₹", "")}",
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF1D4ED8),
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Uploaded QR image exactly as provided
+                            Image(
+                                painter = painterResource(id = R.drawable.googlepay_qr),
+                                contentDescription = "Scan GooglePay QR to Pay",
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier
+                                    .size(240.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp))
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // UPI ID display with copy action
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .background(Color(0xFFF1F5F9), RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = "UPI ID: aamirshaikh78601-3@oksbi",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF334155)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                IconButton(
+                                    onClick = {
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        val clip = ClipData.newPlainText("UPI ID", "aamirshaikh78601-3@oksbi")
+                                        clipboard.setPrimaryClip(clip)
+                                        Toast.makeText(context, "UPI ID copied to clipboard", Toast.LENGTH_SHORT).show()
+                                    },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = "Copy UPI ID",
+                                        tint = Color(0xFF0284C7),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Clear instructions
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0xFFFEF3C7).copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                                    .padding(10.dp)
+                            ) {
+                                Text(
+                                    text = "• Scan this QR code using any UPI app (Google Pay, PhonePe, Paytm, etc.).",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF78350F)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "• Pay the exact amount shown above.",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF78350F)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "• Tap \"I've Completed Payment\" below after paying.",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF78350F)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "• Payment will be verified by the admin before the order is confirmed.",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFFB45309)
+                                )
+                            }
+                        }
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -522,8 +673,9 @@ fun PaymentMethodScreen(
                         )
                     }
                 } else {
+                    val isActionEnabled = !orderState.isLoading && !(selectedMethod == PaymentMethod.UPI_QR && upiPaymentSubmitted)
                     Button(
-                        enabled = !orderState.isLoading,
+                        enabled = isActionEnabled,
                         onClick = {
                             when (selectedMethod) {
                                 PaymentMethod.COD -> {
@@ -542,6 +694,9 @@ fun PaymentMethodScreen(
                                         )
                                     }
                                 }
+                                PaymentMethod.UPI_QR -> {
+                                    viewModel.submitUpiQrPayment(parsedPrice)
+                                }
                                 PaymentMethod.SUPERCOINS -> {
                                     viewModel.placeSuperCoinsOnlyOrder(parsedPrice)
                                 }
@@ -554,8 +709,10 @@ fun PaymentMethodScreen(
                                 PaymentMethod.COD -> Color(0xFF16A34A)
                                 PaymentMethod.WALLET -> Color(0xFF0D9488)
                                 PaymentMethod.ONLINE -> Color(0xFF0284C7)
+                                PaymentMethod.UPI_QR -> Color(0xFF4F46E5)
                                 PaymentMethod.SUPERCOINS -> Color(0xFFD97706)
-                            }
+                            },
+                            disabledContainerColor = if (selectedMethod == PaymentMethod.UPI_QR && upiPaymentSubmitted) Color(0xFF10B981) else Color(0xFF94A3B8)
                         )
                     ) {
                         if (orderState.isLoading) {
@@ -566,7 +723,9 @@ fun PaymentMethodScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = if (selectedMethod == PaymentMethod.ONLINE || selectedMethod == PaymentMethod.WALLET) "Connecting..." else "Placing...",
+                                text = if (selectedMethod == PaymentMethod.UPI_QR) "Submitting Verification..."
+                                    else if (selectedMethod == PaymentMethod.ONLINE || selectedMethod == PaymentMethod.WALLET) "Connecting..."
+                                    else "Placing...",
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
                                 fontSize = 14.sp
@@ -576,6 +735,7 @@ fun PaymentMethodScreen(
                                 PaymentMethod.COD -> "Place COD Order"
                                 PaymentMethod.WALLET -> if (walletBalance >= effectivePayable) "Pay with Wallet  ➔" else "Pay with Wallet + Razorpay  ➔"
                                 PaymentMethod.ONLINE -> "Pay Online  ➔"
+                                PaymentMethod.UPI_QR -> if (upiPaymentSubmitted) "Verification Submitted" else "I've Completed Payment"
                                 PaymentMethod.SUPERCOINS -> "Confirm with Coins"
                             }
                             Text(

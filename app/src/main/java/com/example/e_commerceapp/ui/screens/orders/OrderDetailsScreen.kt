@@ -1,5 +1,6 @@
 package com.example.e_commerceapp.ui.screens.orders
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -372,7 +373,8 @@ fun OrderDetailsScreen(
                             }
                             val (badgeBg, badgeFg) = when {
                                 displayStatus in listOf("DELIVERED", "RETURNED") -> Color(0xFFDCFCE7) to Color(0xFF15803D)
-                                displayStatus in listOf("CANCELLED", "RETURN_REJECTED") -> Color(0xFFFEE2E2) to Color(0xFFB91C1C)
+                                displayStatus in listOf("CANCELLED", "RETURN_REJECTED", "PAYMENT_REJECTED") -> Color(0xFFFEE2E2) to Color(0xFFB91C1C)
+                                displayStatus == "PAYMENT_VERIFICATION_PENDING" -> Color(0xFFFEF3C7) to Color(0xFFB45309)
                                 isReturnLifecycle -> Color(0xFFE0F2FE) to Color(0xFF0369A1)
                                 isCancellationLifecycle -> Color(0xFFFEF3C7) to Color(0xFFB45309)
                                 else -> Color(0xFFEDE9FE) to Color(0xFF6D28D9)
@@ -848,10 +850,99 @@ fun OrderDetailsScreen(
                         PriceRow(
                             "Payment Status",
                             ord.paymentStatus.replace("_", " "),
-                            if (ord.paymentStatus in listOf("PAID", "COMPLETED", "REFUNDED")) Color(0xFF16A34A) else Color(0xFFD97706)
+                            when (ord.paymentStatus) {
+                                "PAID", "COMPLETED", "REFUNDED" -> Color(0xFF16A34A)
+                                "PAYMENT_REJECTED", "FAILED" -> Color(0xFFDC2626)
+                                else -> Color(0xFFD97706)
+                            }
                         )
                         if (ord.paymentReference.isNotBlank()) {
                             PriceRow("Transaction Reference", ord.paymentReference)
+                        }
+
+                        if (ord.paymentMethod.equals("UPI_QR", ignoreCase = true)) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            when (ord.paymentStatus) {
+                                "VERIFICATION_PENDING" -> {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0xFFFEF3C7),
+                                        border = BorderStroke(1.dp, Color(0xFFF59E0B)),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(modifier = Modifier.padding(10.dp)) {
+                                            Text(
+                                                text = "UPI Payment Verification Pending",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.sp,
+                                                color = Color(0xFF92400E)
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = "Your payment has been submitted and is waiting for admin verification.",
+                                                fontSize = 11.sp,
+                                                color = Color(0xFF78350F)
+                                            )
+                                            if (ord.customerPaymentSubmittedAt > 0) {
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                val submittedDateStr = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.ENGLISH).format(Date(ord.customerPaymentSubmittedAt))
+                                                Text(
+                                                    text = "Submitted: $submittedDateStr",
+                                                    fontSize = 10.sp,
+                                                    color = Color(0xFFB45309)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                "PAID", "COMPLETED" -> {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0xFFDCFCE7),
+                                        border = BorderStroke(1.dp, Color(0xFF22C55E)),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(modifier = Modifier.padding(10.dp)) {
+                                            Text(
+                                                text = "Payment Confirmed",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.sp,
+                                                color = Color(0xFF166534)
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = "Your UPI payment was verified and confirmed by store admin.",
+                                                fontSize = 11.sp,
+                                                color = Color(0xFF14532D)
+                                            )
+                                        }
+                                    }
+                                }
+                                "PAYMENT_REJECTED" -> {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0xFFFEE2E2),
+                                        border = BorderStroke(1.dp, Color(0xFFEF4444)),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(modifier = Modifier.padding(10.dp)) {
+                                            Text(
+                                                text = "Payment Rejected",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.sp,
+                                                color = Color(0xFF991B1B)
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            val rReason = ord.paymentRejectionReason.ifBlank { ord.rejectionReason }
+                                            Text(
+                                                text = if (rReason.isNotBlank()) "Reason: $rReason" else "Your UPI payment could not be verified by the admin.",
+                                                fontSize = 11.sp,
+                                                color = Color(0xFF7F1D1D)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

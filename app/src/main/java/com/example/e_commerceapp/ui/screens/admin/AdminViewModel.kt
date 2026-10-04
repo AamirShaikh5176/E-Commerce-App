@@ -683,4 +683,89 @@ class AdminViewModel @Inject constructor(
             }
         }
     }
+
+    fun confirmUpiPayment(orderId: String, notes: String = "") {
+        viewModelScope.launch {
+            try {
+                _opStatus.update { AdminOpStatus.Loading }
+                val targetOrder = orders.value.firstOrNull { it.orderId == orderId }
+                    ?: throw IllegalStateException("Order not found")
+                val adminUid = firebaseAuth.currentUser?.uid.orEmpty().ifBlank { "admin" }
+                val now = System.currentTimeMillis()
+
+                val newOrderStatus = if (targetOrder.orderStatus in listOf("PAYMENT_VERIFICATION_PENDING", "PLACED")) {
+                    "CONFIRMED"
+                } else {
+                    targetOrder.orderStatus
+                }
+
+                val updates = mapOf<String, Any>(
+                    "paymentStatus" to "PAID",
+                    "orderStatus" to newOrderStatus,
+                    "paymentVerificationRequired" to false,
+                    "paymentVerifiedBy" to adminUid,
+                    "paymentVerifiedAt" to now,
+                    "updatedAt" to now
+                )
+
+                val audit = createAuditEntry(
+                    action = "UPI PAYMENT CONFIRMED",
+                    previousStatus = targetOrder.paymentStatus,
+                    newStatus = "PAID",
+                    notes = notes.ifBlank { "UPI QR Payment verified and confirmed by admin" }
+                ).toMutableMap().apply {
+                    put("orderId", orderId)
+                }
+
+                firestoreCatalogDataSource.updateOrderAdminAction(orderId, updates, audit)
+
+                if (targetOrder.userId.isNotBlank()) {
+                    superCoinsRepository.awardOrderRewardIfEligible(orderId, targetOrder.userId)
+                }
+
+                _opStatus.update { AdminOpStatus.Success("UPI payment confirmed for Order #${orderId.takeLast(6).uppercase()}") }
+            } catch (e: Exception) {
+                _opStatus.update { AdminOpStatus.Error("Failed to confirm UPI payment: ${e.message}") }
+            }
+        }
+    }
+
+    fun rejectUpiPayment(orderId: String, reason: String = "") {
+        viewModelScope.launch {
+            try {
+                _opStatus.update { AdminOpStatus.Loading }
+                val targetOrder = orders.value.firstOrNull { it.orderId == orderId }
+                    ?: throw IllegalStateException("Order not found")
+                val adminUid = firebaseAuth.currentUser?.uid.orEmpty().ifBlank { "admin" }
+                val now = System.currentTimeMillis()
+
+                val updates = mapOf<String, Any>(
+                    "paymentStatus" to "PAYMENT_REJECTED",
+                    "orderStatus" to "PAYMENT_REJECTED",
+                    "paymentVerificationRequired" to false,
+                    "paymentRejectedBy" to adminUid,
+                    "paymentRejectedAt" to now,
+                    "paymentRejectionReason" to reason,
+                    "rejectionReason" to reason,
+                    "updatedAt" to now
+                )
+
+                val audit = createAuditEntry(
+                    action = "UPI PAYMENT REJECTED",
+                    previousStatus = targetOrder.paymentStatus,
+                    newStatus = "PAYMENT_REJECTED",
+                    notes = reason.ifBlank { "UPI QR Payment rejected by admin" }
+                ).toMutableMap().apply {
+                    put("orderId", orderId)
+                    put("rejectionReason", reason)
+                }
+
+                firestoreCatalogDataSource.updateOrderAdminAction(orderId, updates, audit)
+
+                _opStatus.update { AdminOpStatus.Success("UPI payment rejected for Order #${orderId.takeLast(6).uppercase()}") }
+            } catch (e: Exception) {
+                _opStatus.update { AdminOpStatus.Error("Failed to reject UPI payment: ${e.message}") }
+            }
+        }
+    }
 }
