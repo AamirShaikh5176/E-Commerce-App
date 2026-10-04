@@ -20,6 +20,8 @@ data class FirestoreOrderItemDto(
     val totalPrice: Double = 0.0,
     val productImage: String = "",
     val imageUrl: String = "",
+    val description: String = "",
+    val brand: String = "",
 ) {
     @get:Exclude
     val displayProductName: String
@@ -40,6 +42,14 @@ data class FirestoreOrderItemDto(
     @get:Exclude
     val displayImage: String
         get() = productImage.ifBlank { imageUrl }
+
+    @get:Exclude
+    val displayDescription: String
+        get() = description
+
+    @get:Exclude
+    val displayBrand: String
+        get() = brand
 }
 
 

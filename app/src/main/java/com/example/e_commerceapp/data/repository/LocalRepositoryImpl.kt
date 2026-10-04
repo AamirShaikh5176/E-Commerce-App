@@ -60,6 +60,11 @@ class LocalRepositoryImpl @Inject constructor(
     override suspend fun getAllCartsFromDb(): Flow<List<UserCartEntity>> {
         return currentUserIdFlow.flatMapLatest { userId ->
             if (userId != "guest") {
+                try {
+                    appDao.migrateGuestCart(userId)
+                } catch (e: Exception) {
+                    Log.w("LocalRepo", "Cart migration notice: ${e.message}")
+                }
                 syncCartFromFirestore(userId)
             }
             appDao.getAllCarts(userId)

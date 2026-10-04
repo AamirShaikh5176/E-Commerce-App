@@ -1207,10 +1207,17 @@ private fun AdminOrderItemRow(item: FirestoreOrderItemDto) {
                 overflow = TextOverflow.Ellipsis
             )
 
-            if (category.isNotBlank()) {
+            val categoryAndBrand = buildString {
+                if (category.isNotBlank()) append("Category: $category")
+                if (item.displayBrand.isNotBlank()) {
+                    if (isNotEmpty()) append(" • ")
+                    append("Brand: ${item.displayBrand}")
+                }
+            }
+            if (categoryAndBrand.isNotBlank()) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Category: $category",
+                    text = categoryAndBrand,
                     color = Color(0xFF94A3B8),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium

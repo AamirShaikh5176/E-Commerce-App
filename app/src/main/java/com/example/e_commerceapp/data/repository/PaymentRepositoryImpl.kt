@@ -11,6 +11,8 @@ import com.example.e_commerceapp.data.data_source.remote.api.RazorpayApiService
 import com.example.e_commerceapp.data.dto.payment.CreateRazorpayOrderRequest
 import com.example.e_commerceapp.data.dto.payment.RazorpayOrderResponseDto
 import com.example.e_commerceapp.data.dto.payment.VerifyRazorpaySignatureRequest
+import com.example.e_commerceapp.utils.CheckoutSessionHolder
+import com.example.e_commerceapp.domain.mapper.toFirestoreOrderItemDto
 import javax.inject.Inject
 
 class PaymentRepositoryImpl @Inject constructor(
@@ -27,11 +29,23 @@ class PaymentRepositoryImpl @Inject constructor(
             "OD" + System.currentTimeMillis().toString().takeLast(9)
         }
         val currentUserId = auth.currentUser?.uid.orEmpty()
-        val toSave = order.copy(
+        var toSave = order.copy(
             orderId = orderId,
             userId = if (order.userId.isNotBlank()) order.userId else currentUserId,
             createdAt = if (order.createdAt > 0) order.createdAt else System.currentTimeMillis()
         )
+
+        // Safety verification: Ensure items list is never saved as empty if session items exist
+        if (toSave.items.isEmpty()) {
+            val sessionItems = CheckoutSessionHolder.getEffectiveCheckoutItems()
+            if (sessionItems.isNotEmpty()) {
+                val mapped = sessionItems.map { it.toFirestoreOrderItemDto() }
+                toSave = toSave.copy(
+                    items = mapped,
+                    itemsCount = mapped.sumOf { it.quantity }.coerceAtLeast(1)
+                )
+            }
+        }
 
         firestore.collection("orders")
             .document(orderId)

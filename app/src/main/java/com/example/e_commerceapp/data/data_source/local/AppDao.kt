@@ -40,6 +40,12 @@ interface AppDao {
     @Query("DELETE FROM user_carts")
     suspend fun clearCart()
 
+    @Query("UPDATE user_carts SET user_id = :newUserId WHERE user_id = 'guest'")
+    suspend fun migrateGuestCart(newUserId: String)
+
+    @Query("SELECT * FROM user_carts WHERE user_id = 'guest'")
+    suspend fun getGuestCarts(): List<UserCartEntity>
+
     //------------------ Favorite Products Table -----------------------
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

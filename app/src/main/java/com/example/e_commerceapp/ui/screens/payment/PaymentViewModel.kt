@@ -63,40 +63,94 @@ class PaymentViewModel @Inject constructor(
     private val _selectedMethod = MutableStateFlow(PaymentMethod.COD)
     val selectedMethod: StateFlow<PaymentMethod> = _selectedMethod.asStateFlow()
 
-    private suspend fun buildFirestoreOrderItems(): List<FirestoreOrderItemDto> {
-        val sourceItems: List<UserCartEntity> = if (CheckoutSessionHolder.isBuyNow()) {
-            val single = CheckoutSessionHolder.getBuyNowItem()
-            if (single != null) listOf(single) else {
-                _cartList.value.ifEmpty {
-                    runCatching { cartUseCase.getAllCart().first() }.getOrDefault(emptyList())
+    private suspend fun buildFirestoreOrderItems(totalAmount: Double = 0.0): List<FirestoreOrderItemDto> {
+        val sessionItems = CheckoutSessionHolder.getEffectiveCheckoutItems()
+        val sourceItems: List<UserCartEntity> = if (sessionItems.isNotEmpty()) {
+            sessionItems
+        } else if (_cartList.value.isNotEmpty()) {
+            _cartList.value
+        } else {
+            val fromDb = runCatching { cartUseCase.getAllCart().first() }.getOrDefault(emptyList())
+            if (fromDb.isNotEmpty()) {
+                fromDb
+            } else {
+                val uid = firebaseAuth.currentUser?.uid.orEmpty()
+                if (uid.isNotBlank()) {
+                    try {
+                        val snapshot = firestore.collection("users").document(uid).collection("cart").get().await()
+                        snapshot.documents.mapNotNull { doc ->
+                            val pid = doc.getString("productId") ?: doc.id
+                            UserCartEntity(
+                                userId = uid,
+                                productId = pid,
+                                title = doc.getString("title") ?: "",
+                                description = doc.getString("description") ?: "",
+                                rating = doc.getString("rating") ?: "0.0",
+                                price = doc.getDouble("price") ?: 0.0,
+                                availableQuantity = doc.getLong("availableQuantity")?.toInt() ?: 0,
+                                quantity = doc.getLong("quantity")?.toInt() ?: 1,
+                                image = doc.getString("image") ?: "",
+                                categoryId = doc.getString("categoryId") ?: "",
+                                categoryName = doc.getString("categoryName") ?: ""
+                            )
+                        }
+                    } catch (_: Exception) {
+                        emptyList()
+                    }
+                } else {
+                    emptyList()
                 }
             }
-        } else {
-            _cartList.value.ifEmpty {
-                runCatching { cartUseCase.getAllCart().first() }.getOrDefault(emptyList())
+        }
+
+        if (sourceItems.isEmpty() && totalAmount > 0.0) {
+            val matchingDemo = DemoCatalogData.demoProducts.find { it.price == totalAmount }
+            if (matchingDemo != null) {
+                return listOf(
+                    FirestoreOrderItemDto(
+                        productId = matchingDemo.id,
+                        productName = matchingDemo.title,
+                        title = matchingDemo.title,
+                        categoryId = matchingDemo.categoryId,
+                        categoryName = matchingDemo.categoryName,
+                        category = matchingDemo.categoryName,
+                        quantity = 1,
+                        unitPrice = matchingDemo.price,
+                        price = matchingDemo.price,
+                        totalPrice = matchingDemo.price,
+                        productImage = matchingDemo.imageUrl.ifBlank { matchingDemo.images.firstOrNull().orEmpty() },
+                        imageUrl = matchingDemo.imageUrl.ifBlank { matchingDemo.images.firstOrNull().orEmpty() },
+                        description = matchingDemo.description,
+                        brand = matchingDemo.brand,
+                    )
+                )
             }
         }
 
         return sourceItems.map { cartItem ->
             var catId = cartItem.categoryId
             var catName = cartItem.categoryName
+            var brand = ""
+            var desc = cartItem.description
 
             // 1. Fallback to DemoCatalogData if category details are blank
-            if (catId.isBlank() || catName.isBlank()) {
-                val demo = DemoCatalogData.demoProducts.find { it.id == cartItem.productId }
-                if (demo != null) {
-                    if (catId.isBlank()) catId = demo.categoryId
-                    if (catName.isBlank()) catName = demo.categoryName
-                }
+            val demo = DemoCatalogData.demoProducts.find { it.id == cartItem.productId }
+            if (demo != null) {
+                if (catId.isBlank()) catId = demo.categoryId
+                if (catName.isBlank()) catName = demo.categoryName
+                if (brand.isBlank()) brand = demo.brand
+                if (desc.isBlank()) desc = demo.description
             }
 
             // 2. Fallback to Firestore products collection if still blank
-            if (catId.isBlank() || catName.isBlank()) {
+            if (catId.isBlank() || catName.isBlank() || brand.isBlank() || desc.isBlank()) {
                 try {
                     val doc = firestore.collection("products").document(cartItem.productId).get().await()
                     if (doc.exists()) {
                         if (catId.isBlank()) catId = doc.getString("categoryId").orEmpty()
                         if (catName.isBlank()) catName = doc.getString("categoryName").orEmpty()
+                        if (brand.isBlank()) brand = doc.getString("brand").orEmpty()
+                        if (desc.isBlank()) desc = doc.getString("description").orEmpty()
                     }
                 } catch (_: Exception) {
                 }
@@ -105,7 +159,7 @@ class PaymentViewModel @Inject constructor(
             val finalCatName = catName.ifBlank { catId.ifBlank { "General" } }
             val pName = cartItem.title.ifBlank { "Product #${cartItem.productId}" }
             val pImg = cartItem.image
-            val uPrice = cartItem.price
+            val uPrice = if (cartItem.price > 0.0) cartItem.price else 0.0
             val qty = cartItem.quantity.coerceAtLeast(1)
             val totPrice = uPrice * qty
 
@@ -121,7 +175,9 @@ class PaymentViewModel @Inject constructor(
                 price = uPrice,
                 totalPrice = totPrice,
                 productImage = pImg,
-                imageUrl = pImg
+                imageUrl = pImg,
+                description = desc,
+                brand = brand,
             )
         }
     }
@@ -476,7 +532,7 @@ class PaymentViewModel @Inject constructor(
             superCoinsRepository.redeemSuperCoinsForOrder(userId, orderId, coinsUsed)
         }
 
-        val orderItems = buildFirestoreOrderItems()
+        val orderItems = buildFirestoreOrderItems(totalAmount)
 
         val orderDto = FirestoreOrderDto(
             orderId = orderId,
@@ -729,7 +785,7 @@ class PaymentViewModel @Inject constructor(
                 }
             }
 
-            val orderItems = buildFirestoreOrderItems()
+            val orderItems = buildFirestoreOrderItems(totalAmount)
 
             val orderDto = FirestoreOrderDto(
                 orderId = orderId,
@@ -842,7 +898,7 @@ class PaymentViewModel @Inject constructor(
                 }
             }
 
-            val orderItems = buildFirestoreOrderItems()
+            val orderItems = buildFirestoreOrderItems(totalAmount)
 
             val orderDto = FirestoreOrderDto(
                 orderId = orderId,

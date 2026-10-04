@@ -228,7 +228,6 @@ fun AppNavHost(
         composable(CartScreen.route) {
             CartScreen(
                 onCheckoutClicked = { totalPrice ->
-                    CheckoutSessionHolder.clear()
                     val route = "${AddressSelectionDestination.route}/${totalPrice}"
                     val isAuthed = AuthUtils.isAuthenticated(context)
                     android.util.Log.d(

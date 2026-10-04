@@ -47,3 +47,26 @@ fun SearchProductEntity.toFavoriteProductEntity(): FavoriteProductEntity {
         availableQuantity = quantity
     )
 }
+
+fun UserCartEntity.toFirestoreOrderItemDto(): com.example.e_commerceapp.data.dto.firestore.FirestoreOrderItemDto {
+    val pName = title.ifBlank { "Product #$productId" }
+    val finalCatName = categoryName.ifBlank { categoryId.ifBlank { "General" } }
+    val qty = quantity.coerceAtLeast(1)
+    val totPrice = price * qty
+    return com.example.e_commerceapp.data.dto.firestore.FirestoreOrderItemDto(
+        productId = productId,
+        productName = pName,
+        title = pName,
+        categoryId = categoryId.ifBlank { "general" },
+        categoryName = finalCatName,
+        category = finalCatName,
+        quantity = qty,
+        unitPrice = price,
+        price = price,
+        totalPrice = totPrice,
+        productImage = image,
+        imageUrl = image,
+        description = description,
+        brand = "",
+    )
+}

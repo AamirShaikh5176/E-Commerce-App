@@ -82,6 +82,7 @@ import com.example.e_commerceapp.domain.entity.cart.UserCartEntity
 import com.example.e_commerceapp.ui.screens.common.ErrorMessage
 import com.example.e_commerceapp.ui.screens.common.Loading
 import com.example.e_commerceapp.utils.CurrencyUtils
+import com.example.e_commerceapp.utils.CheckoutSessionHolder
 
 @Composable
 fun CartScreen(
@@ -207,6 +208,7 @@ fun CartScreen(
                         onIncrement = onIncrement,
                         onDecrement = onDecrement,
                         onCheckoutClicked = { price ->
+                            CheckoutSessionHolder.setCartItems(listUserCartEntity)
                             val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
                             if (currentUser == null) {
                                 showGuestPrompt = true
