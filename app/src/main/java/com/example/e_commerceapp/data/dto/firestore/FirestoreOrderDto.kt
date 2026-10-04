@@ -121,6 +121,7 @@ data class FirestoreOrderDto(
     val walletAmountDeducted: Double = 0.0,
     val onlineAmountPaid: Double = 0.0,
     val paymentVerificationRequired: Boolean = false,
+    val paymentVerificationStatus: String = "", // "" | "PENDING" | "VERIFIED" | "REJECTED"
     val customerPaymentSubmittedAt: Long = 0L,
     val paymentVerifiedBy: String = "",
     val paymentVerifiedAt: Long = 0L,

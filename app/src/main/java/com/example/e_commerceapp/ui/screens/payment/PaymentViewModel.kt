@@ -965,6 +965,7 @@ class PaymentViewModel @Inject constructor(
                 courierPartner = "BlueDart Express",
                 superCoinsRedeemed = coinsUsed,
                 paymentVerificationRequired = paymentVerificationRequired,
+                paymentVerificationStatus = if (method == PaymentMethod.UPI_QR) "PENDING" else "",
                 customerPaymentSubmittedAt = customerPaymentSubmittedAt,
                 adminAuditTrail = initialAuditTrail,
             )

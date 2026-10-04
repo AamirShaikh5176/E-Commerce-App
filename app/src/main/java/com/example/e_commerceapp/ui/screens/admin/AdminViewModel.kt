@@ -703,6 +703,7 @@ class AdminViewModel @Inject constructor(
                     "paymentStatus" to "PAID",
                     "orderStatus" to newOrderStatus,
                     "paymentVerificationRequired" to false,
+                    "paymentVerificationStatus" to "VERIFIED",
                     "paymentVerifiedBy" to adminUid,
                     "paymentVerifiedAt" to now,
                     "updatedAt" to now
@@ -743,6 +744,7 @@ class AdminViewModel @Inject constructor(
                     "paymentStatus" to "PAYMENT_REJECTED",
                     "orderStatus" to "PAYMENT_REJECTED",
                     "paymentVerificationRequired" to false,
+                    "paymentVerificationStatus" to "REJECTED",
                     "paymentRejectedBy" to adminUid,
                     "paymentRejectedAt" to now,
                     "paymentRejectionReason" to reason,

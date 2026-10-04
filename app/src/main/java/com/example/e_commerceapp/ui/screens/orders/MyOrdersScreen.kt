@@ -209,13 +209,18 @@ fun CustomerOrderItemCard(
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            // Header Row: Order ID + Order Status Badge
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
+            val (statusBg, statusFg) = when (order.orderStatus) {
+                "DELIVERED", "RETURNED" -> Color(0xFFDCFCE7) to Color(0xFF15803D)
+                "SHIPPED", "OUT_FOR_DELIVERY", "PICKUP_SCHEDULED" -> Color(0xFFE0F2FE) to Color(0xFF0369A1)
+                "CONFIRMED", "PROCESSING", "PICKED_UP", "PRODUCT_RECEIVED" -> Color(0xFFEDE9FE) to Color(0xFF6D28D9)
+                "CANCELLED", "CANCELLATION_REJECTED", "RETURN_REJECTED", "PAYMENT_REJECTED" -> Color(0xFFFEE2E2) to Color(0xFFB91C1C)
+                "PAYMENT_VERIFICATION_PENDING", "CANCELLATION_REQUESTED", "RETURN_REQUESTED", "CANCELLATION_APPROVED", "RETURN_APPROVED", "REFUND_INITIATED", "REFUND_PROCESSING" -> Color(0xFFFEF3C7) to Color(0xFFB45309)
+                else -> Color(0xFFF1F5F9) to Color(0xFF475569)
+            }
+
+            // Header: Responsive layout preventing overlap on mobile
+            if (order.orderStatus == "PAYMENT_VERIFICATION_PENDING") {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = "Order #${order.orderId.takeLast(8).uppercase()}",
                         fontWeight = FontWeight.Bold,
@@ -227,28 +232,52 @@ fun CustomerOrderItemCard(
                         fontSize = 11.sp,
                         color = Color.Gray
                     )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .background(statusBg, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = "PAYMENT VERIFICATION PENDING",
+                            color = statusFg,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
-
-                val (statusBg, statusFg) = when (order.orderStatus) {
-                    "DELIVERED", "RETURNED" -> Color(0xFFDCFCE7) to Color(0xFF15803D)
-                    "SHIPPED", "OUT_FOR_DELIVERY", "PICKUP_SCHEDULED" -> Color(0xFFE0F2FE) to Color(0xFF0369A1)
-                    "CONFIRMED", "PROCESSING", "PICKED_UP", "PRODUCT_RECEIVED" -> Color(0xFFEDE9FE) to Color(0xFF6D28D9)
-                    "CANCELLED", "CANCELLATION_REJECTED", "RETURN_REJECTED", "PAYMENT_REJECTED" -> Color(0xFFFEE2E2) to Color(0xFFB91C1C)
-                    "PAYMENT_VERIFICATION_PENDING", "CANCELLATION_REQUESTED", "RETURN_REQUESTED", "CANCELLATION_APPROVED", "RETURN_APPROVED", "REFUND_INITIATED", "REFUND_PROCESSING" -> Color(0xFFFEF3C7) to Color(0xFFB45309)
-                    else -> Color(0xFFF1F5F9) to Color(0xFF475569)
-                }
-
-                Box(
-                    modifier = Modifier
-                        .background(statusBg, RoundedCornerShape(6.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = order.orderStatus.replace("_", " "),
-                        color = statusFg,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Column(modifier = Modifier.weight(1f, fill = false)) {
+                        Text(
+                            text = "Order #${order.orderId.takeLast(8).uppercase()}",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = dateStr,
+                            fontSize = 11.sp,
+                            color = Color.Gray
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .background(statusBg, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = order.orderStatus.replace("_", " "),
+                            color = statusFg,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
@@ -300,7 +329,7 @@ fun CustomerOrderItemCard(
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    // Payment Badge
+                    // Payment Badge (clean single-line badge)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "Payment: ${order.paymentMethod}",
@@ -322,8 +351,9 @@ fun CustomerOrderItemCard(
                             Text(
                                 text = order.paymentStatus.replace("_", " "),
                                 color = payFg,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
                             )
                         }
                     }

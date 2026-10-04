@@ -752,13 +752,9 @@ fun AdminOrderItemCard(
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            // Header Row: Order ID + Date + Status
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
+            // Header: Responsive layout preventing overlap on mobile
+            if (order.orderStatus == "PAYMENT_VERIFICATION_PENDING") {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = "Order #${order.orderId.takeLast(8).uppercase()}",
                         color = Color.White,
@@ -770,34 +766,67 @@ fun AdminOrderItemCard(
                         color = Color(0xFF64748B),
                         fontSize = 11.sp
                     )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .background(
-                            when (order.orderStatus) {
-                                "DELIVERED", "RETURNED" -> Color(0xFF10B981).copy(alpha = 0.2f)
-                                "SHIPPED", "OUT_FOR_DELIVERY", "PICKUP_SCHEDULED" -> Color(0xFF38BDF8).copy(alpha = 0.2f)
-                                "CANCELLED", "CANCELLATION_REJECTED", "RETURN_REJECTED" -> Color(0xFFEF4444).copy(alpha = 0.2f)
-                                "CONFIRMED", "PROCESSING", "PICKED_UP", "PRODUCT_RECEIVED" -> Color(0xFF6366F1).copy(alpha = 0.2f)
-                                else -> Color(0xFFF59E0B).copy(alpha = 0.2f)
-                            },
-                            RoundedCornerShape(4.dp)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .background(Color(0xFFF59E0B).copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = "PAYMENT VERIFICATION PENDING",
+                            color = Color(0xFFF59E0B),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
                         )
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                    }
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = order.orderStatus.replace("_", " "),
-                        color = when (order.orderStatus) {
-                            "DELIVERED", "RETURNED" -> Color(0xFF10B981)
-                            "SHIPPED", "OUT_FOR_DELIVERY", "PICKUP_SCHEDULED" -> Color(0xFF38BDF8)
-                            "CANCELLED", "CANCELLATION_REJECTED", "RETURN_REJECTED" -> Color(0xFFEF4444)
-                            "CONFIRMED", "PROCESSING", "PICKED_UP", "PRODUCT_RECEIVED" -> Color(0xFF818CF8)
-                            else -> Color(0xFFF59E0B)
-                        },
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Column(modifier = Modifier.weight(1f, fill = false)) {
+                        Text(
+                            text = "Order #${order.orderId.takeLast(8).uppercase()}",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                        Text(
+                            text = dateStr,
+                            color = Color(0xFF64748B),
+                            fontSize = 11.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                when (order.orderStatus) {
+                                    "DELIVERED", "RETURNED" -> Color(0xFF10B981).copy(alpha = 0.2f)
+                                    "SHIPPED", "OUT_FOR_DELIVERY", "PICKUP_SCHEDULED" -> Color(0xFF38BDF8).copy(alpha = 0.2f)
+                                    "CANCELLED", "CANCELLATION_REJECTED", "RETURN_REJECTED", "PAYMENT_REJECTED" -> Color(0xFFEF4444).copy(alpha = 0.2f)
+                                    "CONFIRMED", "PROCESSING", "PICKED_UP", "PRODUCT_RECEIVED" -> Color(0xFF6366F1).copy(alpha = 0.2f)
+                                    else -> Color(0xFFF59E0B).copy(alpha = 0.2f)
+                                },
+                                RoundedCornerShape(4.dp)
+                            )
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = order.orderStatus.replace("_", " "),
+                            color = when (order.orderStatus) {
+                                "DELIVERED", "RETURNED" -> Color(0xFF10B981)
+                                "SHIPPED", "OUT_FOR_DELIVERY", "PICKUP_SCHEDULED" -> Color(0xFF38BDF8)
+                                "CANCELLED", "CANCELLATION_REJECTED", "RETURN_REJECTED", "PAYMENT_REJECTED" -> Color(0xFFEF4444)
+                                "CONFIRMED", "PROCESSING", "PICKED_UP", "PRODUCT_RECEIVED" -> Color(0xFF818CF8)
+                                else -> Color(0xFFF59E0B)
+                            },
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 

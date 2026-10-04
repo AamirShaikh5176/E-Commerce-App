@@ -354,50 +354,81 @@ fun OrderDetailsScreen(
                     elevation = CardDefaults.cardElevation(2.dp)
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        // When cancellation is rejected, do NOT show a duplicate "CANCELLATION REJECTED" badge beside Order ID.
+                        // Show the authoritative active order fulfillment status instead.
+                        val displayStatus = when {
+                            isCancellationRejected -> if (ord.orderStatus == "CANCELLATION_REJECTED") "CONFIRMED" else ord.orderStatus
+                            else -> ord.orderStatus
+                        }
+                        val (badgeBg, badgeFg) = when {
+                            displayStatus in listOf("DELIVERED", "RETURNED") -> Color(0xFFDCFCE7) to Color(0xFF15803D)
+                            displayStatus in listOf("CANCELLED", "RETURN_REJECTED", "PAYMENT_REJECTED") -> Color(0xFFFEE2E2) to Color(0xFFB91C1C)
+                            displayStatus == "PAYMENT_VERIFICATION_PENDING" -> Color(0xFFFEF3C7) to Color(0xFFB45309)
+                            isReturnLifecycle -> Color(0xFFE0F2FE) to Color(0xFF0369A1)
+                            isCancellationLifecycle -> Color(0xFFFEF3C7) to Color(0xFFB45309)
+                            else -> Color(0xFFEDE9FE) to Color(0xFF6D28D9)
+                        }
+
+                        if (displayStatus == "PAYMENT_VERIFICATION_PENDING") {
                             Text(
                                 text = "ORDER #${ord.orderId.uppercase()}",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
-                            // When cancellation is rejected, do NOT show a duplicate "CANCELLATION REJECTED" badge beside Order ID.
-                            // Show the authoritative active order fulfillment status instead.
-                            val displayStatus = when {
-                                isCancellationRejected -> if (ord.orderStatus == "CANCELLATION_REJECTED") "CONFIRMED" else ord.orderStatus
-                                else -> ord.orderStatus
-                            }
-                            val (badgeBg, badgeFg) = when {
-                                displayStatus in listOf("DELIVERED", "RETURNED") -> Color(0xFFDCFCE7) to Color(0xFF15803D)
-                                displayStatus in listOf("CANCELLED", "RETURN_REJECTED", "PAYMENT_REJECTED") -> Color(0xFFFEE2E2) to Color(0xFFB91C1C)
-                                displayStatus == "PAYMENT_VERIFICATION_PENDING" -> Color(0xFFFEF3C7) to Color(0xFFB45309)
-                                isReturnLifecycle -> Color(0xFFE0F2FE) to Color(0xFF0369A1)
-                                isCancellationLifecycle -> Color(0xFFFEF3C7) to Color(0xFFB45309)
-                                else -> Color(0xFFEDE9FE) to Color(0xFF6D28D9)
-                            }
+                            Spacer(modifier = Modifier.height(8.dp))
                             Box(
                                 modifier = Modifier
                                     .background(badgeBg, RoundedCornerShape(6.dp))
                                     .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Text(
-                                    text = displayStatus.replace('_', ' '),
+                                    text = "PAYMENT VERIFICATION PENDING",
                                     color = badgeFg,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Placed on $dateStr",
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                        } else {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "ORDER #${ord.orderId.uppercase()}",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .background(badgeBg, RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = displayStatus.replace('_', ' '),
+                                        color = badgeFg,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Placed on $dateStr",
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Placed on $dateStr",
-                            fontSize = 12.sp,
-                            color = Color.Gray
-                        )
                     }
                 }
 
