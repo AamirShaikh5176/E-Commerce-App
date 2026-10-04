@@ -17,18 +17,8 @@ class SplashViewModel @Inject constructor(
 ) : ViewModel() {
 
     suspend fun decideNextScreen(): String {
-        val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
-        if (user != null) {
-            try {
-                val tokenResult = user.getIdToken(false).await()
-                val isAdmin = tokenResult.claims["admin"] == true
-                if (isAdmin) {
-                    return com.example.e_commerceapp.navigation.AdminDashboardDestination.route
-                }
-            } catch (e: Exception) {
-                // Fallback to customer home
-            }
-        }
+        // Fresh application launches always start at the normal customer/guest Home screen.
+        // Admin sessions are never automatically restored across app restarts.
         return HomeScreen.route
     }
 }

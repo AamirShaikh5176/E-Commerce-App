@@ -750,14 +750,14 @@ private fun CancelledOrderCard(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "• ${item.title} (x${item.quantity})",
+                                text = "• ${item.displayProductName} (x${item.quantity})" + if (item.displayCategory.isNotBlank()) " [${item.displayCategory}]" else "",
                                 color = Color(0xFFCBD5E1),
                                 fontSize = 12.sp,
                                 maxLines = 1,
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
-                                text = CurrencyUtils.formatInr(item.price * item.quantity),
+                                text = CurrencyUtils.formatInr(item.displayTotalPrice),
                                 color = Color(0xFF94A3B8),
                                 fontSize = 12.sp
                             )

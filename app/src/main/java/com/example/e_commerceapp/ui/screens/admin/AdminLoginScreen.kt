@@ -91,6 +91,7 @@ fun AdminLoginScreen(
                         val hasAdminClaim = claims["admin"] == true
 
                         if (hasAdminClaim) {
+                            com.example.e_commerceapp.navigation.AdminSessionManager.onAdminLoginSuccess()
                             isLoading = false
                             onAdminLoginSuccess()
                         } else {

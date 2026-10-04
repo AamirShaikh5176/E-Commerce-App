@@ -1,19 +1,52 @@
 package com.example.e_commerceapp.data.dto.firestore
 
+import com.google.firebase.firestore.Exclude
+import com.google.firebase.firestore.IgnoreExtraProperties
+
 /**
  * Item within an Order in Firestore.
  */
+@IgnoreExtraProperties
 data class FirestoreOrderItemDto(
     val productId: String = "",
+    val productName: String = "",
     val title: String = "",
-    val price: Double = 0.0,
+    val categoryId: String = "",
+    val categoryName: String = "",
+    val category: String = "",
     val quantity: Int = 1,
+    val unitPrice: Double = 0.0,
+    val price: Double = 0.0,
+    val totalPrice: Double = 0.0,
+    val productImage: String = "",
     val imageUrl: String = "",
-)
+) {
+    @get:Exclude
+    val displayProductName: String
+        get() = productName.ifBlank { title.ifBlank { "Product #$productId" } }
+
+    @get:Exclude
+    val displayCategory: String
+        get() = categoryName.ifBlank { category.ifBlank { categoryId.ifBlank { "General" } } }
+
+    @get:Exclude
+    val displayUnitPrice: Double
+        get() = if (unitPrice > 0) unitPrice else price
+
+    @get:Exclude
+    val displayTotalPrice: Double
+        get() = if (totalPrice > 0) totalPrice else (displayUnitPrice * quantity)
+
+    @get:Exclude
+    val displayImage: String
+        get() = productImage.ifBlank { imageUrl }
+}
+
 
 /**
  * Data transfer object representing an Order document in Firestore (/orders/{orderId}).
  */
+@IgnoreExtraProperties
 data class FirestoreOrderDto(
     val orderId: String = "",
     val userId: String = "",

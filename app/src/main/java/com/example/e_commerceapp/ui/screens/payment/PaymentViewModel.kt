@@ -28,6 +28,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import com.example.e_commerceapp.data.demo.DemoCatalogData
+import com.example.e_commerceapp.utils.CheckoutSessionHolder
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
 data class OrderSuccessData(
@@ -58,6 +62,69 @@ class PaymentViewModel @Inject constructor(
 
     private val _selectedMethod = MutableStateFlow(PaymentMethod.COD)
     val selectedMethod: StateFlow<PaymentMethod> = _selectedMethod.asStateFlow()
+
+    private suspend fun buildFirestoreOrderItems(): List<FirestoreOrderItemDto> {
+        val sourceItems: List<UserCartEntity> = if (CheckoutSessionHolder.isBuyNow()) {
+            val single = CheckoutSessionHolder.getBuyNowItem()
+            if (single != null) listOf(single) else {
+                _cartList.value.ifEmpty {
+                    runCatching { cartUseCase.getAllCart().first() }.getOrDefault(emptyList())
+                }
+            }
+        } else {
+            _cartList.value.ifEmpty {
+                runCatching { cartUseCase.getAllCart().first() }.getOrDefault(emptyList())
+            }
+        }
+
+        return sourceItems.map { cartItem ->
+            var catId = cartItem.categoryId
+            var catName = cartItem.categoryName
+
+            // 1. Fallback to DemoCatalogData if category details are blank
+            if (catId.isBlank() || catName.isBlank()) {
+                val demo = DemoCatalogData.demoProducts.find { it.id == cartItem.productId }
+                if (demo != null) {
+                    if (catId.isBlank()) catId = demo.categoryId
+                    if (catName.isBlank()) catName = demo.categoryName
+                }
+            }
+
+            // 2. Fallback to Firestore products collection if still blank
+            if (catId.isBlank() || catName.isBlank()) {
+                try {
+                    val doc = firestore.collection("products").document(cartItem.productId).get().await()
+                    if (doc.exists()) {
+                        if (catId.isBlank()) catId = doc.getString("categoryId").orEmpty()
+                        if (catName.isBlank()) catName = doc.getString("categoryName").orEmpty()
+                    }
+                } catch (_: Exception) {
+                }
+            }
+
+            val finalCatName = catName.ifBlank { catId.ifBlank { "General" } }
+            val pName = cartItem.title.ifBlank { "Product #${cartItem.productId}" }
+            val pImg = cartItem.image
+            val uPrice = cartItem.price
+            val qty = cartItem.quantity.coerceAtLeast(1)
+            val totPrice = uPrice * qty
+
+            FirestoreOrderItemDto(
+                productId = cartItem.productId,
+                productName = pName,
+                title = pName,
+                categoryId = catId.ifBlank { "general" },
+                categoryName = finalCatName,
+                category = finalCatName,
+                quantity = qty,
+                unitPrice = uPrice,
+                price = uPrice,
+                totalPrice = totPrice,
+                productImage = pImg,
+                imageUrl = pImg
+            )
+        }
+    }
 
     private val _orderState = MutableStateFlow(ScreenState<OrderSuccessData>())
     val orderState: StateFlow<ScreenState<OrderSuccessData>> = _orderState.asStateFlow()
@@ -409,15 +476,7 @@ class PaymentViewModel @Inject constructor(
             superCoinsRepository.redeemSuperCoinsForOrder(userId, orderId, coinsUsed)
         }
 
-        val orderItems = _cartList.value.map {
-            FirestoreOrderItemDto(
-                productId = it.productId,
-                title = it.title,
-                price = it.price,
-                quantity = it.quantity,
-                imageUrl = it.image
-            )
-        }
+        val orderItems = buildFirestoreOrderItems()
 
         val orderDto = FirestoreOrderDto(
             orderId = orderId,
@@ -447,6 +506,7 @@ class PaymentViewModel @Inject constructor(
 
         val result = paymentUseCase.placeOrder(orderDto)
         if (result.isSuccess) {
+            CheckoutSessionHolder.clear()
             if (userId.isNotBlank()) {
                 superCoinsRepository.awardOrderRewardIfEligible(orderId, userId)
             }
@@ -669,15 +729,7 @@ class PaymentViewModel @Inject constructor(
                 }
             }
 
-            val orderItems = _cartList.value.map {
-                FirestoreOrderItemDto(
-                    productId = it.productId,
-                    title = it.title,
-                    price = it.price,
-                    quantity = it.quantity,
-                    imageUrl = it.image
-                )
-            }
+            val orderItems = buildFirestoreOrderItems()
 
             val orderDto = FirestoreOrderDto(
                 orderId = orderId,
@@ -707,6 +759,7 @@ class PaymentViewModel @Inject constructor(
 
             val result = paymentUseCase.placeOrder(orderDto)
             if (result.isSuccess) {
+                CheckoutSessionHolder.clear()
                 // Award 10% SuperCoins reward for confirmed order
                 if (userId.isNotBlank()) {
                     superCoinsRepository.awardOrderRewardIfEligible(orderId, userId)
@@ -789,15 +842,7 @@ class PaymentViewModel @Inject constructor(
                 }
             }
 
-            val orderItems = _cartList.value.map {
-                FirestoreOrderItemDto(
-                    productId = it.productId,
-                    title = it.title,
-                    price = it.price,
-                    quantity = it.quantity,
-                    imageUrl = it.image
-                )
-            }
+            val orderItems = buildFirestoreOrderItems()
 
             val orderDto = FirestoreOrderDto(
                 orderId = orderId,
@@ -825,6 +870,7 @@ class PaymentViewModel @Inject constructor(
 
             val result = paymentUseCase.placeOrder(orderDto)
             if (result.isSuccess) {
+                CheckoutSessionHolder.clear()
                 // If order is immediately CONFIRMED / PAID (e.g. 100% SuperCoins or Wallet), award 10% reward
                 if ((orderStatus.equals("CONFIRMED", ignoreCase = true) || paymentStatus.equals("PAID", ignoreCase = true)) && userId.isNotBlank()) {
                     superCoinsRepository.awardOrderRewardIfEligible(orderId, userId)

@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -41,6 +42,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 @Composable
 fun AdminAuthGuard(
     onUnauthorized: () -> Unit,
+    onNavigateToAdminLogin: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     var authState by remember { mutableStateOf<AdminAuthState>(AdminAuthState.Checking) }
@@ -52,13 +54,20 @@ fun AdminAuthGuard(
             return@LaunchedEffect
         }
 
+        if (!AdminSessionManager.isAdminSessionActive) {
+            authState = AdminAuthState.Denied("Admin session expired. Please log in again to access the Admin Panel.")
+            return@LaunchedEffect
+        }
+
         // Force token refresh to verify current claims
         user.getIdToken(true)
             .addOnSuccessListener { tokenResult ->
                 val claims = tokenResult.claims
                 val hasAdminClaim = claims["admin"] == true
-                if (hasAdminClaim) {
+                if (hasAdminClaim && AdminSessionManager.isAdminSessionActive) {
                     authState = AdminAuthState.Authorized
+                } else if (!AdminSessionManager.isAdminSessionActive) {
+                    authState = AdminAuthState.Denied("Admin session expired. Please log in again to access the Admin Panel.")
                 } else {
                     authState = AdminAuthState.Denied("Access restricted: Administrator privileges required.")
                 }
@@ -137,12 +146,27 @@ fun AdminAuthGuard(
 
                     Spacer(modifier = Modifier.height(28.dp))
 
-                    Button(
-                        onClick = onUnauthorized,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
-                        shape = RoundedCornerShape(10.dp)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "Return to Store", color = Color.White)
+                        Button(
+                            onClick = onUnauthorized,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF334155)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text(text = "Return to Store", color = Color.White)
+                        }
+
+                        if (onNavigateToAdminLogin != null) {
+                            Button(
+                                onClick = onNavigateToAdminLogin,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text(text = "Admin Login", color = Color.White)
+                            }
+                        }
                     }
                 }
             }

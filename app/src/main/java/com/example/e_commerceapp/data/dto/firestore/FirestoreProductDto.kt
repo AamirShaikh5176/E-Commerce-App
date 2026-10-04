@@ -72,6 +72,8 @@ data class FirestoreProductDto(
             mrpPrice = resolvedMrp,
             stockQuantity = stockQuantity,
             brand = brand,
+            categoryId = categoryId,
+            categoryName = categoryName.ifBlank { categoryId },
             deliveryDays = if (deliveryDays > 0) deliveryDays else 2,
             isCodAvailable = isCodAvailable,
             isFavorite = false,

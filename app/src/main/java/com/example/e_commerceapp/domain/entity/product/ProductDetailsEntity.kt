@@ -14,6 +14,8 @@ data class ProductDetailsEntity(
     val mrpPrice: Double = price * 1.35,
     val stockQuantity: Int = availableQuantity,
     val brand: String = "",
+    val categoryId: String = "",
+    val categoryName: String = "",
     val deliveryDays: Int = 2,
     val isCodAvailable: Boolean = true,
     val isFavorite: Boolean = false,

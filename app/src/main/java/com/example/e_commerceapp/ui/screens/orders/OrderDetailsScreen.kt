@@ -984,14 +984,19 @@ private fun OrderStatusTimelineView(
 
 @Composable
 private fun OrderItemRow(item: FirestoreOrderItemDto) {
+    val img = item.displayImage
+    val pName = item.displayProductName
+    val uPrice = item.displayUnitPrice
+    val tPrice = item.displayTotalPrice
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (item.imageUrl.isNotBlank()) {
+        if (img.isNotBlank()) {
             AsyncImage(
-                model = item.imageUrl,
-                contentDescription = item.title,
+                model = img,
+                contentDescription = pName,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .size(50.dp)
@@ -1002,21 +1007,21 @@ private fun OrderItemRow(item: FirestoreOrderItemDto) {
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = item.title,
+                text = pName,
                 fontWeight = FontWeight.Medium,
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1
             )
             Text(
-                text = "Qty: ${item.quantity} • ${CurrencyUtils.formatInr(item.price)} each",
+                text = "Qty: ${item.quantity} • ${CurrencyUtils.formatInr(uPrice)} each",
                 fontSize = 12.sp,
                 color = Color.Gray
             )
         }
 
         Text(
-            text = CurrencyUtils.formatInr(item.price * item.quantity),
+            text = CurrencyUtils.formatInr(tPrice),
             fontWeight = FontWeight.Bold,
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurface

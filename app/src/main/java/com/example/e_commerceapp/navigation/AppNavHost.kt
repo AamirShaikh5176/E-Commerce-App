@@ -45,6 +45,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
 import com.example.e_commerceapp.utils.AuthUtils
+import com.example.e_commerceapp.utils.CheckoutSessionHolder
+import com.example.e_commerceapp.domain.mapper.toUserCartEntity
 import kotlinx.coroutines.tasks.await
 import com.google.firebase.auth.FirebaseAuth
 
@@ -184,12 +186,13 @@ fun AppNavHost(
             ProductDetailScreen(
                 productId = productId,
                 onBuyNowClick = { product ->
+                    CheckoutSessionHolder.setBuyNowItem(product.toUserCartEntity())
                     val effectivePrice = (product.price * product.quantity).toString()
                     val route = "${AddressSelectionDestination.route}/$effectivePrice"
                     val isAuthed = AuthUtils.isAuthenticated(context)
                     android.util.Log.d(
                         "BuyNowAuth",
-                        "AppNavHost onBuyNowClick: isAuthed -> $isAuthed, route -> $route"
+                        "AppNavHost onBuyNowClick: isAuthed -> $isAuthed, route -> $route, item -> ${product.title}"
                     )
                     if (!isAuthed) {
                         pendingCheckoutTotalPrice = effectivePrice
@@ -199,6 +202,7 @@ fun AppNavHost(
                     }
                 },
                 onLoginClick = { product ->
+                    CheckoutSessionHolder.setBuyNowItem(product.toUserCartEntity())
                     val effectivePrice = (product.price * product.quantity).toString()
                     pendingCheckoutTotalPrice = effectivePrice
                     android.util.Log.d(
@@ -208,6 +212,7 @@ fun AppNavHost(
                     navController.navigate(SignInScreen.route)
                 },
                 onCreateAccountClick = { product ->
+                    CheckoutSessionHolder.setBuyNowItem(product.toUserCartEntity())
                     val effectivePrice = (product.price * product.quantity).toString()
                     pendingCheckoutTotalPrice = effectivePrice
                     android.util.Log.d(
@@ -223,6 +228,7 @@ fun AppNavHost(
         composable(CartScreen.route) {
             CartScreen(
                 onCheckoutClicked = { totalPrice ->
+                    CheckoutSessionHolder.clear()
                     val route = "${AddressSelectionDestination.route}/${totalPrice}"
                     val isAuthed = AuthUtils.isAuthenticated(context)
                     android.util.Log.d(
@@ -321,7 +327,11 @@ fun AppNavHost(
                     navController.navigate(HelpSupportDestination.route)
                 },
                 onNavigateToAdmin = {
-                    navController.navigate(AdminDashboardDestination.route)
+                    if (AdminSessionManager.isAdminSessionActive) {
+                        navController.navigate(AdminDashboardDestination.route)
+                    } else {
+                        navController.navigate(AdminLoginDestination.route)
+                    }
                 },
                 onNavigateToAdminLogin = {
                     navController.navigate(AdminLoginDestination.route)
@@ -506,9 +516,17 @@ fun AppNavHost(
 
         // --------------------- Admin Routes (Protected by AdminAuthGuard) ---------------------
         composable(AdminDashboardDestination.route) {
-            AdminAuthGuard(onUnauthorized = { navController.popBackStack() }) {
+            AdminAuthGuard(
+                onUnauthorized = { navController.popBackStack() },
+                onNavigateToAdminLogin = {
+                    navController.navigate(AdminLoginDestination.route) {
+                        popUpTo(AdminDashboardDestination.route) { inclusive = true }
+                    }
+                }
+            ) {
                 AdminDashboardScreen(
                     onLogout = {
+                        AdminSessionManager.onAdminLogout()
                         AuthUtils.logout(context)
                         navController.navigate(AdminLoginDestination.route) {
                             popUpTo(0) { inclusive = true }

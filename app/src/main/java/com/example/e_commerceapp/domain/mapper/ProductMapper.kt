@@ -11,7 +11,7 @@ fun ProductDetailsEntity.toFavoriteProductEntity(): FavoriteProductEntity {
         title = title,
         description = description,
         price = price,
-        image = imageUrl.first(),
+        image = imageUrl.firstOrNull().orEmpty(),
         availableQuantity = availableQuantity,
         discountPercentage = discountPercentage,
         rating = rating.toDouble(),
@@ -25,10 +25,12 @@ fun ProductDetailsEntity.toUserCartEntity(): UserCartEntity {
         title = title,
         description = description,
         price = price,
-        image = imageUrl.first(),
+        image = imageUrl.firstOrNull().orEmpty(),
         availableQuantity = availableQuantity,
-        quantity = quantity,
+        quantity = quantity.coerceAtLeast(1),
         rating = rating,
+        categoryId = categoryId,
+        categoryName = categoryName.ifBlank { categoryId },
     )
 }
 

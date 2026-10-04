@@ -1,10 +1,13 @@
 package com.example.e_commerceapp.ui.screens.admin
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -61,7 +64,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.e_commerceapp.data.dto.firestore.FirestoreOrderDto
+import com.example.e_commerceapp.data.dto.firestore.FirestoreOrderItemDto
 import com.example.e_commerceapp.utils.CurrencyUtils
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
+import coil.compose.AsyncImage
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -807,6 +815,43 @@ fun AdminOrderItemCard(
                 )
             }
 
+            // Ordered Products Section
+            Spacer(modifier = Modifier.height(10.dp))
+            HorizontalDivider(color = Color(0xFF334155), thickness = 0.5.dp)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (order.items.isNotEmpty()) {
+                Text(
+                    text = "ORDERED PRODUCTS (${order.items.size})",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF38BDF8),
+                    letterSpacing = 0.5.sp
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    order.items.forEach { item ->
+                        AdminOrderItemRow(item = item)
+                    }
+                }
+            } else {
+                Text(
+                    text = "ORDERED PRODUCTS (0)",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF64748B),
+                    letterSpacing = 0.5.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Product details not recorded for this legacy order",
+                    color = Color(0xFF64748B),
+                    fontSize = 11.sp,
+                    fontStyle = FontStyle.Italic
+                )
+            }
+
             // Cancellation / Return Lifecycle Banner
             if (isCancelOrReturnActive) {
                 Spacer(modifier = Modifier.height(10.dp))
@@ -892,179 +937,313 @@ fun AdminOrderItemCard(
 
             // Action Buttons Section
             Spacer(modifier = Modifier.height(12.dp))
+            HorizontalDivider(color = Color(0xFF334155), thickness = 0.5.dp)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Primary fulfillment / lifecycle action buttons
+                when (order.orderStatus) {
+                    // 1. Cancellation Flow
+                    "CANCELLATION_REQUESTED" -> {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = onApproveCancellation,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(vertical = 8.dp)
+                            ) {
+                                Text("Approve", color = Color.White, fontSize = 12.sp, maxLines = 1, softWrap = false)
+                            }
+                            Button(
+                                onClick = onRejectCancellation,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(vertical = 8.dp)
+                            ) {
+                                Text("Reject", color = Color.White, fontSize = 12.sp, maxLines = 1, softWrap = false)
+                            }
+                        }
+                    }
+                    "CANCELLATION_APPROVED" -> {
+                        Button(
+                            onClick = onProcessRefund,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(vertical = 8.dp)
+                        ) {
+                            Text("Process Refund", color = Color.White, fontSize = 12.sp, maxLines = 1, softWrap = false)
+                        }
+                    }
+
+                    // 2. Return Flow
+                    "RETURN_REQUESTED" -> {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = onApproveReturn,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(vertical = 8.dp)
+                            ) {
+                                Text("Approve Return", color = Color.White, fontSize = 12.sp, maxLines = 1, softWrap = false)
+                            }
+                            Button(
+                                onClick = onRejectReturn,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(vertical = 8.dp)
+                            ) {
+                                Text("Reject", color = Color.White, fontSize = 12.sp, maxLines = 1, softWrap = false)
+                            }
+                        }
+                    }
+                    "RETURN_APPROVED" -> {
+                        Button(
+                            onClick = onOpenSchedulePickup,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(vertical = 8.dp)
+                        ) {
+                            Text("Schedule Pickup", color = Color.White, fontSize = 12.sp, maxLines = 1, softWrap = false)
+                        }
+                    }
+                    "PICKUP_SCHEDULED" -> {
+                        Button(
+                            onClick = onMarkPickedUp,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(vertical = 8.dp)
+                        ) {
+                            Text("Mark Picked Up", color = Color.White, fontSize = 12.sp, maxLines = 1, softWrap = false)
+                        }
+                    }
+                    "PICKED_UP" -> {
+                        Button(
+                            onClick = onConfirmReceived,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(vertical = 8.dp)
+                        ) {
+                            Text("Confirm Received", color = Color.White, fontSize = 12.sp, maxLines = 1, softWrap = false)
+                        }
+                    }
+                    "PRODUCT_RECEIVED" -> {
+                        Button(
+                            onClick = onProcessRefund,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(vertical = 8.dp)
+                        ) {
+                            Text("Initiate Refund", color = Color.White, fontSize = 12.sp, maxLines = 1, softWrap = false)
+                        }
+                    }
+                    "REFUND_INITIATED", "REFUND_PROCESSING" -> {
+                        Button(
+                            onClick = onProcessRefund,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(vertical = 8.dp)
+                        ) {
+                            Text("Complete Refund", color = Color.White, fontSize = 12.sp, maxLines = 1, softWrap = false)
+                        }
+                    }
+
+                    // 3. Normal Order Fulfillment
+                    "PLACED" -> {
+                        Button(
+                            onClick = onConfirmOrder,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(vertical = 8.dp)
+                        ) {
+                            Text("Confirm Order", color = Color.White, fontSize = 12.sp, maxLines = 1, softWrap = false)
+                        }
+                    }
+                    "CONFIRMED" -> {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = onProcessOrder,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(vertical = 8.dp)
+                            ) {
+                                Text("Process", color = Color.White, fontSize = 12.sp, maxLines = 1, softWrap = false)
+                            }
+                            Button(
+                                onClick = onOpenDispatch,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(vertical = 8.dp)
+                            ) {
+                                Text("Dispatch", color = Color.White, fontSize = 12.sp, maxLines = 1, softWrap = false)
+                            }
+                        }
+                    }
+                    "PROCESSING" -> {
+                        Button(
+                            onClick = onOpenDispatch,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(vertical = 8.dp)
+                        ) {
+                            Text("Dispatch & Track", color = Color.White, fontSize = 12.sp, maxLines = 1, softWrap = false)
+                        }
+                    }
+                    "SHIPPED" -> {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = onOutForDelivery,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(vertical = 8.dp)
+                            ) {
+                                Text("Out for Delivery", color = Color.White, fontSize = 12.sp, maxLines = 1, softWrap = false)
+                            }
+                            OutlinedButton(
+                                onClick = onDeliverOrder,
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f),
+                                border = BorderStroke(1.dp, Color(0xFF10B981)),
+                                contentPadding = PaddingValues(vertical = 8.dp)
+                            ) {
+                                Text("Delivered", color = Color(0xFF10B981), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
+                            }
+                        }
+                    }
+                    "OUT_FOR_DELIVERY" -> {
+                        Button(
+                            onClick = onDeliverOrder,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(vertical = 8.dp)
+                        ) {
+                            Text("Mark as Delivered", color = Color.White, fontSize = 12.sp, maxLines = 1, softWrap = false)
+                        }
+                    }
+                }
+
+                // Audit Trail Secondary Action Button
+                OutlinedButton(
+                    onClick = onViewAuditTrail,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    border = BorderStroke(1.dp, Color(0xFF334155)),
+                    contentPadding = PaddingValues(vertical = 6.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.History, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Audit Trail", color = Color(0xFF38BDF8), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminOrderItemRow(item: FirestoreOrderItemDto) {
+    val productName = item.displayProductName
+    val category = item.displayCategory
+    val unitPrice = item.displayUnitPrice
+    val totalPrice = item.displayTotalPrice
+    val imageUrl = item.displayImage
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF0F172A), RoundedCornerShape(8.dp))
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (imageUrl.isNotBlank()) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = productName,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color(0xFF1E293B))
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = productName,
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            if (category.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Category: $category",
+                    color = Color(0xFF94A3B8),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            Spacer(modifier = Modifier.height(3.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Left: Audit Trail
-                OutlinedButton(
-                    onClick = onViewAuditTrail,
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Icon(imageVector = Icons.Default.History, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Audit Trail", color = Color(0xFF38BDF8), fontSize = 11.sp)
-                }
-
-                // Right: State-specific fulfillment / lifecycle action buttons
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    when (order.orderStatus) {
-                        // 1. Cancellation Flow
-                        "CANCELLATION_REQUESTED" -> {
-                            Button(
-                                onClick = onApproveCancellation,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Approve", color = Color.White, fontSize = 11.sp)
-                            }
-                            Button(
-                                onClick = onRejectCancellation,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Reject", color = Color.White, fontSize = 11.sp)
-                            }
-                        }
-                        "CANCELLATION_APPROVED" -> {
-                            Button(
-                                onClick = onProcessRefund,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Process Refund", color = Color.White, fontSize = 11.sp)
-                            }
-                        }
-
-                        // 2. Return Flow
-                        "RETURN_REQUESTED" -> {
-                            Button(
-                                onClick = onApproveReturn,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Approve Return", color = Color.White, fontSize = 11.sp)
-                            }
-                            Button(
-                                onClick = onRejectReturn,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Reject", color = Color.White, fontSize = 11.sp)
-                            }
-                        }
-                        "RETURN_APPROVED" -> {
-                            Button(
-                                onClick = onOpenSchedulePickup,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Schedule Pickup", color = Color.White, fontSize = 11.sp)
-                            }
-                        }
-                        "PICKUP_SCHEDULED" -> {
-                            Button(
-                                onClick = onMarkPickedUp,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Mark Picked Up", color = Color.White, fontSize = 11.sp)
-                            }
-                        }
-                        "PICKED_UP" -> {
-                            Button(
-                                onClick = onConfirmReceived,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Confirm Received", color = Color.White, fontSize = 11.sp)
-                            }
-                        }
-                        "PRODUCT_RECEIVED" -> {
-                            Button(
-                                onClick = onProcessRefund,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Initiate Refund", color = Color.White, fontSize = 11.sp)
-                            }
-                        }
-                        "REFUND_INITIATED", "REFUND_PROCESSING" -> {
-                            Button(
-                                onClick = onProcessRefund,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Complete Refund", color = Color.White, fontSize = 11.sp)
-                            }
-                        }
-
-                        // 3. Normal Order Fulfillment
-                        "PLACED" -> {
-                            Button(
-                                onClick = onConfirmOrder,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Confirm Order", color = Color.White, fontSize = 11.sp)
-                            }
-                        }
-                        "CONFIRMED" -> {
-                            Button(
-                                onClick = onProcessOrder,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6366F1)),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Process", color = Color.White, fontSize = 11.sp)
-                            }
-                            Button(
-                                onClick = onOpenDispatch,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Dispatch", color = Color.White, fontSize = 11.sp)
-                            }
-                        }
-                        "PROCESSING" -> {
-                            Button(
-                                onClick = onOpenDispatch,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Dispatch & Track", color = Color.White, fontSize = 11.sp)
-                            }
-                        }
-                        "SHIPPED" -> {
-                            Button(
-                                onClick = onOutForDelivery,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Out for Delivery", color = Color.White, fontSize = 11.sp)
-                            }
-                            OutlinedButton(
-                                onClick = onDeliverOrder,
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Delivered", color = Color(0xFF10B981), fontSize = 11.sp)
-                            }
-                        }
-                        "OUT_FOR_DELIVERY" -> {
-                            Button(
-                                onClick = onDeliverOrder,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Mark as Delivered", color = Color.White, fontSize = 11.sp)
-                            }
-                        }
-                    }
-                }
+                Text(
+                    text = "Quantity: ${item.quantity}",
+                    color = Color(0xFFCBD5E1),
+                    fontSize = 11.sp
+                )
+                Text(
+                    text = "Unit Price: ${CurrencyUtils.formatInr(unitPrice)}",
+                    color = Color(0xFFCBD5E1),
+                    fontSize = 11.sp
+                )
             }
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Text(
+                text = "Total: ${CurrencyUtils.formatInr(totalPrice)}",
+                color = Color(0xFF38BDF8),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

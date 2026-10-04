@@ -175,7 +175,9 @@ class LocalRepositoryImpl @Inject constructor(
                             price = doc.getDouble("price") ?: 0.0,
                             availableQuantity = doc.getLong("availableQuantity")?.toInt() ?: 0,
                             quantity = doc.getLong("quantity")?.toInt() ?: 1,
-                            image = doc.getString("image") ?: ""
+                            image = doc.getString("image") ?: "",
+                            categoryId = doc.getString("categoryId") ?: "",
+                            categoryName = doc.getString("categoryName") ?: ""
                         )
                     }
 
@@ -237,6 +239,8 @@ class LocalRepositoryImpl @Inject constructor(
                         "availableQuantity" to entity.availableQuantity,
                         "quantity" to entity.quantity,
                         "image" to entity.image,
+                        "categoryId" to entity.categoryId,
+                        "categoryName" to entity.categoryName,
                         "updatedAt" to System.currentTimeMillis()
                     )
                     firestore.collection("users")
