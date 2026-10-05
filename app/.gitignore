@@ -77,3 +77,27 @@ Thumbs.db
 *.temp
 *.swp
 *.swo
+
+# Secrets / credentials
+.env
+.env.*
+!.env.example
+
+# Firebase / service credentials
+serviceAccountKey.json
+*-service-account.json
+firebase-adminsdk-*.json
+
+# Android local configuration
+local.properties
+
+# Signing keys
+*.jks
+*.keystore
+*.p12
+
+# Firebase client configuration
+app/google-services.json
+
+# Temporary tunneling tools
+cloudflared.exe
