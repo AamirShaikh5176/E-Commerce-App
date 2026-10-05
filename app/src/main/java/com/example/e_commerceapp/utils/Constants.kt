@@ -12,6 +12,6 @@ object Constants {
     const val USER_TOKEN_EXPIRATION_TIME = "USER_TOKEN_EXPIRATION_TIME"
 
     // Razorpay Client Publishable Key (NO secrets stored in Android APK)
-    const val RAZORPAY_CLIENT_KEY = "rzp_test_TjNWkeRHzVPeh0"
-    const val BACKEND_BASE_URL = "https://correct-ahead-assets-uploaded.trycloudflare.com/"
+    const val RAZORPAY_CLIENT_KEY = "..."
+    const val BACKEND_BASE_URL = "..."
 }
