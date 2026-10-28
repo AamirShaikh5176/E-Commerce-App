@@ -1,3 +1,43 @@
+## 📱 App Screenshots
+
+<table>
+  <tr>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/01_Splash_Screen.jpg" width="100%" alt="Splash Screen"><br><sub>Splash Screen</sub></td>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/02_Home_Screen.jpg" width="100%" alt="Home Screen"><br><sub>Home Screen</sub></td>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/03_Home_Trending_and_Mega_Savings.jpg" width="100%" alt="Home Trending and Mega Savings"><br><sub>Home Trending and Mega Savings</sub></td>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/04_Search_Screen.jpg" width="100%" alt="Search Screen"><br><sub>Search Screen</sub></td>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/05_Product_Details_Top.jpg" width="100%" alt="Product Details Top"><br><sub>Product Details Top</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/06_Product_Details_Offers_and_Specs.jpg" width="100%" alt="Product Details Offers and Specs"><br><sub>Product Details Offers and Specs</sub></td>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/07_Favorites.jpg" width="100%" alt="Favorites"><br><sub>Favorites</sub></td>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/08_Shopping_Cart.jpg" width="100%" alt="Shopping Cart"><br><sub>Shopping Cart</sub></td>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/09_Checkout_Select_Delivery_Address.jpg" width="100%" alt="Checkout Select Delivery Address"><br><sub>Checkout Select Delivery Address</sub></td>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/10_Checkout_Payment_Method.jpg" width="100%" alt="Checkout Payment Method"><br><sub>Checkout Payment Method</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/11_Checkout_UPI_QR_Payment.jpg" width="100%" alt="Checkout UPI QR Payment"><br><sub>Checkout UPI QR Payment</sub></td>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/12_User_Profile.jpg" width="100%" alt="User Profile"><br><sub>User Profile</sub></td>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/13_Edit_Profile.jpg" width="100%" alt="Edit Profile"><br><sub>Edit Profile</sub></td>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/14_Help_and_Support.jpg" width="100%" alt="Help and Support"><br><sub>Help and Support</sub></td>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/15_Settings_Appearance_and_Notifications.jpg" width="100%" alt="Settings Appearance and Notifications"><br><sub>Settings Appearance and Notifications</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/16_Settings_Account_and_Privacy.jpg" width="100%" alt="Settings Account and Privacy"><br><sub>Settings Account and Privacy</sub></td>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/17_Admin_Sign_In.jpg" width="100%" alt="Admin Sign In"><br><sub>Admin Sign In</sub></td>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/18_Admin_Console_Dashboard.jpg" width="100%" alt="Admin Console Dashboard"><br><sub>Admin Console Dashboard</sub></td>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/19_Admin_Management_Portals_and_Recent_Orders.jpg" width="100%" alt="Admin Management Portals and Recent Orders"><br><sub>Admin Management Portals and Recent Orders</sub></td>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/20_Admin_Product_Inventory.jpg" width="100%" alt="Admin Product Inventory"><br><sub>Admin Product Inventory</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/21_Admin_Add_New_Product.jpg" width="100%" alt="Admin Add New Product"><br><sub>Admin Add New Product</sub></td>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/22_Admin_Categories.jpg" width="100%" alt="Admin Categories"><br><sub>Admin Categories</sub></td>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/23_Admin_Orders_and_Fulfillment.jpg" width="100%" alt="Admin Orders and Fulfillment"><br><sub>Admin Orders and Fulfillment</sub></td>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/24_Admin_Cancelled_Orders_and_Returns.jpg" width="100%" alt="Admin Cancelled Orders and Returns"><br><sub>Admin Cancelled Orders and Returns</sub></td>
+    <td align="center" width="20%"><img src="BazaarGo_Screenshots/25_Admin_Registered_Customers.jpg" width="100%" alt="Admin Registered Customers"><br><sub>Admin Registered Customers</sub></td>
+  </tr>
+</table>
+
 # 🛒 BazaarGo — Modern E-Commerce Android App
 
 ---
