@@ -1290,6 +1290,3 @@ Aamir Shaikh
 B.Tech Information Technology
 
 Built as an Android e-commerce project using modern Android development technologies.
-
-```
-```
